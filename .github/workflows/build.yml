@@ -48,25 +48,20 @@ jobs:
           --version=1.0.0 \
           --bootstrap=sdl2 \
           --requirements=python3,kivy,kivymd,pyjnius,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests,plyer,reportlab \
-          --android-api=31 \
+          --android-api=34 \
           --ndk-api=21 \
-          --ndk-version=23b \
           --arch=armeabi-v7a \
           --arch=arm64-v8a \
           --permission=INTERNET \
           --permission=READ_EXTERNAL_STORAGE \
           --permission=WRITE_EXTERNAL_STORAGE \
-          --release \
-          --key-filename=keystore.jks \
-          --key-alias=myalias \
-          --key-store-password=password \
-          --key-alias-password=password \
+          --debug \
           --enable-onbackinvokedcallback
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
+        name: app-debug
         path: planandroid-*.apk
         retention-days: 30
         if-no-files-found: error
