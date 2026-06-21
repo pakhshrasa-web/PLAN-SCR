@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Buildozer
+bin/
+buildozer/
+.idea/
+.vscode/
+
+# Data files (مهم! رمز و داده‌ها رو آپلود نکن)
+*.json
+!settings.json.example
+
+# Logs
+*.log
+*.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Android
+*.apk
+*.aab
+*.keystore
+*.jks
