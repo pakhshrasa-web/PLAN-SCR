@@ -11,23 +11,23 @@ source.exclude_dirs = tests, bin, buildozer, .git, .github
 
 version = 1.0.0
 
-# ====== نسخه پایدار و تست شده برای بیلد اندروید ======
-requirements = python3==3.9.10,kivy==2.1.0,kivymd==1.1.1,pyjnius==1.5.0,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests,plyer,reportlab
+# ====== استفاده از پایتون 3.10 با نسخه‌های سازگار ======
+requirements = python3==3.10.9,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.0,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests,plyer,reportlab
 
 orientation = portrait
 fullscreen = 0
 logcat = True
 
-# ====== تنظیمات اندروید - نسخه پایدار ======
+# ====== تنظیمات اندروید - به‌روز ======
 android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
-android.api = 31
+android.api = 33
 android.minapi = 21
-android.sdk = 31
-android.ndk = 23b
+android.sdk = 33
+android.ndk = 25c
 android.archs = armeabi-v7a, arm64-v8a
 android.accept_sdk_license = True
 android.logcat_filters = *:S python:D
-android.gradle_plugin_version = 7.4.0
+android.gradle_plugin_version = 8.4.0
 
 # ====== غیرفعال کردن دیباگ و فعال کردن ریلیز ======
 android.debug = False
@@ -36,5 +36,5 @@ android.release = True
 android.manifest_extra = <application android:enableOnBackInvokedCallback="true" />
 android.gradle = True
 
-# ====== قفل کردن نسخه p4a برای جلوگیری از خطا ======
-p4a.url = https://github.com/kivy/python-for-android/archive/refs/tags/2022.7.1.tar.gz
+# ====== مهم: استفاده از شاخه master p4a ======
+p4a.branch = master
