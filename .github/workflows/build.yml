@@ -17,7 +17,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.9'
     
     - name: Install system dependencies
       run: |
@@ -33,16 +33,40 @@ jobs:
     - name: Install Python dependencies
       run: |
         pip install --upgrade pip
-        pip install buildozer cython virtualenv
+        pip install cython virtualenv
     
-    - name: Build APK
+    - name: Install python-for-android
       run: |
-        buildozer android release
+        pip install git+https://github.com/kivy/python-for-android.git@master
+    
+    - name: Build APK with p4a
+      run: |
+        p4a apk \
+          --private . \
+          --package=org.pakhshrasa.planandroid \
+          --name="Plan Android" \
+          --version=1.0.0 \
+          --bootstrap=sdl2 \
+          --requirements=python3,kivy,kivymd,pyjnius,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests,plyer,reportlab \
+          --android-api=31 \
+          --ndk-api=21 \
+          --ndk-version=23b \
+          --arch=armeabi-v7a \
+          --arch=arm64-v8a \
+          --permission=INTERNET \
+          --permission=READ_EXTERNAL_STORAGE \
+          --permission=WRITE_EXTERNAL_STORAGE \
+          --release \
+          --key-filename=keystore.jks \
+          --key-alias=myalias \
+          --key-store-password=password \
+          --key-alias-password=password \
+          --enable-onbackinvokedcallback
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: bin/*.apk
+        path: planandroid-*.apk
         retention-days: 30
         if-no-files-found: error
