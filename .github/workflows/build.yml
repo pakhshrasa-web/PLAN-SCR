@@ -35,9 +35,9 @@ jobs:
         pip install --upgrade pip
         pip install cython virtualenv
     
-    - name: Install python-for-android (نسخه پایدار)
+    - name: Install python-for-android (نسخه 2024.1.21)
       run: |
-        pip install python-for-android==2024.1.1
+        pip install python-for-android==2024.1.21
     
     - name: Build APK with p4a
       run: |
