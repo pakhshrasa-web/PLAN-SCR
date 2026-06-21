@@ -35,7 +35,7 @@ jobs:
         pip install --upgrade pip
         pip install cython virtualenv
     
-    - name: Install python-for-android (نسخه 2024.1.21)
+    - name: Install python-for-android
       run: |
         pip install python-for-android==2024.1.21
     
@@ -48,9 +48,8 @@ jobs:
           --version=1.0.0 \
           --bootstrap=sdl2 \
           --requirements=python3,kivy,kivymd,pyjnius,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests,plyer \
-          --android-api=31 \
+          --android-api=34 \
           --ndk-api=21 \
-          --ndk-version=23b \
           --arch=armeabi-v7a \
           --arch=arm64-v8a \
           --permission=INTERNET \
