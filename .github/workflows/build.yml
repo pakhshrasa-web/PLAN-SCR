@@ -39,8 +39,8 @@ jobs:
     
     - name: Build APK
       env:
-        # ====== مهم: اطمینان از اینکه buildozer از پایتون 3.10 استفاده کند ======
-        P4A_PYTHON_VERSION: '3.10.9'
+        # ====== مهم: غیرفعال کردن libthorvg ======
+        P4A_IGNORE_RECIPES: 'libthorvg'
       run: |
         buildozer android release
     
