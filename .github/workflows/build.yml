@@ -3,29 +3,27 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    runs-on: ubuntu-20.04  # تغییر به نسخه پایدارتر
+    timeout-minutes: 60
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.9'  # هماهنگ با python3==3.9.10
     
     - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          git zip unzip openjdk-17-jdk \
+          git zip unzip openjdk-11-jdk \
           autoconf libtool pkg-config zlib1g-dev \
           libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev \
@@ -38,9 +36,6 @@ jobs:
         pip install buildozer cython virtualenv
     
     - name: Build APK
-      env:
-        # ====== مهم: غیرفعال کردن libthorvg ======
-        P4A_IGNORE_RECIPES: 'libthorvg'
       run: |
         buildozer android release
     
@@ -50,5 +45,4 @@ jobs:
         name: app-release
         path: bin/*.apk
         retention-days: 30
-        compression-level: 0
         if-no-files-found: error
