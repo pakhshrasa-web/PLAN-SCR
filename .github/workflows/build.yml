@@ -1,17 +1,15 @@
-name: Build Android APK
+name: Build APK
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
 
     - name: Setup Python
@@ -25,22 +23,22 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq \
+        sudo apt-get update
+        sudo apt-get install -y \
           build-essential git zip unzip \
-          autoconf libtool \
-          pkg-config zlib1g-dev libncurses5-dev \
+          autoconf libtool pkg-config \
+          zlib1g-dev libncurses5-dev \
           libncursesw5-dev libtinfo5 cmake \
-          libffi-dev libssl-dev wget \
-          ccache \
-          libfreetype6-dev libjpeg-dev zlib1g-dev \
-          libltdl-dev
+          libffi-dev libssl-dev \
+          libfreetype6-dev libjpeg-dev \
+          zlib1g-dev libltdl-dev \
+          ccache wget
 
-    - name: Install Python packages
+    - name: Install Buildozer
       run: |
-        pip install -q buildozer cython==0.29.37
+        pip install buildozer cython==0.29.37
 
     - name: Create buildozer.spec
       run: |
@@ -52,9 +50,10 @@ jobs:
 
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
+
         version = 1.0.0
 
-        requirements = python3==3.10.0,kivy==2.3.0,openpyxl==3.1.2,plyer==2.2,arabic-reshaper==3.0.0,python-bidi==0.4.2,Pillow==10.1.0
+        requirements = python3,kivy==2.3.0,openpyxl,plyer,arabic-reshaper,python-bidi,Pillow
 
         orientation = portrait
         fullscreen = 1
@@ -68,7 +67,6 @@ jobs:
         android.enable_androidx = True
         android.allow_backup = True
 
-        android.gradle_dependencies = 
         android.add_src = fonts/
 
         [buildozer]
@@ -76,81 +74,29 @@ jobs:
         warn_on_root = 1
         EOF
 
-    - name: Create initial json files
+        echo "✅ buildozer.spec created"
+
+    - name: Create JSON files
       run: |
         mkdir -p data
         
-        cat > data/definitions.json << 'EOF'
-        {
-          "agents": [],
-          "routes": [],
-          "customers": []
-        }
-        EOF
+        echo '{"agents": [], "routes": [], "customers": []}' > data/definitions.json
+        echo '{"supervision_rate": 0.3, "conversion_rate": 0.25, "avg_invoice_amount": 1000000, "target_amount": 50000000, "target_count": 100, "target_invoice_count": 20, "target_customer_count": 50, "target_new_customer_count": 10, "target_cash_sales": 30000000, "target_credit_sales": 20000000, "work_start_time": "08:00", "first_visit_time": "09:00", "min_daily_hours": 6, "first_customer_of_route": ""}' > data/settings.json
+        echo '{"users": []}' > data/users.json
+        echo '{"codes": []}' > data/codes.json
+        echo '{"hashed_password": ""}' > data/admin_password.json
+        echo '{}' > data/daily_log.json
         
-        cat > data/settings.json << 'EOF'
-        {
-          "supervision_rate": 0.3,
-          "conversion_rate": 0.25,
-          "avg_invoice_amount": 1000000,
-          "target_amount": 50000000,
-          "target_count": 100,
-          "target_invoice_count": 20,
-          "target_customer_count": 50,
-          "target_new_customer_count": 10,
-          "target_cash_sales": 30000000,
-          "target_credit_sales": 20000000,
-          "work_start_time": "08:00",
-          "first_visit_time": "09:00",
-          "min_daily_hours": 6,
-          "first_customer_of_route": ""
-        }
-        EOF
-        
-        cat > data/users.json << 'EOF'
-        {
-          "users": []
-        }
-        EOF
-        
-        cat > data/codes.json << 'EOF'
-        {
-          "codes": []
-        }
-        EOF
-        
-        cat > data/admin_password.json << 'EOF'
-        {
-          "hashed_password": ""
-        }
-        EOF
-        
-        cat > data/daily_log.json << 'EOF'
-        {}
-        EOF
+        echo "✅ JSON files created"
 
-    - name: Build with Buildozer
+    - name: Build APK
       run: |
         echo "y" | buildozer -v android debug
-      env:
-        CC: gcc
-        CXX: g++
-        LD: g++
-
-    - name: Find APK
-      id: find_apk
-      run: |
-        APK_FILE=$(find . -name "*.apk" -type f | grep -v "debug" | head -n 1)
-        if [ -z "$APK_FILE" ]; then
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
-        fi
-        echo "APK_FILE=$APK_FILE" >> $GITHUB_OUTPUT
-        echo "Found APK: $APK_FILE"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
-        path: ${{ steps.find_apk.outputs.APK_FILE }}
-        retention-days: 30
+        name: app-debug
+        path: bin/*.apk
+        retention-days: 7
         if-no-files-found: error
