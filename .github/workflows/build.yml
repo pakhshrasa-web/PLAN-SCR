@@ -1,6 +1,8 @@
 name: Build APK
 
 on:
+  push:
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -74,8 +76,6 @@ jobs:
         warn_on_root = 1
         EOF
 
-        echo "✅ buildozer.spec created"
-
     - name: Create JSON files
       run: |
         mkdir -p data
@@ -86,8 +86,6 @@ jobs:
         echo '{"codes": []}' > data/codes.json
         echo '{"hashed_password": ""}' > data/admin_password.json
         echo '{}' > data/daily_log.json
-        
-        echo "✅ JSON files created"
 
     - name: Build APK
       run: |
