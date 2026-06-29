@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup Python
@@ -23,78 +23,191 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '17'
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq \
           build-essential git zip unzip \
-          autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev \
+          autoconf libtool \
+          pkg-config zlib1g-dev libncurses5-dev \
           libncursesw5-dev libtinfo5 cmake \
-          libffi-dev libssl-dev \
-          libfreetype6-dev libjpeg-dev \
-          zlib1g-dev libltdl-dev \
-          ccache wget
+          libffi-dev libssl-dev wget \
+          ccache \
+          libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install Buildozer
+    - name: Install Python packages
       run: |
-        pip install buildozer cython==0.29.37
+        pip install -q buildozer cython==0.29.37
+
+    - name: Set GCC as default compiler
+      run: |
+        sudo apt-get install -y gcc g++
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        echo "LD=g++" >> $GITHUB_ENV
+        sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
+        sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
+        gcc --version
 
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
-        title = PlanAndroid
+        title = Plan Android
         package.name = planandroid
         package.domain = org.pakhshrasa
 
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
+        version = 0.1
 
-        version = 1.0.0
-
-        requirements = python3,kivy==2.3.0,openpyxl,plyer,arabic-reshaper,python-bidi,Pillow
+        requirements = python3,kivy,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
 
         orientation = portrait
         fullscreen = 1
-
-        android.api = 33
-        android.minapi = 21
-        android.ndk = 25b
-        android.archs = armeabi-v7a, arm64-v8a
-
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
-        android.enable_androidx = True
-        android.allow_backup = True
 
         android.add_src = fonts/
 
         [buildozer]
         log_level = 2
         warn_on_root = 1
+
+        [buildozer:android]
+        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
+        android.api = 33
+        android.minapi = 21
+        android.ndk = 25b
+        android.archs = armeabi-v7a, arm64-v8a
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+        android.enable_androidx = True
+        android.allow_backup = True
+        android.unsafe_ssl = False
+        android.presplash_color = #FFFFFF
+        android.ignore_manifest = False
+        android.enable_on_back_invoked_callback = True
+
+        android.debug = 0
+        android.release = 1
         EOF
 
-    - name: Create JSON files
+    - name: Create initial json files
       run: |
         mkdir -p data
         
-        echo '{"agents": [], "routes": [], "customers": []}' > data/definitions.json
-        echo '{"supervision_rate": 0.3, "conversion_rate": 0.25, "avg_invoice_amount": 1000000, "target_amount": 50000000, "target_count": 100, "target_invoice_count": 20, "target_customer_count": 50, "target_new_customer_count": 10, "target_cash_sales": 30000000, "target_credit_sales": 20000000, "work_start_time": "08:00", "first_visit_time": "09:00", "min_daily_hours": 6, "first_customer_of_route": ""}' > data/settings.json
-        echo '{"users": []}' > data/users.json
-        echo '{"codes": []}' > data/codes.json
-        echo '{"hashed_password": ""}' > data/admin_password.json
-        echo '{}' > data/daily_log.json
+        cat > data/definitions.json << 'EOF'
+        {
+          "agents": [],
+          "routes": [],
+          "customers": []
+        }
+        EOF
+        
+        cat > data/settings.json << 'EOF'
+        {
+          "supervision_rate": 0.3,
+          "conversion_rate": 0.25,
+          "avg_invoice_amount": 1000000,
+          "target_amount": 50000000,
+          "target_count": 100,
+          "target_invoice_count": 20,
+          "target_customer_count": 50,
+          "target_new_customer_count": 10,
+          "target_cash_sales": 30000000,
+          "target_credit_sales": 20000000,
+          "work_start_time": "08:00",
+          "first_visit_time": "09:00",
+          "min_daily_hours": 6,
+          "first_customer_of_route": ""
+        }
+        EOF
+        
+        cat > data/users.json << 'EOF'
+        {
+          "users": []
+        }
+        EOF
+        
+        cat > data/codes.json << 'EOF'
+        {
+          "codes": []
+        }
+        EOF
+        
+        cat > data/admin_password.json << 'EOF'
+        {
+          "hashed_password": ""
+        }
+        EOF
+        
+        cat > data/daily_log.json << 'EOF'
+        {}
+        EOF
 
-    - name: Build APK
+    - name: Copy fonts and data to build directory
       run: |
-        echo "y" | buildozer -v android debug
+        echo "📁 بررسی فایل‌ها قبل از کپی:"
+        ls -la fonts/ || echo "⚠️ پوشه fonts وجود ندارد"
+        ls -la screens/ || echo "⚠️ پوشه screens وجود ندارد"
+        ls -la utils/ || echo "⚠️ پوشه utils وجود ندارد"
+        
+        mkdir -p .buildozer/android/app/fonts
+        mkdir -p .buildozer/android/app/data
+        
+        echo "📁 کپی فونت‌ها..."
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "⚠️ خطا در کپی فونت‌ها"
+        
+        echo "📁 کپی فایل‌های داده..."
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "⚠️ خطا در کپی داده‌ها"
+        
+        echo "📁 بررسی فونت‌های کپی شده:"
+        ls -la .buildozer/android/app/fonts/ || echo "⚠️ پوشه fonts خالی است"
+        
+        echo "📁 بررسی داده‌های کپی شده:"
+        ls -la .buildozer/android/app/data/ || echo "⚠️ پوشه data خالی است"
+
+    - name: Build with Buildozer
+      run: |
+        echo "y" | buildozer -v android release
+      env:
+        CC: gcc
+        CXX: g++
+        LD: g++
+
+    - name: Generate Keystore
+      run: |
+        keytool -genkey -v -keystore keystore.jks \
+          -alias myalias -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass password -keypass password \
+          -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=City, S=State, C=IR"
+
+    - name: Convert AAB to Signed APK
+      run: |
+        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
+        echo "Found AAB: $AAB_FILE"
+        
+        wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+        
+        java -jar bundletool.jar build-apks \
+          --bundle="$AAB_FILE" \
+          --output=app.apks \
+          --mode=universal \
+          --ks=keystore.jks \
+          --ks-pass=pass:password \
+          --ks-key-alias=myalias \
+          --key-pass=pass:password \
+          --overwrite
+        
+        unzip -o app.apks -d apk_output
+        mkdir -p bin
+        cp apk_output/universal.apk bin/app-release.apk
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
+        name: app-release
         path: bin/*.apk
-        retention-days: 7
+        retention-days: 30
         if-no-files-found: error
