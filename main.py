@@ -27,7 +27,8 @@ from screens import (
     UserScreen,
     ReportScreen,
     SettingsLoginScreen,
-    DebugScreen
+    DebugScreen,
+    AgentsScreen
 )
 
 # ========== تنظیم فونت ==========
@@ -160,7 +161,8 @@ class MainApp(App):
             sm.add_widget(ReportScreen(name='report'))
             sm.add_widget(SettingsLoginScreen(name='settings_login'))
             sm.add_widget(DebugScreen(name='debug'))
-            
+            sm.add_widget(AgentsScreen(name='agents'))
+
             Window.bind(on_keyboard=self.on_keyboard)
             
             return sm
