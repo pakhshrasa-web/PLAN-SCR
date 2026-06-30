@@ -1,4 +1,3 @@
-
 # screens/__init__.py
 # ========== پکیج صفحات ==========
 
@@ -10,6 +9,7 @@ from .user_screen import UserScreen
 from .report_screen import ReportScreen
 from .settings_login_screen import SettingsLoginScreen
 from .debug_screen import DebugScreen
+from .agents_screen import AgentsScreen
 
 __all__ = [
     'LoginScreen',
@@ -19,5 +19,6 @@ __all__ = [
     'UserScreen',
     'ReportScreen',
     'SettingsLoginScreen',
-    'DebugScreen'
+    'DebugScreen',
+    'AgentsScreen'
 ]
