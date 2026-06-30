@@ -2,6 +2,7 @@
 # ========== صفحه تنظیمات مدیریت ==========
 
 import traceback
+import os
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -14,6 +15,7 @@ from kivy.graphics import Color, Rectangle
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel
 from utils.user_manager import get_users, delete_user_by_id, get_codes, create_code
 from utils.auth import get_admin_password, set_admin_password, verify_password
+from utils.file_manager import load_json, save_json, get_daily_logs, get_data_path
 from error_handler import ErrorPopup
 from constants import ROLES
 
@@ -78,6 +80,17 @@ class AdminSettingsScreen(Screen):
             btn_users.bind(on_press=lambda x: self.switch_tab(0))
             tabs_layout.add_widget(btn_users)
             
+            # ✅ تب خام سازی
+            btn_clean = PersianButton(
+                text='🧹 خام سازی',
+                background_color=(0.8, 0.2, 0.2, 0.8),
+                size_hint_y=None,
+                height=dp(34),
+                color=(1, 1, 1, 1)
+            )
+            btn_clean.bind(on_press=lambda x: self.switch_tab(4))
+            tabs_layout.add_widget(btn_clean)
+            
             layout.add_widget(tabs_layout)
             
             # ========== محتوای تب‌ها ==========
@@ -114,9 +127,209 @@ class AdminSettingsScreen(Screen):
                 self.show_general_settings_tab()
             elif tab_id == 3:
                 self.show_change_password_tab()
+            elif tab_id == 4:
+                self.show_clean_tab()
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در تغییر تب: {e}", error_details)
+    
+    # ========== تب خام سازی ==========
+    
+    def show_clean_tab(self):
+        """نمایش تب خام سازی داده‌ها"""
+        try:
+            layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(15))
+            
+            layout.add_widget(RTLLabel(
+                text='🧹 خام سازی داده‌های کاربران',
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(20),
+                bold=True,
+                color=(0.8, 0.2, 0.2, 1)
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='⚠️ توجه: این عملیات تمام داده‌های ثبت شده توسط کاربران عادی را حذف می‌کند.\nداده‌های مدیریتی (کاربران، تنظیمات، مسیرها، مشتریان و کدها) حفظ می‌شوند.',
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(14),
+                color=(1, 0.8, 0.2, 1)
+            ))
+            
+            # نمایش آمار داده‌ها
+            stats_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(100), spacing=dp(5))
+            
+            daily_logs = get_daily_logs()
+            total_visits = 0
+            for date, logs in daily_logs.items():
+                if isinstance(logs, list):
+                    total_visits += len(logs)
+            
+            stats_box.add_widget(RTLLabel(
+                text=f'📊 تعداد روزهای دارای داده: {len(daily_logs)}',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            stats_box.add_widget(RTLLabel(
+                text=f'📊 تعداد کل ویزیت‌ها: {total_visits}',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            
+            # بررسی فایل خلاصه
+            summary_path = os.path.join(get_data_path(), 'daily_summary.json')
+            if os.path.exists(summary_path):
+                stats_box.add_widget(RTLLabel(
+                    text='📊 فایل خلاصه روزانه: موجود',
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(16),
+                    color=(0.2, 0.7, 0.2, 1)
+                ))
+            else:
+                stats_box.add_widget(RTLLabel(
+                    text='📊 فایل خلاصه روزانه: وجود ندارد',
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(16),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+            
+            layout.add_widget(stats_box)
+            
+            # دکمه خام سازی
+            clean_btn = PersianButton(
+                text='🗑️ حذف همه داده‌های کاربران',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+            clean_btn.bind(on_press=self.show_clean_confirm)
+            layout.add_widget(clean_btn)
+            
+            self.content_area.add_widget(layout)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش تب خام سازی: {e}", error_details)
+    
+    def show_clean_confirm(self, instance):
+        """نمایش دیالوگ تأیید خام سازی"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.15, 0.15, 0.15, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                           size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text='⚠️ هشدار: این عملیات غیرقابل بازگشت است!\nآیا از حذف تمام داده‌های کاربران اطمینان دارید؟',
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(18),
+                color=(0.8, 0.2, 0.2, 1)
+            ))
+            
+            # فیلد تأیید
+            content.add_widget(RTLLabel(
+                text='برای تأیید، عبارت "حذف" را وارد کنید:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            
+            confirm_input = RTLTextInput(
+                hint_text='عبارت تأیید',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(36)
+            )
+            confirm_input.foreground_color = (1, 1, 1, 1)
+            confirm_input.background_color = (0.2, 0.2, 0.2, 1)
+            confirm_input.hint_text_color = (0.5, 0.5, 0.5, 1)
+            content.add_widget(confirm_input)
+            
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+            
+            clean_btn = PersianButton(
+                text='🗑️ حذف همه',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1)
+            )
+            cancel_btn = PersianButton(
+                text='❌ انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1)
+            )
+            
+            btn_layout.add_widget(clean_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = Popup(
+                title='🧹 تأیید خام سازی',
+                content=content,
+                size_hint=(0.85, 0.55),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            popup.title_color = (1, 1, 1, 1)
+            
+            def do_clean(instance):
+                if confirm_input.text.strip() != 'حذف':
+                    self.show_message('خطا', 'عبارت تأیید اشتباه است')
+                    return
+                popup.dismiss()
+                self._perform_clean()
+            
+            def on_cancel(instance):
+                popup.dismiss()
+            
+            clean_btn.bind(on_press=do_clean)
+            cancel_btn.bind(on_press=on_cancel)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
+    
+    def _perform_clean(self):
+        """اجرای واقعی خام سازی"""
+        try:
+            data_path = get_data_path()
+            
+            # فایل‌هایی که باید پاک بشن (داده‌های کاربران)
+            files_to_clean = ['daily_log.json', 'daily_summary.json']
+            
+            for filename in files_to_clean:
+                filepath = os.path.join(data_path, filename)
+                if os.path.exists(filepath):
+                    if filename == 'daily_log.json':
+                        save_json(filename, {})
+                    elif filename == 'daily_summary.json':
+                        save_json(filename, {})
+                    print(f"✅ {filename} خام سازی شد")
+            
+            self.show_message('✅ موفق', 'تمامی داده‌های کاربران با موفقیت حذف شدند')
+            self.switch_tab(4)  # رفرش تب
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در خام سازی: {e}", error_details)
     
     def show_change_password_tab(self):
         try:
