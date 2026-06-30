@@ -14,9 +14,19 @@ from kivy.uix.scrollview import ScrollView
 class ErrorPopup:
     """نمایش خطا به صورت پنجره بازشو با قابلیت کپی متن"""
     
+    _current_popup = None  # برای مدیریت پاپ‌آپ‌های همزمان
+    
     @staticmethod
     def show_error(error_message, error_details=""):
         try:
+            # ✅ بستن پاپ‌آپ قبلی اگر باز باشه
+            if ErrorPopup._current_popup:
+                try:
+                    ErrorPopup._current_popup.dismiss()
+                except:
+                    pass
+                ErrorPopup._current_popup = None
+            
             from utils.rtl_widgets import RTLLabel, PersianButton
             
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
@@ -68,10 +78,15 @@ class ErrorPopup:
             btn_layout.add_widget(close_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(title='⚠️ گزارش خطا', 
-                          content=content, 
-                          size_hint=(0.92, 0.75),
-                          auto_dismiss=False)
+            popup = Popup(
+                title='⚠️ گزارش خطا', 
+                content=content, 
+                size_hint=(0.92, 0.75),
+                auto_dismiss=True  # ✅ با کلیک خارج بسته میشه
+            )
+            
+            # ✅ ذخیره پاپ‌آپ فعلی
+            ErrorPopup._current_popup = popup
             
             def copy_error(instance):
                 full_text = f"خطا: {error_message}\n\nجزئیات:\n{error_details}"
@@ -85,9 +100,13 @@ class ErrorPopup:
             
             def close_popup(instance):
                 popup.dismiss()
+                ErrorPopup._current_popup = None
             
             copy_btn.bind(on_press=copy_error)
             close_btn.bind(on_press=close_popup)
+            
+            # ✅ بستن پاپ‌آپ بعد از 30 ثانیه (امنیت)
+            Clock.schedule_once(lambda dt: ErrorPopup._close_popup_safe(popup), 30)
             
             popup.open()
             
@@ -116,6 +135,16 @@ class ErrorPopup:
                     
         except Exception as e:
             print(f"❌ خطا در نمایش پاپ‌آپ: {e}")
+    
+    @staticmethod
+    def _close_popup_safe(popup):
+        """بستن ایمن پاپ‌آپ بعد از زمان مشخص"""
+        try:
+            if popup and popup._window:
+                popup.dismiss()
+                ErrorPopup._current_popup = None
+        except:
+            pass
 
 
 def global_exception_handler(exc_type, exc_value, exc_tb):
