@@ -623,29 +623,21 @@ class AdminScreen(Screen):
             ))
             
             self.routes_file_picker = FilePicker(
+                on_select=self.import_routes_from_excel_file,
+                file_type='excel',
                 size_hint_y=None,
-                height=dp(100)
+                height=dp(120)
             )
             layout.add_widget(self.routes_file_picker)
-            
-            import_btn = PersianButton(
-                text='ورود به سیستم',
-                background_color=(0.2, 0.7, 0.2, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1)
-            )
-            import_btn.bind(on_press=self.import_routes_from_excel)
-            layout.add_widget(import_btn)
             
             self.routes_content.add_widget(layout)
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش ورود اکسل مسیرها: {e}", error_details)
-    
-    def import_routes_from_excel(self, instance):
+
+    def import_routes_from_excel_file(self, filepath):
+        """وارد کردن مسیرها از فایل اکسل - با دریافت مستقیم مسیر"""
         try:
-            filepath = self.routes_file_picker.get_file()
             if not filepath:
                 self.show_message('خطا', 'لطفاً ابتدا فایل را انتخاب کنید')
                 return
@@ -976,9 +968,8 @@ class AdminScreen(Screen):
                 height=dp(35),
             ))
             
-            # ✅ FilePicker با file_type='excel'
             self.customers_file_picker = FilePicker(
-                on_select=self.import_customers_from_excel,
+                on_select=self.import_customers_from_excel_file,
                 file_type='excel',  # ✅ مشخص کردن نوع فایل
                 size_hint_y=None,
                 height=dp(120)
@@ -989,20 +980,25 @@ class AdminScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش ورود اکسل مشتریان: {e}", error_details)
-    
-    def import_customers_from_excel(self, instance):
+
+    def import_customers_from_excel_file(self, filepath):
+        """وارد کردن مشتریان از فایل اکسل"""
+        print(f"🔍 import_customers_from_excel_file: filepath={filepath}")
         try:
-            filepath = self.customers_file_picker.get_file()
             if not filepath:
                 self.show_message('خطا', 'لطفاً ابتدا فایل را انتخاب کنید')
                 return
             
             success, message = import_customers_from_excel(filepath)
+            print(f"🔍 import result: success={success}, message={message}")
             self.show_message('موفق' if success else 'خطا', message)
             
             if success:
                 self.show_manual_customers()
         except Exception as e:
+            print(f"❌ import error: {e}")
+            import traceback
+            traceback.print_exc()
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ورود مشتریان از اکسل: {e}", error_details)
     

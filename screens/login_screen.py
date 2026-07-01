@@ -387,7 +387,7 @@ class LoginScreen(Screen):
                 Color(0.15, 0.15, 0.15, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                        size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
                 text='📂 لطفاً فایل بکاپ را انتخاب کنید:',
@@ -405,13 +405,14 @@ class LoginScreen(Screen):
                 color=(0.6, 0.6, 0.6, 1)
             ))
             
-            # ✅ استفاده از FilePicker برای انتخاب فایل
-            file_picker = FilePicker(
+            # ✅ استفاده از FilePicker با file_type='backup'
+            self.restore_file_picker = FilePicker(
                 on_select=self._on_backup_file_selected,
+                file_type='backup',  # ✅ مشخص کردن نوع فایل
                 size_hint_y=None,
                 height=dp(120)
             )
-            content.add_widget(file_picker)
+            content.add_widget(self.restore_file_picker)
             
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(55))
             
@@ -443,7 +444,7 @@ class LoginScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در بازیابی: {e}", error_details)
-    
+
     def _on_backup_file_selected(self, file_path):
         """وقتی فایل بکاپ انتخاب شد"""
         try:
