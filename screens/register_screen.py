@@ -1,5 +1,5 @@
 # screens/register_screen.py
-# ========== صفحه ثبت نام با اسکرول و انتخاب خودکار متن ==========
+# ========== صفحه ثبت نام با اسکرول دقیق ==========
 
 import traceback
 from kivy.metrics import dp, sp
@@ -27,8 +27,8 @@ class RegisterScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ حالت pan برای مدیریت بهتر کیبورد
-            Window.softinput_mode = 'pan'
+            # ✅ تغییر به resize برای اسکرول دقیق
+            Window.softinput_mode = 'resize'
             
             # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
@@ -273,8 +273,8 @@ class RegisterScreen(Screen):
             # ✅ وقتی فیلد فوکوس میشه، کل متن رو انتخاب کن
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
             
-            # ✅ اسکرول به فیلد
-            self._scroll_to_field(instance)
+            # ✅ اسکرول به فیلد با تأخیر برای اطمینان از نمایش کیبورد
+            Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
         """انتخاب کل متن فیلد"""
@@ -282,24 +282,42 @@ class RegisterScreen(Screen):
             instance.select_all()
     
     def _scroll_to_field(self, instance):
-        """اسکرول به موقعیت فیلد"""
+        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
         try:
-            # پیدا کردن موقعیت فیلد در ScrollView
+            if not hasattr(self, 'scroll'):
+                return
+            
+            # موقعیت فیلد در پنجره
             field_pos = instance.to_window(0, 0)
-            scroll_pos = self.scroll.to_window(0, 0)
-            
-            # محاسبه فاصله
             field_y = field_pos[1]
-            scroll_y = scroll_pos[1]
             
-            # اگر فیلد پایین‌تر از کیبورده، اسکرول کن
-            if field_y < 100:  # آستانه پایین صفحه
-                # محاسبه مقدار اسکرول
-                content_height = self.scroll.children[0].height if self.scroll.children else 1
-                if content_height > self.scroll.height:
-                    # اسکرول به پایین به اندازه کافی
-                    self.scroll.scroll_y = 0.3
+            # ارتفاع کیبورد (تقریبی)
+            keyboard_height = 250
             
+            # ارتفاع قابل مشاهده صفحه
+            window_height = Window.height
+            
+            # موقعیت هدف: بالای کیبورد با فاصله
+            target_y = window_height - keyboard_height - dp(80)
+            
+            # محتوای ScrollView
+            content_height = self.scroll.children[0].height if self.scroll.children else 1
+            scroll_height = self.scroll.height
+            
+            if content_height > scroll_height:
+                # اگر فیلد پایین‌تر از هدف بود، اسکرول کن
+                if field_y > target_y:
+                    # محاسبه نسبت اسکرول
+                    field_ratio = (content_height - field_y) / content_height
+                    scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
+                    self.scroll.scroll_y = scroll_value
+                elif field_y < dp(50):
+                    # فیلد خیلی بالاست، اسکرول به پایین
+                    self.scroll.scroll_y = 0.9
+                else:
+                    # فیلد در محدوده قابل قبول است
+                    pass
+                    
         except Exception as e:
             print(f"⚠️ خطا در اسکرول به فیلد: {e}")
     
@@ -310,17 +328,17 @@ class RegisterScreen(Screen):
     def _on_keyboard(self, window, key, *args):
         """مدیریت کلیدهای کیبورد"""
         if key == 9:  # Tab
-            # حرکت بین فیلدها
             self._focus_next()
             return True
         elif key == 13:  # Enter
-            # ثبت نام
             self.do_register(None)
             return True
         return False
     
     def _focus_next(self):
         """فوکوس به فیلد بعدی"""
+        if not self.focusable_fields:
+            return
         for i, field in enumerate(self.focusable_fields):
             if field.focus:
                 next_i = (i + 1) % len(self.focusable_fields)
@@ -328,7 +346,7 @@ class RegisterScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ توابع کاربردی (با تغییرات جزئی)
+    # ✅ توابع کاربردی
     # ============================================================
     
     def _fix_password_color(self, field):

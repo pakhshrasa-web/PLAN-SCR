@@ -1,5 +1,5 @@
 # screens/admin_screen.py
-# ========== صفحه مدیریت با اسکرول و انتخاب خودکار متن ==========
+# ========== صفحه مدیریت با اسکرول دقیق ==========
 
 import traceback
 from kivy.metrics import dp, sp
@@ -37,8 +37,8 @@ class AdminScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ حالت pan برای مدیریت بهتر کیبورد
-            Window.softinput_mode = 'pan'
+            # ✅ تغییر به resize برای اسکرول دقیق
+            Window.softinput_mode = 'resize'
             
             # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
@@ -66,7 +66,8 @@ class AdminScreen(Screen):
         """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            self._scroll_to_field(instance)
+            # ✅ اسکرول با تأخیر برای اطمینان از نمایش کیبورد
+            Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
         """انتخاب کل متن فیلد"""
@@ -74,8 +75,9 @@ class AdminScreen(Screen):
             instance.select_all()
     
     def _scroll_to_field(self, instance):
-        """اسکرول به موقعیت فیلد"""
+        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
         try:
+            # پیدا کردن ScrollView
             scroll = None
             for child in self.content_area.children:
                 if isinstance(child, ScrollView):
@@ -85,16 +87,37 @@ class AdminScreen(Screen):
             if not scroll:
                 return
             
+            # موقعیت فیلد در پنجره
             field_pos = instance.to_window(0, 0)
-            scroll_pos = scroll.to_window(0, 0)
-            
             field_y = field_pos[1]
             
-            if field_y < 100:
-                content_height = scroll.children[0].height if scroll.children else 1
-                if content_height > scroll.height:
-                    scroll.scroll_y = 0.3
+            # ارتفاع کیبورد (تقریبی)
+            keyboard_height = 250
             
+            # ارتفاع قابل مشاهده صفحه
+            window_height = Window.height
+            
+            # موقعیت هدف: بالای کیبورد با فاصله
+            target_y = window_height - keyboard_height - dp(80)
+            
+            # محتوای ScrollView
+            content_height = scroll.children[0].height if scroll.children else 1
+            scroll_height = scroll.height
+            
+            if content_height > scroll_height:
+                # اگر فیلد پایین‌تر از هدف بود، اسکرول کن
+                if field_y > target_y:
+                    # محاسبه نسبت اسکرول
+                    field_ratio = (content_height - field_y) / content_height
+                    scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
+                    scroll.scroll_y = scroll_value
+                elif field_y < dp(50):
+                    # فیلد خیلی بالاست، اسکرول به پایین
+                    scroll.scroll_y = 0.9
+                else:
+                    # فیلد در محدوده قابل قبول است
+                    pass
+                    
         except Exception as e:
             print(f"⚠️ خطا در اسکرول به فیلد: {e}")
     
@@ -111,6 +134,8 @@ class AdminScreen(Screen):
     
     def _focus_next(self):
         """فوکوس به فیلد بعدی"""
+        if not self.focusable_fields:
+            return
         for i, field in enumerate(self.focusable_fields):
             if field.focus:
                 next_i = (i + 1) % len(self.focusable_fields)
