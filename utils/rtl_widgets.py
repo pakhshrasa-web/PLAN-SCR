@@ -8,7 +8,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.metrics import dp, sp
-from kivy.graphics import Color, RoundedRectangle
+from kivy.graphics import Color, RoundedRectangle, Rectangle 
 from kivy.clock import Clock
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
@@ -440,13 +440,15 @@ class PersianComboBox(BoxLayout):
 # ============================================================
 
 class RTLLabel(PersianLabel):
-    """RTLLabel - با تبدیل درست رنگ"""
+    """RTLLabel - با تبدیل درست رنگ و پشتیبانی از text_size"""
     def __init__(self, **kwargs):
+        # ✅ برداشتن text_size برای ارسال به PersianLabel
+        self._text_size = kwargs.pop('text_size', None)
+        
         kwargs.pop('bold', None)
         kwargs.pop('markup', None)
         kwargs.pop('halign', None)
         kwargs.pop('valign', None)
-        kwargs.pop('text_size', None)
         kwargs.pop('font_name', None)
         kwargs.pop('size_hint_x', None)
         kwargs.pop('size_hint_y', None)
@@ -461,6 +463,12 @@ class RTLLabel(PersianLabel):
             color = (0, 0, 0, 255)
         
         super().__init__(text=text, font_size=font_size, color=color, **kwargs)
+        
+        # ✅ اگر text_size داده شده، اعمال کن
+        if self._text_size:
+            self.text_size = self._text_size
+            self.halign = 'right'
+            self.valign = 'top'
 
 
 class PersianButton(Button):
@@ -496,4 +504,52 @@ class PersianButton(Button):
         self.label.pos = self.pos
     
     def set_text(self, text):
+        self.label.set_text(text)
+
+# ============================================================
+# ✅ RTLMessageLabel - برای نمایش پیام‌های بزرگ و خوانا
+# ============================================================
+
+class RTLMessageLabel(BoxLayout):
+    """لیبل مخصوص نمایش پیام‌های بزرگ با قابلیت اسکرول"""
+    
+    def __init__(self, **kwargs):
+        self._text = kwargs.pop('text', '')
+        self._font_size = kwargs.pop('font_size', sp(24))
+        self._color = kwargs.pop('color', (1, 1, 1, 1))
+        self._height = kwargs.pop('height', dp(300))
+        
+        super().__init__(**kwargs)
+        
+        self.orientation = 'vertical'
+        self.size_hint_y = None
+        self.height = self._height
+        self.padding = dp(10)
+        
+        # ✅ ScrollView
+        self.scroll = ScrollView(
+            do_scroll_x=False,
+            do_scroll_y=True,
+            size_hint=(1, 1),
+            bar_width=dp(6),
+            scroll_type=['bars', 'content']
+        )
+        
+        # ✅ استفاده از PersianLabel
+        color_rgb = tuple(int(c * 255) if c <= 1 else int(c) for c in self._color)
+        
+        self.label = PersianLabel(
+            text=self._text,
+            font_size=self._font_size,
+            color=color_rgb,
+            size_hint_y=None,
+            height=self._height
+        )
+        
+        self.scroll.add_widget(self.label)
+        self.add_widget(self.scroll)
+    
+    def set_text(self, text):
+        """تغییر متن"""
+        self._text = text
         self.label.set_text(text)
