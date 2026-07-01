@@ -976,21 +976,14 @@ class AdminScreen(Screen):
                 height=dp(35),
             ))
             
+            # ✅ FilePicker با file_type='excel'
             self.customers_file_picker = FilePicker(
+                on_select=self.import_customers_from_excel,
+                file_type='excel',  # ✅ مشخص کردن نوع فایل
                 size_hint_y=None,
-                height=dp(100)
+                height=dp(120)
             )
             layout.add_widget(self.customers_file_picker)
-            
-            import_btn = PersianButton(
-                text='ورود به سیستم',
-                background_color=(0.2, 0.7, 0.2, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1)
-            )
-            import_btn.bind(on_press=self.import_customers_from_excel)
-            layout.add_widget(import_btn)
             
             self.customers_content.add_widget(layout)
         except Exception as e:
