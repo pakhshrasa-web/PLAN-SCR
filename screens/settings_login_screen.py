@@ -69,7 +69,7 @@ class SettingsLoginScreen(Screen):
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(80),
                 font_size=sp(36)
             )
             self.password_input.bg_color = (0.15, 0.15, 0.15, 1)

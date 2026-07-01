@@ -812,7 +812,7 @@ class AdminSettingsScreen(Screen):
                 hint_text='نام و نام خانوادگی',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(80),
                 font_size=sp(36)
             )
             self.code_name_input.bg_color = (0.15, 0.15, 0.15, 1)

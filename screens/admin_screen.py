@@ -1061,7 +1061,7 @@ class AdminScreen(Screen):
                 content.add_widget(RTLLabel(
                     text=label + ':',
                     size_hint_y=None,
-                    height=dp(38),
+                    height=dp(60),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
                 ))
@@ -1072,7 +1072,7 @@ class AdminScreen(Screen):
                         text=str(value),
                         multiline=False,
                         size_hint_y=None,
-                        height=dp(55),
+                        height=dp(60),
                         input_filter='float',
                         font_size=sp(36)
                     )
@@ -1081,7 +1081,7 @@ class AdminScreen(Screen):
                         text=str(value),
                         multiline=False,
                         size_hint_y=None,
-                        height=dp(55),
+                        height=dp(60),
                         input_filter='int',
                         font_size=sp(36)
                     )
@@ -1090,7 +1090,7 @@ class AdminScreen(Screen):
                         text=value,
                         multiline=False,
                         size_hint_y=None,
-                        height=dp(55),
+                        height=dp(60),
                         hint_text='HH:MM',
                         font_size=sp(36)
                     )
@@ -1099,7 +1099,7 @@ class AdminScreen(Screen):
                         text=str(value),
                         multiline=False,
                         size_hint_y=None,
-                        height=dp(55),
+                        height=dp(60),
                         font_size=sp(36)
                     )
                 

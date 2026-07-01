@@ -3,6 +3,7 @@
 
 import traceback
 import os
+import sys
 from datetime import datetime
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
@@ -14,6 +15,18 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.uix.textinput import TextInput
+from kivy.utils import platform  # ✅ اضافه شد
+
+# ✅ ایمپورت‌های اندروید با try/except
+try:
+    from android.storage import primary_external_storage_path
+    from android.permissions import request_permissions, Permission
+    ANDROID_AVAILABLE = True
+except ImportError:
+    ANDROID_AVAILABLE = False
+    primary_external_storage_path = None
+    request_permissions = None
+    Permission = None
 
 from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel
 from utils.user_manager import login
@@ -154,7 +167,7 @@ class LoginScreen(Screen):
                 password=True,
                 size_hint_y=None,
                 height=dp(90),
-                font_size=sp(42)
+                font_size=sp(32)
             )
             self.password.bg_color = (0.15, 0.15, 0.15, 1)
             self.password.border_color = (0.3, 0.3, 0.3, 1)
@@ -171,20 +184,20 @@ class LoginScreen(Screen):
             btn = PersianButton(
                 text='ورود',
                 size_hint_y=None,
-                height=dp(50),
+                height=dp(60),
                 background_color=(0.2, 0.6, 1, 1),
                 color=(1, 1, 1, 1)
             )
             btn.bind(on_press=self.check_login)
             content.add_widget(btn)
             
-            content.add_widget(Label(size_hint_y=None, height=dp(3)))
+            content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
             # ========== دکمه ثبت نام ==========
             register_btn = PersianButton(
                 text='ثبت نام',
                 size_hint_y=None,
-                height=dp(50),
+                height=dp(60),
                 background_color=(0.2, 0.7, 0.2, 1),
                 color=(1, 1, 1, 1),
                 halign='center',
@@ -295,49 +308,79 @@ class LoginScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ توابع بکاپ و بازیابی (بدون تغییر)
+    # ✅ توابع بکاپ و بازیابی (نسخه جدید با پوشه عمومی)
     # ============================================================
     
-    def do_backup(self, instance):
-        """انجام بکاپ از داده‌ها"""
+    def _get_backup_dir(self):
+        """دریافت مسیر پوشه بکاپ در فضای عمومی"""
         try:
+            if platform == 'android' and ANDROID_AVAILABLE and primary_external_storage_path:
+                # در اندروید از پوشه Downloads استفاده میکنیم
+                downloads_path = primary_external_storage_path()
+                if downloads_path:
+                    backup_dir = os.path.join(downloads_path, 'Download', 'PlanAndroid_Backups')
+                else:
+                    # fallback: از پوشه داده اپ استفاده کن
+                    backup_dir = os.path.join(get_data_path(), 'backups')
+            else:
+                # در ویندوز از پوشه Documents
+                documents_path = os.path.join(os.path.expanduser('~'), 'Documents')
+                backup_dir = os.path.join(documents_path, 'PlanAndroid_Backups')
+            
+            return backup_dir
+        except Exception as e:
+            print(f"⚠️ خطا در دریافت مسیر بکاپ: {e}")
+            # fallback: از پوشه داده اپ استفاده کن
+            return os.path.join(get_data_path(), 'backups')
+    
+    def do_backup(self, instance):
+        """انجام بکاپ از داده‌ها در پوشه عمومی"""
+        try:
+            import zipfile
+            
             data_path = get_data_path()
-            backup_dir = os.path.join(data_path, 'backups')
+            
+            # ✅ درخواست دسترسی نوشتن در اندروید
+            if platform == 'android' and ANDROID_AVAILABLE and request_permissions:
+                try:
+                    request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+                except Exception as e:
+                    print(f"⚠️ خطا در درخواست دسترسی: {e}")
+            
+            # ✅ پوشه بکاپ
+            backup_dir = self._get_backup_dir()
             os.makedirs(backup_dir, exist_ok=True)
             
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             backup_file = os.path.join(backup_dir, f'backup_{timestamp}.zip')
             
-            import zipfile
-            
+            # ✅ ایجاد فایل بکاپ
             with zipfile.ZipFile(backup_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for filename in os.listdir(data_path):
                     if filename.endswith('.json'):
                         filepath = os.path.join(data_path, filename)
                         zipf.write(filepath, filename)
             
-            self.show_message('✅ موفق', f'بکاپ با موفقیت ایجاد شد')
+            # ✅ دیالوگ اول: موفقیت
+            self.show_message(
+                '✅ موفق', 
+                'بکاپ با موفقیت ایجاد شد'
+            )
+            
+            # ✅ دیالوگ دوم: مسیر فایل (با تأخیر)
+            Clock.schedule_once(lambda dt: self.show_message(
+                'مسیر', 
+                f'{backup_file}\n\n '
+            ), 2)
             
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ایجاد بکاپ: {e}", error_details)
     
     def do_restore(self, instance):
-        """بازیابی داده‌ها از بکاپ"""
+        """بازیابی داده‌ها از فایل بکاپ با FilePicker"""
         try:
-            data_path = get_data_path()
-            backup_dir = os.path.join(data_path, 'backups')
-            
-            if not os.path.exists(backup_dir):
-                self.show_message('خطا', 'هیچ بکاپی یافت نشد')
-                return
-            
-            backup_files = [f for f in os.listdir(backup_dir) if f.endswith('.zip')]
-            backup_files.sort(reverse=True)
-            
-            if not backup_files:
-                self.show_message('خطا', 'هیچ فایل بکاپی یافت نشد')
-                return
+            from utils.file_picker import FilePicker
             
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -347,23 +390,99 @@ class LoginScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text='انتخاب فایل بکاپ برای بازیابی:',
+                text='📂 لطفاً فایل بکاپ را انتخاب کنید:',
                 size_hint_y=None,
                 height=dp(40),
                 font_size=sp(18),
                 color=(1, 1, 1, 1)
             ))
             
-            from utils.rtl_widgets import PersianComboBox
-            backup_spinner = PersianComboBox(
-                text=backup_files[0],
-                values=backup_files,
-                height=dp(55)
+            content.add_widget(RTLLabel(
+                text='فایل‌های بکاپ معمولاً با فرمت .zip هستند',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(14),
+                color=(0.6, 0.6, 0.6, 1)
+            ))
+            
+            # ✅ استفاده از FilePicker برای انتخاب فایل
+            file_picker = FilePicker(
+                on_select=self._on_backup_file_selected,
+                size_hint_y=None,
+                height=dp(120)
             )
-            backup_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            backup_spinner.main_btn.color = (1, 1, 1, 1)
-            backup_spinner.main_btn.font_size = sp(18)
-            content.add_widget(backup_spinner)
+            content.add_widget(file_picker)
+            
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(55))
+            
+            cancel_btn = PersianButton(
+                text='❌ انصراف',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(1, 1, 1, 1)
+            )
+            cancel_btn.bind(on_press=lambda x: self._dismiss_restore_popup())
+            btn_layout.add_widget(cancel_btn)
+            
+            content.add_widget(btn_layout)
+            
+            # ✅ ذخیره popup برای بستن بعدی
+            self.restore_popup = Popup(
+                title='📂 بازیابی اطلاعات',
+                content=content,
+                size_hint=(0.9, 0.6),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            self.restore_popup.title_color = (1, 1, 1, 1)
+            self.restore_popup.title_size = sp(20)
+            self.restore_popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در بازیابی: {e}", error_details)
+    
+    def _on_backup_file_selected(self, file_path):
+        """وقتی فایل بکاپ انتخاب شد"""
+        try:
+            if not file_path:
+                return
+            
+            # ✅ بررسی پسوند فایل
+            if not file_path.lower().endswith('.zip'):
+                self.show_message('خطا', 'فایل انتخاب شده باید با فرمت .zip باشد')
+                return
+            
+            # ✅ بستن پاپ‌آپ انتخاب فایل
+            if hasattr(self, 'restore_popup') and self.restore_popup:
+                self.restore_popup.dismiss()
+            
+            # ✅ نمایش دیالوگ تأیید بازیابی
+            self._confirm_restore(file_path)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در انتخاب فایل بکاپ: {e}", error_details)
+    
+    def _confirm_restore(self, backup_path):
+        """دیالوگ تأیید بازیابی"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                           size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text=f'⚠️ آیا از بازیابی اطلاعات از فایل زیر مطمئن هستید؟\n\n📄 {os.path.basename(backup_path)}\n\n🔴 تمام داده‌های فعلی با داده‌های بکاپ جایگزین خواهند شد.',
+                size_hint_y=None,
+                height=dp(100),
+                font_size=sp(16),
+                color=(1, 0.8, 0.2, 1)
+            ))
             
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(55))
             
@@ -375,6 +494,8 @@ class LoginScreen(Screen):
                 font_size=sp(18),
                 color=(1, 1, 1, 1)
             )
+            restore_btn.bind(on_press=lambda x: self._perform_restore(backup_path))
+            
             cancel_btn = PersianButton(
                 text='❌ انصراف',
                 background_color=(0.8, 0.2, 0.2, 1),
@@ -383,50 +504,51 @@ class LoginScreen(Screen):
                 font_size=sp(18),
                 color=(1, 1, 1, 1)
             )
+            cancel_btn.bind(on_press=lambda x: self._dismiss_confirm_popup())
             
             btn_layout.add_widget(restore_btn)
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
-                title='📂 بازیابی اطلاعات',
+            self.confirm_popup = Popup(
+                title='⚠️ تأیید بازیابی',
                 content=content,
-                size_hint=(0.85, 0.55),
+                size_hint=(0.85, 0.45),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(20)
-            
-            def do_restore_action(instance):
-                selected = backup_spinner.text
-                if not selected:
-                    self.show_message('خطا', 'لطفاً یک فایل انتخاب کنید')
-                    return
-                
-                popup.dismiss()
-                self._perform_restore(selected)
-            
-            def on_cancel(instance):
-                popup.dismiss()
-            
-            restore_btn.bind(on_press=do_restore_action)
-            cancel_btn.bind(on_press=on_cancel)
-            popup.open()
+            self.confirm_popup.title_color = (1, 1, 1, 1)
+            self.confirm_popup.title_size = sp(20)
+            self.confirm_popup.open()
             
         except Exception as e:
             error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در بازیابی: {e}", error_details)
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
     
-    def _perform_restore(self, backup_filename):
+    def _dismiss_restore_popup(self):
+        """بستن پاپ‌آپ انتخاب فایل"""
+        if hasattr(self, 'restore_popup') and self.restore_popup:
+            self.restore_popup.dismiss()
+    
+    def _dismiss_confirm_popup(self):
+        """بستن پاپ‌آپ تأیید"""
+        if hasattr(self, 'confirm_popup') and self.confirm_popup:
+            self.confirm_popup.dismiss()
+    
+    def _perform_restore(self, backup_path):
         """اجرای واقعی بازیابی"""
         try:
             import zipfile
-            data_path = get_data_path()
-            backup_path = os.path.join(data_path, 'backups', backup_filename)
+            from utils.storage import get_data_path
             
+            data_path = get_data_path()
+            
+            # ✅ بستن پاپ‌آپ تأیید
+            self._dismiss_confirm_popup()
+            
+            # ✅ ایجاد بکاپ از داده‌های فعلی قبل از بازیابی
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            pre_restore_backup = os.path.join(data_path, 'backups', f'pre_restore_{timestamp}.zip')
+            pre_restore_backup = os.path.join(data_path, f'pre_restore_{timestamp}.zip')
             
             with zipfile.ZipFile(pre_restore_backup, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for filename in os.listdir(data_path):
@@ -434,14 +556,27 @@ class LoginScreen(Screen):
                         filepath = os.path.join(data_path, filename)
                         zipf.write(filepath, filename)
             
+            # ✅ استخراج فایل بکاپ
             with zipfile.ZipFile(backup_path, 'r') as zipf:
                 zipf.extractall(data_path)
             
-            self.show_message('✅ موفق', 'داده‌ها با موفقیت بازیابی شدند')
+            self.show_message('✅ موفق', 'داده‌ها با موفقیت بازیابی شدند\n\nاپلیکیشن مجدداً راه‌اندازی خواهد شد.')
+            
+            # ✅ ری‌استارت برنامه
+            Clock.schedule_once(lambda dt: self._restart_app(), 2)
             
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در اجرای بازیابی: {e}", error_details)
+    
+    def _restart_app(self):
+        """ری‌استارت برنامه"""
+        from kivy.app import App
+        App.get_running_app().stop()
+    
+    # ============================================================
+    # ✅ توابع اصلی
+    # ============================================================
     
     def open_settings(self, instance):
         self.manager.current = 'settings_login'
@@ -463,41 +598,52 @@ class LoginScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ورود: {e}", error_details)
     
+    # ============================================================
+    # ✅ نمایش پیام با فونت بزرگ
+    # ============================================================
+    
     def show_message(self, title, message):
+        """نمایش پیام با PersianLabel"""
         try:
-            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            from utils.rtl_widgets import RTLMessageLabel
+            
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                        size=lambda i, v: setattr(content_rect, 'size', v))
             
-            content.add_widget(RTLLabel(
+            # ✅ پیام با PersianLabel
+            msg_label = RTLMessageLabel(
                 text=message,
-                size_hint_y=None,
-                height=dp(80),
-                font_size=sp(20),
-                color=(1, 1, 1, 1)
-            ))
+                font_size=sp(26),  # ✅ فونت مناسب
+                color=(1, 1, 1, 1),
+                height=dp(300)
+            )
+            content.add_widget(msg_label)
+            
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
-                height=dp(50),
-                font_size=sp(18),
+                height=dp(55),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
+            
             popup = Popup(
                 title=title,
                 content=content,
-                size_hint=(0.85, 0.4),
+                size_hint=(0.9, 0.7),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
             popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(20)
+            popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
+            
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)

@@ -87,7 +87,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.code_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.code_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -108,7 +108,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.username.bg_color = (0.15, 0.15, 0.15, 1)
             self.username.border_color = (0.3, 0.3, 0.3, 1)
@@ -130,7 +130,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.password.bg_color = (0.15, 0.15, 0.15, 1)
             self.password.border_color = (0.3, 0.3, 0.3, 1)
@@ -154,7 +154,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.confirm_password.bg_color = (0.15, 0.15, 0.15, 1)
             self.confirm_password.border_color = (0.3, 0.3, 0.3, 1)
@@ -177,7 +177,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.phone.bg_color = (0.15, 0.15, 0.15, 1)
             self.phone.border_color = (0.3, 0.3, 0.3, 1)
@@ -198,7 +198,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.email.bg_color = (0.15, 0.15, 0.15, 1)
             self.email.border_color = (0.3, 0.3, 0.3, 1)
