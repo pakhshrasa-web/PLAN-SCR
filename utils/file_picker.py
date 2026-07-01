@@ -1,165 +1,173 @@
 """
-ویجت انتخاب فایل - نسخه بهینه برای اندروید و دسکتاپ با پشتیبانی از فارسی
+ویجت انتخاب فایل - نسخه بهینه برای اندروید و دسکتاپ
 """
 
-from kivy.uix.button import Button
-from kivy.uix.label import Label
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.popup import Popup
 from kivy.utils import platform
 from kivy.metrics import dp, sp
 
-# ✅ ایمپورت ویجت‌های فارسی
 from utils.persian_text import PersianLabel
 from utils.rtl_widgets import PersianButton
 
-# تلاش برای ایمپورت plyer در محیط اندروید
 try:
     from plyer import filechooser
     PLYER_AVAILABLE = True
 except ImportError:
     PLYER_AVAILABLE = False
-    print("ℹ️ کتابخانه plyer در دسترس نیست. (در اندروید نصب خواهد شد)")
+    print("ℹ️ plyer در دسترس نیست")
 
 
 class FilePicker(BoxLayout):
-    """ویجت انتخاب فایل - پشتیبانی از فایل‌های بکاپ در اندروید و دسکتاپ"""
+    """ویجت انتخاب فایل - پشتیبانی از اکسل و بکاپ"""
     
-    def __init__(self, on_select=None, **kwargs):
+    def __init__(self, on_select=None, file_type='excel', **kwargs):
+        """
+        file_type: 'excel' یا 'backup'
+        """
         super().__init__(orientation='vertical', spacing=10, **kwargs)
         self.on_select = on_select
         self.selected_file = None
+        self.file_type = file_type
+        
+        # ✅ تنظیمات بر اساس نوع فایل
+        if file_type == 'excel':
+            btn_text = '📁 انتخاب فایل اکسل'
+            file_filter = [('Excel files', '*.xlsx', '*.xls')]
+            extensions = ('.xlsx', '.xls')
+            label_text = '📄 هیچ فایلی انتخاب نشده'
+        else:  # backup
+            btn_text = '📁 Select Backup File'
+            file_filter = [('Zip files', '*.zip'), ('All files', '*')]
+            extensions = ('.zip',)
+            label_text = '📄 No file selected'
         
         # ============================================
-        # ✅ دکمه انتخاب فایل بکاپ - با متن انگلیسی
+        # ✅ دکمه انتخاب فایل
         # ============================================
         self.select_btn = PersianButton(
-            text='📁 Select Backup File',  # ✅ تغییر به انگلیسی
+            text=btn_text,
             size_hint_y=None,
-            height=dp(50),  # ✅ افزایش ارتفاع
-            background_color=(0.2, 0.6, 0.8, 1),  # آبی
-            font_size=sp(20)  # ✅ افزایش فونت
+            height=dp(50),
+            background_color=(0.2, 0.6, 0.8, 1),
+            font_size=sp(20),
+            color=(1, 1, 1, 1)
         )
         self.select_btn.bind(on_press=self.pick_file)
         self.add_widget(self.select_btn)
         
         # ============================================
-        # ✅ نمایش نام فایل با PersianLabel
+        # ✅ نمایش نام فایل
         # ============================================
         self.file_label = PersianLabel(
-            text='📄 No file selected',
-            font_size=sp(16),  # ✅ افزایش
-            color=(150, 150, 150, 255),  # خاکستری
+            text=label_text,
+            font_size=sp(16),
+            color=(150, 150, 150, 255),
             size_hint_y=None,
-            height=dp(40),  # ✅ افزایش
+            height=dp(40),
             halign='center'
         )
         self.add_widget(self.file_label)
+        
+        # ✅ ذخیره تنظیمات
+        self._file_filter = file_filter
+        self._extensions = extensions
     
     def pick_file(self, instance):
         """باز کردن دیالوگ انتخاب فایل"""
-        if platform == 'android':
-            # در اندروید از filechooser استفاده میکنیم
-            if PLYER_AVAILABLE:
-                try:
-                    filechooser.open_file(
-                        on_selection=self.file_selected,
-                        filters=[('Zip files', '*.zip'), ('All files', '*')]  # ✅ فیلتر zip
-                    )
-                except Exception as e:
-                    self.show_error_message(f"Error selecting file: {str(e)}")
-            else:
-                self.show_error_message("plyer library not available on Android")
+        if PLYER_AVAILABLE:
+            try:
+                filechooser.open_file(
+                    on_selection=self.file_selected,
+                    filters=self._file_filter
+                )
+            except Exception as e:
+                self.show_error_message(f"Error selecting file: {str(e)}")
         else:
-            # در دسکتاپ از filechooser استفاده میکنیم
-            if PLYER_AVAILABLE:
-                try:
-                    filechooser.open_file(
-                        on_selection=self.file_selected,
-                        filters=[('Zip files', '*.zip'), ('All files', '*')]
-                    )
-                except Exception as e:
-                    self.show_error_message(f"Error selecting file: {str(e)}")
-            else:
-                self.show_error_message("plyer library required for file selection on Windows.")
+            self.show_error_message("plyer library not available")
     
     def file_selected(self, selection):
-        """پس از انتخاب فایل - با بررسی کامل برای جلوگیری از خطای NoneType"""
+        """پس از انتخاب فایل"""
         try:
-            # ✅ بررسی اینکه selection وجود داشته باشه و خالی نباشه
+            # ✅ بررسی انتخاب
             if not selection or len(selection) == 0:
                 self.selected_file = None
                 self.file_label.set_text('⚠️ No file selected')
-                self.file_label.color = (200, 150, 50, 255)  # نارنجی
+                self.file_label.color = (200, 150, 50, 255)
                 return
             
-            # ✅ گرفتن مسیر فایل
+            # ✅ گرفتن مسیر
             file_path = selection[0]
             
-            # ✅ بررسی اینکه مسیر خالی نباشه
             if not file_path:
                 self.selected_file = None
                 self.file_label.set_text('⚠️ Invalid file path')
-                self.file_label.color = (200, 50, 50, 255)  # قرمز
+                self.file_label.color = (200, 50, 50, 255)
                 return
             
-            # ✅ بررسی پسوند فایل (با safe check) - فقط zip برای بکاپ
-            file_lower = file_path.lower() if file_path else ''
-            if file_lower.endswith('.zip'):
+            # ✅ بررسی پسوند
+            file_lower = file_path.lower()
+            valid = False
+            for ext in self._extensions:
+                if file_lower.endswith(ext):
+                    valid = True
+                    break
+            
+            if valid:
                 self.selected_file = file_path
                 filename = file_path.replace('\\', '/').split('/')[-1]
-                # ✅ تنظیم متن با PersianLabel
-                self.file_label.set_text(f'✅ File: {filename}')
-                self.file_label.color = (50, 200, 50, 255)  # سبز
+                self.file_label.set_text(f'✅ {filename}')
+                self.file_label.color = (50, 200, 50, 255)
+                
                 if self.on_select:
-                    self.on_select(self.selected_file)
+                    self.on_select(file_path)
             else:
                 self.selected_file = None
-                self.file_label.set_text('❌ Only .zip files are allowed')
-                self.file_label.color = (200, 50, 50, 255)  # قرمز
-                self.show_error_message("Please select a valid .zip backup file.")
+                ext_text = ', '.join(self._extensions)
+                self.file_label.set_text(f'❌ Only {ext_text} files allowed')
+                self.file_label.color = (200, 50, 50, 255)
+                self.show_error_message(f"Please select a valid file ({ext_text})")
                 
         except Exception as e:
-            # ✅ مدیریت هرگونه خطای غیرمنتظره
             self.selected_file = None
             self.file_label.set_text(f'⚠️ Error: {str(e)[:30]}')
-            self.file_label.color = (200, 50, 50, 255)  # قرمز
+            self.file_label.color = (200, 50, 50, 255)
             self.show_error_message(f"Error processing file: {str(e)}")
     
     def show_error_message(self, message):
-        """نمایش پیغام خطا با PersianLabel"""
-        content = BoxLayout(orientation='vertical', padding=20, spacing=10)
+        """نمایش پیغام خطا"""
+        from kivy.uix.popup import Popup
+        from kivy.uix.button import Button
+        from kivy.uix.label import Label
         
-        # ✅ استفاده از PersianLabel برای متن خطا
+        content = BoxLayout(orientation='vertical', padding=20, spacing=10)
         msg_label = PersianLabel(
             text=message,
-            font_size=sp(18),  # ✅ افزایش
-            color=(200, 50, 50, 255),  # قرمز
+            font_size=sp(18),
+            color=(200, 50, 50, 255),
             size_hint_y=None,
-            height=dp(60),  # ✅ افزایش
+            height=dp(60),
             halign='center'
         )
         content.add_widget(msg_label)
         
-        # ✅ استفاده از PersianButton
         btn = PersianButton(
             text='OK',
             size_hint_y=None,
-            height=dp(50),  # ✅ افزایش
+            height=dp(50),
             background_color=(0.3, 0.3, 0.3, 1),
             color=(1, 1, 1, 1),
-            font_size=sp(18)  # ✅ افزایش
+            font_size=sp(18)
         )
         content.add_widget(btn)
         
         popup = Popup(
             title='⚠️ Error',
             content=content,
-            size_hint=(0.85, 0.35),  # ✅ افزایش
+            size_hint=(0.85, 0.35),
             auto_dismiss=True
         )
         popup.title_color = (1, 1, 1, 1)
-        popup.title_size = sp(22)  # ✅ افزایش
+        popup.title_size = sp(22)
         btn.bind(on_press=popup.dismiss)
         popup.open()
     
@@ -170,5 +178,8 @@ class FilePicker(BoxLayout):
     def reset(self):
         """بازنشانی ویجت"""
         self.selected_file = None
-        self.file_label.set_text('📄 No file selected')
-        self.file_label.color = (150, 150, 150, 255)  # خاکستری
+        if self.file_type == 'excel':
+            self.file_label.set_text('📄 هیچ فایلی انتخاب نشده')
+        else:
+            self.file_label.set_text('📄 No file selected')
+        self.file_label.color = (150, 150, 150, 255)
