@@ -36,14 +36,14 @@ class RTLTextInput(BoxLayout):
         self._input_filter = kwargs.pop('input_filter', None)
         
         # ✅ تغییر height به 60 (حدود 2.2 سانت)
-        height = kwargs.pop('height', dp(70))
+        height = kwargs.pop('height', dp(90))
         
         super().__init__(**kwargs)
         
         self.orientation = 'vertical'
         self.size_hint_y = None
         self.height = height
-        self.padding = dp(5)  # ✅ افزایش padding برای جا دادن متن
+        self.padding = dp(3)  # ✅ افزایش padding برای جا دادن متن
         
         self.bg_color = (1, 1, 1, 1)
         self.border_color = (0.7, 0.7, 0.7, 1)
@@ -54,13 +54,13 @@ class RTLTextInput(BoxLayout):
             self.bg_rect = RoundedRectangle(
                 pos=self.pos,
                 size=self.size,
-                radius=[dp(6)]
+                radius=[dp(3)]
             )
             Color(*self.border_color)
             self.border_rect = RoundedRectangle(
                 pos=(self.x + 2, self.y + 2),
                 size=(self.width - 4, self.height - 4),
-                radius=[dp(6)]
+                radius=[dp(3)]
             )
         
         self.bind(pos=self._update_rect, size=self._update_rect)
