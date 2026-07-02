@@ -1,4 +1,4 @@
-﻿"""
+"""
 مدیریت ذخیره‌سازی داده‌ها در سیستم‌عامل‌های مختلف
 """
 
@@ -56,40 +56,58 @@ def get_data_path():
     return _data_path
 
 # ============================================================
-# ✅ توابع مسیردهی عمومی (با استفاده از پوشه Download)
+# ✅ توابع مسیردهی پوشه شخصی برنامه (دسترسی کامل در اندروید)
+# ============================================================
+
+def get_app_import_path():
+    """مسیر پوشه import در پوشه شخصی برنامه"""
+    path = os.path.join(get_data_path(), 'import')
+    os.makedirs(path, exist_ok=True)
+    print(f"✅ مسیر import (شخصی): {path}")
+    return path
+
+def get_app_export_path():
+    """مسیر پوشه export در پوشه شخصی برنامه"""
+    path = os.path.join(get_data_path(), 'export')
+    os.makedirs(path, exist_ok=True)
+    print(f"✅ مسیر export (شخصی): {path}")
+    return path
+
+def get_app_backup_path():
+    """مسیر پوشه backup در پوشه شخصی برنامه"""
+    path = os.path.join(get_data_path(), 'backup')
+    os.makedirs(path, exist_ok=True)
+    print(f"✅ مسیر backup (شخصی): {path}")
+    return path
+
+# ============================================================
+# ✅ توابع مسیردهی عمومی (برای نمایش به کاربر در ویندوز)
 # ============================================================
 
 def _get_public_base_path():
-    """دریافت مسیر پایه فضای عمومی - استفاده از Download در اندروید"""
+    """دریافت مسیر پایه فضای عمومی"""
     if platform == 'android':
         try:
             from android.storage import primary_external_storage_path
             base = primary_external_storage_path()
             if base:
-                # ✅ استفاده از پوشه Download
                 download_path = os.path.join(base, 'Download')
                 print(f"✅ مسیر پایه عمومی: {download_path}")
                 return download_path
         except Exception as e:
-            print(f"⚠️ خطا در دریافت مسیر عمومی اندروید: {e}")
-        # Fallback
+            print(f"⚠️ خطا در دریافت مسیر عمومی: {e}")
         fallback = '/storage/emulated/0/Download/'
         print(f"⚠️ استفاده از Fallback: {fallback}")
         return fallback
     else:
-        # ویندوز/دسکتاپ
         desktop_path = os.path.join(os.path.expanduser('~'), 'Downloads')
         print(f"✅ مسیر پایه دسکتاپ: {desktop_path}")
         return desktop_path
 
 def get_public_path(folder_name):
-    """
-    دریافت مسیر پوشه در فضای عمومی
-    folder_name: 'backup', 'export', 'import'
-    """
+    """دریافت مسیر پوشه در فضای عمومی"""
     base = _get_public_base_path()
     
-    # ✅ بررسی وجود مسیر پایه
     if not os.path.exists(base):
         print(f"⚠️ مسیر پایه وجود ندارد: {base}")
         try:
@@ -97,7 +115,6 @@ def get_public_path(folder_name):
             print(f"✅ مسیر پایه ایجاد شد: {base}")
         except Exception as e:
             print(f"❌ خطا در ایجاد مسیر پایه: {e}")
-            # Fallback به پوشه داخلی
             fallback_path = os.path.join(get_data_path(), folder_name)
             os.makedirs(fallback_path, exist_ok=True)
             print(f"✅ Fallback مسیر {folder_name}: {fallback_path}")
@@ -111,37 +128,47 @@ def get_public_path(folder_name):
         return path
     except Exception as e:
         print(f"⚠️ خطا در ایجاد مسیر {folder_name}: {e}")
-        # Fallback به پوشه داخلی اپ
         fallback_path = os.path.join(get_data_path(), folder_name)
         try:
             os.makedirs(fallback_path, exist_ok=True)
             print(f"✅ Fallback مسیر {folder_name}: {fallback_path}")
         except Exception as e2:
             print(f"❌ خطا در Fallback: {e2}")
-            # آخرین راه‌حل: پوشه موقت
             import tempfile
             fallback_path = os.path.join(tempfile.gettempdir(), folder_name)
             os.makedirs(fallback_path, exist_ok=True)
             print(f"✅ Fallback نهایی {folder_name}: {fallback_path}")
         return fallback_path
 
-def get_backup_path():
-    """مسیر پوشه بکاپ"""
-    return get_public_path('backup')
-
-def get_export_path():
-    """مسیر پوشه خروجی اکسل"""
-    return get_public_path('export')
+# ============================================================
+# ✅ توابع اصلی (با اولویت پوشه شخصی در اندروید)
+# ============================================================
 
 def get_import_path():
-    """مسیر پوشه ورودی اکسل"""
-    return get_public_path('import')
+    """دریافت مسیر import - در اندروید از پوشه شخصی استفاده می‌کند"""
+    if platform == 'android':
+        return get_app_import_path()
+    else:
+        return get_public_path('import')
+
+def get_export_path():
+    """دریافت مسیر export - در اندروید از پوشه شخصی استفاده می‌کند"""
+    if platform == 'android':
+        return get_app_export_path()
+    else:
+        return get_public_path('export')
+
+def get_backup_path():
+    """دریافت مسیر backup - در اندروید از پوشه شخصی استفاده می‌کند"""
+    if platform == 'android':
+        return get_app_backup_path()
+    else:
+        return get_public_path('backup')
 
 def get_public_download_path():
-    """دریافت مسیر دانلود عمومی - با fallback"""
+    """دریافت مسیر دانلود عمومی"""
     base = _get_public_base_path()
     
-    # ✅ بررسی وجود مسیر
     if not os.path.exists(base):
         print(f"⚠️ مسیر دانلود وجود ندارد: {base}")
         try:
@@ -149,7 +176,6 @@ def get_public_download_path():
             print(f"✅ مسیر دانلود ایجاد شد: {base}")
         except Exception as e:
             print(f"❌ خطا در ایجاد مسیر دانلود: {e}")
-            # Fallback به پوشه داخلی
             fallback = get_data_path()
             print(f"✅ استفاده از Fallback: {fallback}")
             return fallback
@@ -172,7 +198,6 @@ def ensure_public_dirs():
                 created_count += 1
             except Exception as e:
                 print(f"⚠️ خطا در ایجاد {folder}: {e}")
-                # Fallback به پوشه داخلی
                 fallback = os.path.join(get_data_path(), folder)
                 try:
                     os.makedirs(fallback, exist_ok=True)
@@ -209,21 +234,17 @@ def save_json(filename, data):
         print(f"❌ خطا در ذخیره {filename}: {e}")
         return False
 
-# ✅ تابع تست سریع
 def test_paths():
     """تست مسیرها"""
     print("\n" + "="*50)
     print("🧪 تست مسیرها:")
     print("="*50)
     print(f"Data path: {get_data_path()}")
-    print(f"Base public: {_get_public_base_path()}")
-    print(f"Download: {get_public_download_path()}")
-    print(f"Backup: {get_backup_path()}")
-    print(f"Export: {get_export_path()}")
-    print(f"Import: {get_import_path()}")
+    print(f"Import path: {get_import_path()}")
+    print(f"Export path: {get_export_path()}")
+    print(f"Backup path: {get_backup_path()}")
     print("="*50)
     
-    # تست نوشتن
     test_path = get_export_path()
     test_file = os.path.join(test_path, "test.txt")
     try:
