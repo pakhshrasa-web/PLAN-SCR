@@ -1,4 +1,4 @@
-﻿"""
+"""
 مدیریت ذخیره‌سازی داده‌ها در سیستم‌عامل‌های مختلف
 """
 
@@ -59,19 +59,23 @@ def get_data_path():
 # ✅ توابع مسیردهی عمومی (برای اندروید و دسکتاپ)
 # ============================================================
 
+# utils/storage.py - اصلاح شده
+
 def _get_public_base_path():
-    """دریافت مسیر پایه فضای عمومی"""
+    """دریافت مسیر پایه فضای عمومی - با پشتیبانی از اندروید ۱۱+"""
     if platform == 'android':
         try:
             from android.storage import primary_external_storage_path
             base = primary_external_storage_path()
             if base:
-                return base
+                # ✅ به جای ریشه، از پوشه Download استفاده کن
+                return os.path.join(base, 'Download')
         except Exception as e:
             print(f"⚠️ خطا در دریافت مسیر عمومی اندروید: {e}")
-        return '/storage/emulated/0/'
+        # Fallback
+        return '/storage/emulated/0/Download/'
     else:
-        return os.path.join(os.path.expanduser('~'), 'plan_android_data')
+        return os.path.join(os.path.expanduser('~'), 'Downloads')
 
 def get_public_path(folder_name):
     """
@@ -81,11 +85,19 @@ def get_public_path(folder_name):
     base = _get_public_base_path()
     
     if platform == 'android':
+        # ✅ پوشه اصلی در Download
         path = os.path.join(base, 'plan_android_data', folder_name)
     else:
-        path = os.path.join(base, folder_name)
+        path = os.path.join(base, 'plan_android_data', folder_name)
     
-    os.makedirs(path, exist_ok=True)
+    try:
+        os.makedirs(path, exist_ok=True)
+    except PermissionError:
+        # ✅ اگر دسترسی نداشت، از پوشه داخلی اپ استفاده کن
+        print(f"⚠️ دسترسی به {path} ممکن نیست، استفاده از پوشه داخلی")
+        path = os.path.join(get_data_path(), folder_name)
+        os.makedirs(path, exist_ok=True)
+    
     return path
 
 def get_backup_path():
