@@ -9,7 +9,7 @@ from kivy.utils import platform
 _data_path = None
 
 def init_data_path():
-    """مقداردهی اولیه مسیر ذخیره‌سازی"""
+    """مقداردهی اولیه مسیر ذخیره‌سازی داخلی اپ"""
     global _data_path
     if _data_path is not None:
         return _data_path
@@ -40,7 +40,6 @@ def init_data_path():
     
     try:
         os.makedirs(_data_path, exist_ok=True)
-        os.makedirs(os.path.join(_data_path, 'reports'), exist_ok=True)
         print(f"✅ پوشه‌ها در {_data_path} ایجاد شدند")
     except Exception as e:
         print(f"❌ خطا در ایجاد پوشه: {e}")
@@ -50,11 +49,60 @@ def init_data_path():
     return _data_path
 
 def get_data_path():
-    """بازگرداندن مسیر ذخیره‌سازی"""
+    """بازگرداندن مسیر ذخیره‌سازی داخلی اپ"""
     global _data_path
     if _data_path is None:
         init_data_path()
     return _data_path
+
+# ============================================================
+# ✅ توابع مسیردهی عمومی (برای اندروید و دسکتاپ)
+# ============================================================
+
+def _get_public_base_path():
+    """دریافت مسیر پایه فضای عمومی"""
+    if platform == 'android':
+        try:
+            from android.storage import primary_external_storage_path
+            base = primary_external_storage_path()
+            if base:
+                return base
+        except Exception as e:
+            print(f"⚠️ خطا در دریافت مسیر عمومی اندروید: {e}")
+        return '/storage/emulated/0/'
+    else:
+        return os.path.join(os.path.expanduser('~'), 'plan_android_data')
+
+def get_public_path(folder_name):
+    """
+    دریافت مسیر پوشه در فضای عمومی
+    folder_name: 'backup', 'export', 'import'
+    """
+    base = _get_public_base_path()
+    
+    if platform == 'android':
+        path = os.path.join(base, 'plan_android_data', folder_name)
+    else:
+        path = os.path.join(base, folder_name)
+    
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def get_backup_path():
+    """مسیر پوشه بکاپ"""
+    return get_public_path('backup')
+
+def get_export_path():
+    """مسیر پوشه خروجی اکسل"""
+    return get_public_path('export')
+
+def get_import_path():
+    """مسیر پوشه ورودی اکسل"""
+    return get_public_path('import')
+
+# ============================================================
+# ✅ توابع JSON
+# ============================================================
 
 def load_json(filename):
     """بارگذاری فایل JSON"""
@@ -77,9 +125,3 @@ def save_json(filename, data):
     except Exception as e:
         print(f"❌ خطا در ذخیره {filename}: {e}")
         return False
-
-def get_reports_path():
-    """دریافت مسیر پوشه گزارشات"""
-    reports_path = os.path.join(get_data_path(), 'reports')
-    os.makedirs(reports_path, exist_ok=True)
-    return reports_path

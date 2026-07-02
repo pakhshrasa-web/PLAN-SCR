@@ -10,7 +10,6 @@ import os
 from utils.persian_text import PersianLabel
 from utils.rtl_widgets import PersianButton
 
-# ✅ تلاش برای plyer
 try:
     from plyer import filechooser
     PLYER_AVAILABLE = True
@@ -29,12 +28,11 @@ class FilePicker(BoxLayout):
         self.size_hint_y = None
         self.height = dp(120)
         
-        # ✅ تنظیمات بر اساس نوع فایل
         if file_type == 'excel':
             btn_text = '📁 انتخاب فایل اکسل'
             extensions = ('.xlsx', '.xls')
             label_text = '📄 هیچ فایلی انتخاب نشده'
-        else:  # backup
+        else:
             btn_text = '📁 انتخاب فایل بکاپ'
             extensions = ('.zip',)
             label_text = '📄 هیچ فایلی انتخاب نشده'
@@ -66,7 +64,6 @@ class FilePicker(BoxLayout):
         """باز کردن انتخابگر فایل"""
         print(f"🔍 FilePicker.pick_file: file_type={self.file_type}, platform={platform}")
         
-        # ✅ در اندروید از روش جایگزین استفاده کن
         if platform == 'android':
             self._pick_file_android()
         else:
@@ -77,33 +74,26 @@ class FilePicker(BoxLayout):
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
+            from utils.storage import get_import_path
             
             content = BoxLayout(orientation='vertical', spacing=dp(5))
             
-            # ✅ انتخابگر فایل
-            if self.file_type == 'excel':
-                filters = ['*.xlsx', '*.xls']
-            else:
-                filters = ['*.zip']
-            
-            # ✅ مسیر شروع: Download
-            start_path = '/storage/emulated/0/Download/'
-            if not os.path.exists(start_path):
-                start_path = '/storage/emulated/0/'
+            # ✅ مسیر پیش‌فرض: پوشه import
+            import_path = get_import_path()
             
             filechooser = FileChooserListView(
-                path=start_path,
-                filters=filters,
-                size_hint_y=0.85
+                path=import_path,
+                filters=['*'],
+                size_hint_y=0.8,
+                show_hidden=False
             )
             content.add_widget(filechooser)
             
-            # ✅ دکمه‌ها
             btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(5), padding=dp(5))
             
             select_btn = PersianButton(
                 text='✅ انتخاب',
-                size_hint_x=0.5,
+                size_hint_x=0.3,
                 background_color=(0.2, 0.7, 0.2, 1),
                 color=(1, 1, 1, 1),
                 font_size=sp(18)
@@ -111,21 +101,29 @@ class FilePicker(BoxLayout):
             
             cancel_btn = PersianButton(
                 text='❌ انصراف',
-                size_hint_x=0.5,
+                size_hint_x=0.3,
                 background_color=(0.8, 0.2, 0.2, 1),
                 color=(1, 1, 1, 1),
                 font_size=sp(18)
             )
             
+            path_btn = PersianButton(
+                text='📂 مسیر',
+                size_hint_x=0.2,
+                background_color=(0.4, 0.5, 0.6, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            
             btn_layout.add_widget(select_btn)
+            btn_layout.add_widget(path_btn)
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            # ✅ Popup
             popup = Popup(
                 title='📂 انتخاب فایل',
                 content=content,
-                size_hint=(0.92, 0.8),
+                size_hint=(0.92, 0.85),
                 auto_dismiss=False
             )
             popup.title_color = (1, 1, 1, 1)
@@ -134,8 +132,18 @@ class FilePicker(BoxLayout):
             def on_select(instance):
                 if filechooser.selection:
                     file_path = filechooser.selection[0]
-                    popup.dismiss()
-                    self._process_selection([file_path])
+                    if self.file_type == 'excel':
+                        if file_path.lower().endswith(('.xlsx', '.xls')):
+                            popup.dismiss()
+                            self._process_selection([file_path])
+                        else:
+                            self._update_label('⚠️ فقط فایل اکسل مجاز است', (200, 50, 50, 255))
+                    else:
+                        if file_path.lower().endswith('.zip'):
+                            popup.dismiss()
+                            self._process_selection([file_path])
+                        else:
+                            self._update_label('⚠️ فقط فایل zip مجاز است', (200, 50, 50, 255))
                 else:
                     self._update_label('⚠️ هیچ فایلی انتخاب نشد', (200, 150, 50, 255))
             
@@ -143,13 +151,69 @@ class FilePicker(BoxLayout):
                 popup.dismiss()
                 self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
             
+            def on_path(instance):
+                from kivy.uix.textinput import TextInput
+                
+                path_content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+                
+                path_input = TextInput(
+                    text=filechooser.path,
+                    size_hint_y=None,
+                    height=dp(50),
+                    font_size=sp(18),
+                    background_color=(0.2, 0.2, 0.2, 1),
+                    foreground_color=(1, 1, 1, 1)
+                )
+                path_content.add_widget(path_input)
+                
+                btn_path_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(5))
+                go_btn = PersianButton(
+                    text='برو',
+                    size_hint_x=0.5,
+                    background_color=(0.2, 0.7, 0.2, 1),
+                    color=(1, 1, 1, 1)
+                )
+                close_btn = PersianButton(
+                    text='بستن',
+                    size_hint_x=0.5,
+                    background_color=(0.8, 0.2, 0.2, 1),
+                    color=(1, 1, 1, 1)
+                )
+                btn_path_layout.add_widget(go_btn)
+                btn_path_layout.add_widget(close_btn)
+                path_content.add_widget(btn_path_layout)
+                
+                path_popup = Popup(
+                    title='📂 وارد کردن مسیر',
+                    content=path_content,
+                    size_hint=(0.85, 0.35)
+                )
+                
+                def on_go(instance):
+                    new_path = path_input.text.strip()
+                    if os.path.exists(new_path):
+                        filechooser.path = new_path
+                        path_popup.dismiss()
+                    else:
+                        self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
+                
+                def on_close(instance):
+                    path_popup.dismiss()
+                
+                go_btn.bind(on_press=on_go)
+                close_btn.bind(on_press=on_close)
+                path_popup.open()
+            
             select_btn.bind(on_press=on_select)
             cancel_btn.bind(on_press=on_cancel)
+            path_btn.bind(on_press=on_path)
             
             popup.open()
             
         except Exception as e:
             print(f"❌ خطا در انتخابگر اندروید: {e}")
+            import traceback
+            traceback.print_exc()
             # ✅ Fallback به plyer
             if PLYER_AVAILABLE:
                 try:
@@ -191,7 +255,6 @@ class FilePicker(BoxLayout):
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
                 return
             
-            # ✅ بررسی پسوند
             file_lower = file_path.lower()
             is_valid = any(file_lower.endswith(ext) for ext in self._extensions)
             print(f"🔍 FilePicker: is_valid={is_valid}")

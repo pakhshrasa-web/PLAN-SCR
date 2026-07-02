@@ -1,5 +1,5 @@
 """
-ساخت خروجی Excel از ویزیت‌ها - نسخه بهینه برای اندروید با ذخیره در Downloads
+ساخت خروجی Excel از ویزیت‌ها - نسخه بهینه برای اندروید
 """
 
 import os
@@ -7,9 +7,9 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
-from kivy.utils import platform
 
-from utils.file_manager import get_daily_logs, get_data_path
+from utils.file_manager import get_daily_logs
+from utils.storage import get_export_path as get_public_export
 
 
 def safe_int(value, default=0):
@@ -29,52 +29,33 @@ def safe_str(value, default=''):
     return str(value)
 
 
-def get_export_path():
-    """دریافت مسیر مناسب برای ذخیره فایل اکسل در Downloads"""
+def get_export_filename():
+    """دریافت مسیر کامل فایل خروجی"""
+    export_dir = get_public_export()
+    os.makedirs(export_dir, exist_ok=True)
+    
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'گزارش_فروش_{timestamp}.xlsx'
-    
-    if platform == 'android':
-        try:
-            # ✅ استفاده از android.storage برای دریافت مسیر Downloads
-            from android.storage import primary_external_storage_path
-            downloads_path = primary_external_storage_path()
-            if downloads_path:
-                path = os.path.join(downloads_path, 'Download')
-            else:
-                # Fallback
-                path = '/storage/emulated/0/Download'
-        except:
-            # Fallback
-            path = '/storage/emulated/0/Download'
-    else:
-        # ویندوز / دسکتاپ
-        path = os.path.join(os.path.expanduser('~'), 'Downloads')
-    
-    # ✅ ایجاد پوشه اگر وجود نداشت
-    os.makedirs(path, exist_ok=True)
-    
-    return os.path.join(path, filename)
+    return os.path.join(export_dir, filename)
 
 
 def export_to_excel():
     """
     خروجی گرفتن از تمام ویزیت‌ها به فایل Excel
-    برگرداندن مسیر کامل فایل ایجاد شده
+    برگرداندن (success, filepath) یا (success, error_message)
     """
     try:
         all_logs = get_daily_logs()
         
         if not all_logs:
-            return None, "هیچ داده‌ای برای خروجی وجود ندارد"
+            return False, "هیچ داده‌ای برای خروجی وجود ندارد"
         
         wb = Workbook()
         
-        # ========== صفحه اول: گزارش ویزیت‌ها (همه ردیف‌ها) ==========
+        # ========== صفحه اول: گزارش ویزیت‌ها ==========
         ws1 = wb.active
         ws1.title = "گزارش ویزیت‌ها"
         
-        # استایل‌ها
         header_font = Font(bold=True, size=11, color="FFFFFF")
         header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
         header_alignment = Alignment(horizontal="center", vertical="center")
@@ -85,7 +66,6 @@ def export_to_excel():
             bottom=Side(style='thin')
         )
         
-        # هدرها
         headers = ["ردیف", "تاریخ", "مسیر", "مشتری", "وضعیت ویزیت", 
                    "وضعیت فروش", "تعداد واحد", "مبلغ فروش", "نحوه تسویه", "ساعت"]
         
@@ -96,7 +76,6 @@ def export_to_excel():
             cell.alignment = header_alignment
             cell.border = thin_border
         
-        # پر کردن داده‌ها - همه ردیف‌ها
         row = 2
         total_sales = 0
         total_invoices = 0
@@ -135,7 +114,6 @@ def export_to_excel():
                 ws1.cell(row=row, column=9, value=safe_str(log.get('payment_method', '---')))
                 ws1.cell(row=row, column=10, value=safe_str(log.get('time', '')))
                 
-                # آمار
                 total_visits += 1
                 if visit_status == 'موفق':
                     total_successful_visits += 1
@@ -152,7 +130,6 @@ def export_to_excel():
                 row += 1
                 idx += 1
         
-        # تنظیم عرض ستون‌ها
         col_widths = [8, 14, 18, 22, 14, 14, 14, 18, 14, 14]
         for col, width in enumerate(col_widths, 1):
             ws1.column_dimensions[get_column_letter(col)].width = width
@@ -245,9 +222,8 @@ def export_to_excel():
         for col in range(1, len(daily_headers) + 1):
             ws3.column_dimensions[get_column_letter(col)].width = 15
         
-        # ========== ذخیره فایل در Downloads ==========
-        filepath = get_export_path()
-        
+        # ========== ذخیره فایل ==========
+        filepath = get_export_filename()
         wb.save(filepath)
         
         return True, filepath
@@ -259,20 +235,15 @@ def export_to_excel():
         return False, str(e)
 
 
-def export_to_excel_simple():
-    """نسخه ساده خروجی اکسل - فقط برای تست"""
+def export_test():
+    """تست ساده خروجی اکسل"""
     try:
-        filepath = get_export_path()
-        
+        filepath = get_export_filename()
         wb = Workbook()
         ws = wb.active
-        ws.title = "گزارش"
-        
         ws['A1'] = "گزارش فروش"
         ws['A1'].font = Font(bold=True, size=14)
-        
         ws['A2'] = f"تاریخ ایجاد: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
         wb.save(filepath)
         return True, filepath
     except Exception as e:
