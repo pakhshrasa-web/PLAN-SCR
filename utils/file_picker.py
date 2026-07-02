@@ -109,30 +109,79 @@ class FilePicker(BoxLayout):
             self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
             return
         
-        file_path = selection[0]
-        print(f"📂 فایل انتخاب شد: {file_path}")
+        file_uri = selection[0]
+        print(f"📂 فایل انتخاب شد: {file_uri}")
         
-        if not file_path:
+        if not file_uri:
             self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
             return
         
-        # ✅ بررسی پسوند فایل
-        is_valid = any(file_path.lower().endswith(ext) for ext in self._extensions)
-        
-        if is_valid:
-            self.selected_file = file_path
-            filename = file_path.replace('\\', '/').split('/')[-1]
-            emoji = '📊' if self.file_type == 'excel' else '📦'
-            self._update_label(f'{emoji} {filename}', (50, 200, 50, 255))
-            
-            print(f"🔍 FilePicker: calling on_select with {file_path}")
-            if self.on_select:
-                Clock.schedule_once(lambda dt: self.on_select(file_path), 0.1)
+        # ✅ اگر در اندروید هستیم و مسیر با content:// شروع می‌شود
+        if platform == 'android' and file_uri.startswith('content://'):
+            try:
+                from android.permissions import request_permissions, Permission
+                import os
+                
+                # ✅ درخواست دسترسی
+                request_permissions([
+                    Permission.READ_EXTERNAL_STORAGE,
+                    Permission.WRITE_EXTERNAL_STORAGE
+                ])
+                
+                # ✅ دریافت پوشه import
+                from utils.storage import get_import_path
+                import_path = get_import_path()
+                os.makedirs(import_path, exist_ok=True)
+                
+                # ✅ استخراج نام فایل از URI
+                filename = file_uri.split('/')[-1]
+                if ':' in filename:
+                    filename = filename.split(':')[-1]
+                if '%' in filename:  # ✅ decode URL encoding
+                    from urllib.parse import unquote
+                    filename = unquote(filename)
+                
+                # ✅ مسیر مقصد
+                dest_path = os.path.join(import_path, filename)
+                
+                print(f"📂 کپی فایل از {file_uri} به {dest_path}")
+                
+                # ✅ کپی فایل (در اندروید با SAF)
+                import shutil
+                
+                # روش ساده‌تر برای کپی از URI
+                try:
+                    # از محتوای URI بخوان و در فایل مقصد بنویس
+                    with open(file_uri, 'rb') as src:
+                        with open(dest_path, 'wb') as dst:
+                            dst.write(src.read())
+                    print(f"✅ فایل با موفقیت کپی شد: {dest_path}")
+                except Exception as e:
+                    print(f"⚠️ روش اول کپی失敗: {e}")
+                    # روش جایگزین: استفاده از shutil
+                    try:
+                        import shutil
+                        # این روش ممکن است روی همه URIها کار نکند
+                        shutil.copyfile(file_uri, dest_path)
+                        print(f"✅ فایل با موفقیت کپی شد (shutil): {dest_path}")
+                    except Exception as e2:
+                        print(f"⚠️ روش دوم کپی失敗: {e2}")
+                        # اگر هیچ روشی کار نکرد، از مسیر اصلی استفاده کن
+                        self._process_selection([file_uri])
+                        return
+                
+                # ✅ پردازش با مسیر جدید
+                self._process_selection([dest_path])
+                
+            except Exception as e:
+                print(f"❌ خطا در کپی فایل: {e}")
+                import traceback
+                traceback.print_exc()
+                # اگر کپی موفق نشد، سعی کن با مسیر اصلی ادامه بدی
+                self._process_selection([file_uri])
         else:
-            self.selected_file = None
-            ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
-            self._update_label(f'❌ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
-            self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
+            # ✅ مسیر عادی
+            self._process_selection([file_uri])
     
     def _pick_file_desktop(self):
         """انتخاب فایل در دسکتاپ با plyer"""
@@ -168,7 +217,8 @@ class FilePicker(BoxLayout):
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
                 return
             
-            if not os.path.exists(file_path):
+            # ✅ بررسی وجود فایل (برای مسیرهای عادی)
+            if not file_path.startswith('content://') and not os.path.exists(file_path):
                 self.selected_file = None
                 self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
                 self._show_error(f'فایل وجود ندارد: {os.path.basename(file_path)}')
@@ -181,6 +231,8 @@ class FilePicker(BoxLayout):
             if is_valid:
                 self.selected_file = file_path
                 filename = file_path.replace('\\', '/').split('/')[-1]
+                if ':' in filename:
+                    filename = filename.split(':')[-1]
                 emoji = '📊' if self.file_type == 'excel' else '📦'
                 self._update_label(f'{emoji} {filename}', (50, 200, 50, 255))
                 
