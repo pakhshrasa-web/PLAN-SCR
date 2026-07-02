@@ -146,41 +146,24 @@ class FilePicker(BoxLayout):
                 
                 print(f"📂 کپی فایل از {file_uri} به {dest_path}")
                 
-                # ✅ کپی فایل (در اندروید با SAF)
-                import shutil
-                
-                # روش ساده‌تر برای کپی از URI
+                # ✅ کپی فایل
                 try:
-                    # از محتوای URI بخوان و در فایل مقصد بنویس
                     with open(file_uri, 'rb') as src:
                         with open(dest_path, 'wb') as dst:
                             dst.write(src.read())
                     print(f"✅ فایل با موفقیت کپی شد: {dest_path}")
+                    self._process_selection([dest_path])
                 except Exception as e:
-                    print(f"⚠️ روش اول کپی失敗: {e}")
-                    # روش جایگزین: استفاده از shutil
-                    try:
-                        import shutil
-                        # این روش ممکن است روی همه URIها کار نکند
-                        shutil.copyfile(file_uri, dest_path)
-                        print(f"✅ فایل با موفقیت کپی شد (shutil): {dest_path}")
-                    except Exception as e2:
-                        print(f"⚠️ روش دوم کپی失敗: {e2}")
-                        # اگر هیچ روشی کار نکرد، از مسیر اصلی استفاده کن
-                        self._process_selection([file_uri])
-                        return
-                
-                # ✅ پردازش با مسیر جدید
-                self._process_selection([dest_path])
+                    print(f"⚠️ کپی فایل شکست خورد: {e}")
+                    self._show_error(f"خطا در کپی فایل: {str(e)}")
                 
             except Exception as e:
-                print(f"❌ خطا در کپی فایل: {e}")
+                print(f"❌ خطا در پردازش فایل: {e}")
                 import traceback
                 traceback.print_exc()
-                # اگر کپی موفق نشد، سعی کن با مسیر اصلی ادامه بدی
-                self._process_selection([file_uri])
+                self._show_error(f"خطا: {str(e)}")
         else:
-            # ✅ مسیر عادی
+            # ✅ مسیر عادی (ویندوز)
             self._process_selection([file_uri])
     
     def _pick_file_desktop(self):
@@ -200,7 +183,7 @@ class FilePicker(BoxLayout):
             self._show_error("کتابخانه انتخاب فایل در دسترس نیست")
     
     def _process_selection(self, selection):
-        """پردازش انتخاب فایل (برای دسکتاپ)"""
+        """پردازش انتخاب فایل"""
         print(f"🔍 FilePicker._process_selection: {selection}")
         
         try:
@@ -217,7 +200,7 @@ class FilePicker(BoxLayout):
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
                 return
             
-            # ✅ بررسی وجود فایل (برای مسیرهای عادی)
+            # ✅ بررسی وجود فایل
             if not file_path.startswith('content://') and not os.path.exists(file_path):
                 self.selected_file = None
                 self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
