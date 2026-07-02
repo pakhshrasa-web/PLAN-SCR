@@ -77,46 +77,58 @@ class FilePicker(BoxLayout):
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
+            from kivy.clock import Clock
             from utils.storage import get_import_path, get_backup_path, get_public_download_path, ensure_public_dirs
             
             content = BoxLayout(orientation='vertical', spacing=dp(5))
             
-            # ✅ اطمینان از وجود پوشه‌ها
             ensure_public_dirs()
             
-            # ✅ انتخاب مسیر شروع با استفاده از تابع جدید
             start_path = get_public_download_path()
-            print(f"📂 مسیر شروع FileChooser: {start_path}")
             
-            # ✅ اگر پوشه import وجود داره، از اون استفاده کن
+            # ✅ انتخاب مسیر مناسب
             try:
                 if self.file_type == 'excel':
                     import_path = get_import_path()
                     if os.path.exists(import_path):
                         start_path = import_path
-                        print(f"📂 استفاده از مسیر import: {start_path}")
                 else:
                     backup_path = get_backup_path()
                     if os.path.exists(backup_path):
                         start_path = backup_path
-                        print(f"📂 استفاده از مسیر backup: {start_path}")
             except Exception as e:
                 print(f"⚠️ خطا در دریافت مسیر اختصاصی: {e}")
             
-            # ✅ بررسی وجود مسیر
             if not os.path.exists(start_path):
-                print(f"⚠️ مسیر شروع وجود ندارد: {start_path}")
-                # استفاده از پوشه دانلود پیش‌فرض
                 start_path = '/storage/emulated/0/Download/'
-                print(f"📂 استفاده از مسیر پیش‌فرض: {start_path}")
+            
+            # ✅ تنظیم فیلتر بر اساس نوع فایل
+            if self.file_type == 'excel':
+                # ✅ فقط فایل‌های اکسل
+                filters = ['*.xlsx', '*.xls']
+                filter_description = 'فایل‌های اکسل'
+            else:
+                # ✅ فقط فایل‌های ZIP
+                filters = ['*.zip']
+                filter_description = 'فایل‌های بکاپ'
             
             filechooser = FileChooserListView(
                 path=start_path,
-                filters=['*'],
+                filters=filters,  # ✅ اعمال فیلتر
                 size_hint_y=0.8,
                 show_hidden=False
             )
             content.add_widget(filechooser)
+            
+            # ✅ اضافه کردن راهنما
+            help_label = RTLLabel(
+                text=f'📌 نمایش فقط فایل‌های {filter_description}',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(14),
+                color=(0.6, 0.8, 0.6, 1)
+            )
+            content.add_widget(help_label)
             
             btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(5), padding=dp(5))
             
@@ -158,12 +170,11 @@ class FilePicker(BoxLayout):
                     is_valid = False
                     if self.file_type == 'excel':
                         is_valid = file_path.lower().endswith(('.xlsx', '.xls'))
-                    else:  # backup
+                    else:
                         is_valid = file_path.lower().endswith('.zip')
                     
                     if is_valid:
                         popup.dismiss()
-                        # ✅ با تاخیر کوتاه پردازش کن
                         Clock.schedule_once(lambda dt: self._process_selection([file_path]), 0.1)
                     else:
                         ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
