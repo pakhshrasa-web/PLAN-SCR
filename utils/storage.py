@@ -56,25 +56,24 @@ def get_data_path():
     return _data_path
 
 # ============================================================
-# ✅ توابع مسیردهی عمومی (برای اندروید و دسکتاپ)
+# ✅ توابع مسیردهی عمومی (با استفاده از پوشه Download)
 # ============================================================
 
-# utils/storage.py - اصلاح شده
-
 def _get_public_base_path():
-    """دریافت مسیر پایه فضای عمومی - با پشتیبانی از اندروید ۱۱+"""
+    """دریافت مسیر پایه فضای عمومی - استفاده از Download در اندروید"""
     if platform == 'android':
         try:
             from android.storage import primary_external_storage_path
             base = primary_external_storage_path()
             if base:
-                # ✅ به جای ریشه، از پوشه Download استفاده کن
+                # ✅ استفاده از پوشه Download
                 return os.path.join(base, 'Download')
         except Exception as e:
             print(f"⚠️ خطا در دریافت مسیر عمومی اندروید: {e}")
         # Fallback
         return '/storage/emulated/0/Download/'
     else:
+        # ویندوز/دسکتاپ
         return os.path.join(os.path.expanduser('~'), 'Downloads')
 
 def get_public_path(folder_name):
@@ -83,22 +82,19 @@ def get_public_path(folder_name):
     folder_name: 'backup', 'export', 'import'
     """
     base = _get_public_base_path()
-    
-    if platform == 'android':
-        # ✅ پوشه اصلی در Download
-        path = os.path.join(base, 'plan_android_data', folder_name)
-    else:
-        path = os.path.join(base, 'plan_android_data', folder_name)
+    path = os.path.join(base, 'plan_android_data', folder_name)
     
     try:
         os.makedirs(path, exist_ok=True)
-    except PermissionError:
-        # ✅ اگر دسترسی نداشت، از پوشه داخلی اپ استفاده کن
-        print(f"⚠️ دسترسی به {path} ممکن نیست، استفاده از پوشه داخلی")
-        path = os.path.join(get_data_path(), folder_name)
-        os.makedirs(path, exist_ok=True)
-    
-    return path
+        print(f"✅ مسیر عمومی {folder_name}: {path}")
+        return path
+    except Exception as e:
+        print(f"⚠️ خطا در ایجاد مسیر {folder_name}: {e}")
+        # Fallback به پوشه داخلی اپ
+        fallback_path = os.path.join(get_data_path(), folder_name)
+        os.makedirs(fallback_path, exist_ok=True)
+        print(f"✅ Fallback مسیر {folder_name}: {fallback_path}")
+        return fallback_path
 
 def get_backup_path():
     """مسیر پوشه بکاپ"""
