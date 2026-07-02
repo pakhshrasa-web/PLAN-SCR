@@ -2,6 +2,8 @@
 # ========== صفحه مدیریت ==========
 
 import traceback
+import re
+from datetime import datetime
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -42,7 +44,10 @@ class AdminScreen(Screen):
             
             Window.softinput_mode = 'resize'
             self.focusable_fields = []
+            self.tab_buttons = []
+            self.sub_tab_buttons = {'routes': [], 'customers': []}
             self.current_tab = 0
+            self.current_sub_tab = {'routes': 'manual', 'customers': 'manual'}
             self.build_ui()
             Window.bind(on_keyboard=self._on_keyboard)
             
@@ -54,6 +59,72 @@ class AdminScreen(Screen):
     def _update_bg(self, instance, value):
         self.bg_rect.pos = instance.pos
         self.bg_rect.size = instance.size
+    
+    # ============================================================
+    # ✅ توابع کمکی
+    # ============================================================
+    
+    def _create_text_input(self, hint_text, is_password=False):
+        txt = RTLTextInput(
+            hint_text=hint_text,
+            password=is_password,
+            multiline=False,
+            size_hint_y=None,
+            height=dp(60),
+            font_size=sp(36)
+        )
+        txt.bg_color = (0.15, 0.15, 0.15, 1)
+        txt.border_color = (0.3, 0.3, 0.3, 1)
+        txt.border_color_focus = (0.2, 0.5, 0.9, 1)
+        txt._hidden_input.foreground_color = (1, 1, 1, 1)
+        txt._hidden_input.bind(focus=self._on_field_focus)
+        self.focusable_fields.append(txt._hidden_input)
+        return txt
+    
+    def _create_button(self, text, callback=None, color=(0.2, 0.7, 0.2, 1)):
+        btn = PersianButton(
+            text=text,
+            size_hint_y=None,
+            height=dp(45),
+            background_color=color,
+            color=(1, 1, 1, 1)
+        )
+        if callback:
+            btn.bind(on_press=callback)
+        return btn
+    
+    def _validate_mobile(self, mobile):
+        """اعتبارسنجی شماره موبایل"""
+        if not mobile:
+            return True, ""
+        # حذف فاصله و خط تیره
+        mobile = mobile.replace(' ', '').replace('-', '').replace('_', '')
+        # فقط عدد
+        if not mobile.isdigit():
+            return False, "شماره موبایل باید فقط شامل عدد باشد"
+        # طول ۱۱ رقمی (09xxxxxxxxx)
+        if len(mobile) != 11 or not mobile.startswith('09'):
+            return False, "شماره موبایل باید ۱۱ رقم و با 09 شروع شود"
+        return True, ""
+    
+    def _validate_email(self, email):
+        """اعتبارسنجی ایمیل با Regex ساده"""
+        if not email:
+            return True, ""
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(pattern, email):
+            return True, ""
+        return False, "ایمیل معتبر نیست"
+    
+    def _validate_time(self, time_str):
+        """اعتبارسنجی زمان با فرمت HH:MM"""
+        if not time_str:
+            return False, "زمان نمی‌تواند خالی باشد"
+        try:
+            datetime.strptime(time_str, '%H:%M')
+            return True, ""
+        except ValueError:
+            return False, "زمان باید با فرمت HH:MM باشد (مثلاً 08:00)"
     
     # ============================================================
     # ✅ مدیریت فوکوس
@@ -103,7 +174,11 @@ class AdminScreen(Screen):
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
-        if key == 9:
+        if key == 27:  # Back
+            if self.manager:
+                self.manager.current = 'login'
+            return True
+        elif key == 9:  # Tab
             self._focus_next()
             return True
         return False
@@ -117,56 +192,39 @@ class AdminScreen(Screen):
                 self.focusable_fields[next_i].focus = True
                 break
     
+    # ============================================================
+    # ✅ ساخت UI
+    # ============================================================
+    
     def build_ui(self):
         try:
             main_layout = BoxLayout(orientation='vertical', padding=[dp(5), dp(5), dp(5), dp(5)])
             
-            # ========== تب‌ها ==========
+            # تب‌های اصلی
             tabs_layout = BoxLayout(
                 size_hint_y=None,
                 height=dp(38),
                 spacing=dp(2)
             )
             
-            btn_settings = PersianButton(
-                text='⚙️ تنظیمات',
-                background_color=(0.3, 0.5, 0.8, 0.6),
-                size_hint_y=None,
-                height=dp(34),
-                color=(1, 1, 1, 1)
-            )
-            btn_settings.bind(on_press=lambda x: self.switch_tab(3))
-            tabs_layout.add_widget(btn_settings)
+            tab_names = [
+                ('عامل‌ها', 0),
+                ('مسیرها', 1),
+                ('مشتریان', 2),
+                ('⚙️ تنظیمات', 3)
+            ]
             
-            btn_customers = PersianButton(
-                text='مشتریان',
-                background_color=(0.3, 0.5, 0.8, 0.6),
-                size_hint_y=None,
-                height=dp(34),
-                color=(1, 1, 1, 1)
-            )
-            btn_customers.bind(on_press=lambda x: self.switch_tab(2))
-            tabs_layout.add_widget(btn_customers)
-            
-            btn_routes = PersianButton(
-                text='مسیرها',
-                background_color=(0.3, 0.5, 0.8, 0.6),
-                size_hint_y=None,
-                height=dp(34),
-                color=(1, 1, 1, 1)
-            )
-            btn_routes.bind(on_press=lambda x: self.switch_tab(1))
-            tabs_layout.add_widget(btn_routes)
-            
-            btn_agents = PersianButton(
-                text='عامل‌ها',
-                background_color=(0.3, 0.5, 0.8, 1),
-                size_hint_y=None,
-                height=dp(34),
-                color=(1, 1, 1, 1)
-            )
-            btn_agents.bind(on_press=lambda x: self.switch_tab(0))
-            tabs_layout.add_widget(btn_agents)
+            for name, tab_id in tab_names:
+                btn = PersianButton(
+                    text=name,
+                    background_color=(0.3, 0.5, 0.8, 0.6),
+                    size_hint_y=None,
+                    height=dp(34),
+                    color=(1, 1, 1, 1)
+                )
+                btn.bind(on_press=lambda x, tid=tab_id: self.switch_tab(tid))
+                tabs_layout.add_widget(btn)
+                self.tab_buttons.append(btn)
             
             main_layout.add_widget(tabs_layout)
             
@@ -184,7 +242,7 @@ class AdminScreen(Screen):
             main_layout.add_widget(logout_btn)
             
             self.add_widget(main_layout)
-            self.switch_tab(0)
+            Clock.schedule_once(lambda dt: self.switch_tab(0), 0.1)
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ساخت UI AdminScreen: {e}", error_details)
@@ -193,6 +251,10 @@ class AdminScreen(Screen):
     def switch_tab(self, tab_id):
         try:
             self.current_tab = tab_id
+            
+            for i, btn in enumerate(self.tab_buttons):
+                btn.background_color = (0.3, 0.5, 0.8, 1) if i == tab_id else (0.3, 0.5, 0.8, 0.6)
+            
             self.content_area.clear_widgets()
             self.focusable_fields = []
             
@@ -209,7 +271,7 @@ class AdminScreen(Screen):
             ErrorPopup.show_error(f"خطا در تغییر تب: {e}", error_details)
     
     # ============================================================
-    # ✅ تب عامل‌ها (بدون تغییر)
+    # ✅ تب عامل‌ها
     # ============================================================
     
     def show_agents_tab(self):
@@ -239,34 +301,10 @@ class AdminScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             
-            name_input = RTLTextInput(
-                hint_text='نام کامل',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            name_input.bg_color = (0.15, 0.15, 0.15, 1)
-            name_input.border_color = (0.3, 0.3, 0.3, 1)
-            name_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            name_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            name_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(name_input._hidden_input)
+            name_input = self._create_text_input('نام کامل')
             content.add_widget(name_input)
             
-            phone_input = RTLTextInput(
-                hint_text='شماره تلفن',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            phone_input.bg_color = (0.15, 0.15, 0.15, 1)
-            phone_input.border_color = (0.3, 0.3, 0.3, 1)
-            phone_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            phone_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            phone_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(phone_input._hidden_input)
+            phone_input = self._create_text_input('شماره تلفن')
             content.add_widget(phone_input)
             
             role_spinner = PersianComboBox(
@@ -280,29 +318,13 @@ class AdminScreen(Screen):
             role_spinner.main_btn.font_size = sp(18)
             content.add_widget(role_spinner)
             
-            email_input = RTLTextInput(
-                hint_text='ایمیل',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            email_input.bg_color = (0.15, 0.15, 0.15, 1)
-            email_input.border_color = (0.3, 0.3, 0.3, 1)
-            email_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            email_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            email_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(email_input._hidden_input)
+            email_input = self._create_text_input('ایمیل')
             content.add_widget(email_input)
             
-            add_btn = PersianButton(
-                text='افزودن',
-                size_hint_y=None,
-                height=dp(45),
-                background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1)
+            add_btn = self._create_button(
+                'افزودن',
+                lambda x: self.add_agent_and_refresh(name_input, phone_input, role_spinner, email_input)
             )
-            add_btn.bind(on_press=lambda x: self.add_agent_and_refresh(name_input, phone_input, role_spinner, email_input))
             content.add_widget(add_btn)
             
             content.add_widget(RTLLabel(
@@ -358,20 +380,38 @@ class AdminScreen(Screen):
     
     def add_agent_and_refresh(self, name_input, phone_input, role_spinner, email_input):
         try:
-            if name_input.text:
-                agent = {
-                    'name': name_input.text,
-                    'phone': phone_input.text,
-                    'role': role_spinner.text,
-                    'email': email_input.text,
-                    'hire_date': get_today_jalali()
-                }
-                add_agent(agent)
-                name_input.text = ''
-                phone_input.text = ''
-                email_input.text = ''
-                self.show_message('✅ موفق', 'عامل با موفقیت اضافه شد')
-                self.switch_tab(0)
+            name = name_input.text.strip()
+            if not name:
+                self.show_message('❌ خطا', 'نام عامل الزامی است')
+                return
+            
+            phone = phone_input.text.strip()
+            if phone:
+                valid, msg = self._validate_mobile(phone)
+                if not valid:
+                    self.show_message('❌ خطا', msg)
+                    return
+            
+            email = email_input.text.strip()
+            if email:
+                valid, msg = self._validate_email(email)
+                if not valid:
+                    self.show_message('❌ خطا', msg)
+                    return
+            
+            agent = {
+                'name': name,
+                'phone': phone,
+                'role': role_spinner.text,
+                'email': email,
+                'hire_date': get_today_jalali()
+            }
+            add_agent(agent)
+            name_input.text = ''
+            phone_input.text = ''
+            email_input.text = ''
+            self.show_message('✅ موفق', 'عامل با موفقیت اضافه شد')
+            self.switch_tab(0)
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در افزودن عامل: {e}", error_details)
@@ -386,7 +426,7 @@ class AdminScreen(Screen):
             ErrorPopup.show_error(f"خطا در حذف عامل: {e}", error_details)
     
     # ============================================================
-    # ✅ تب مسیرها (با تغییرات)
+    # ✅ تب مسیرها
     # ============================================================
     
     def show_routes_tab(self):
@@ -402,7 +442,6 @@ class AdminScreen(Screen):
             
             btn_manual = PersianButton(
                 text='مدیریت دستی',
-                background_color=(0.3, 0.5, 0.8, 1),
                 size_hint_y=None,
                 height=dp(40),
                 color=(1, 1, 1, 1)
@@ -412,7 +451,6 @@ class AdminScreen(Screen):
             
             btn_excel = PersianButton(
                 text='ورود از اکسل',
-                background_color=(0.3, 0.5, 0.8, 0.6),
                 size_hint_y=None,
                 height=dp(40),
                 color=(1, 1, 1, 1)
@@ -420,19 +458,32 @@ class AdminScreen(Screen):
             btn_excel.bind(on_press=lambda x: self.show_excel_routes())
             tabs.add_widget(btn_excel)
             
+            self.sub_tab_buttons['routes'] = [btn_manual, btn_excel]
+            
             layout.add_widget(tabs)
             
             self.routes_content = BoxLayout(orientation='vertical', padding=[dp(10), dp(10), dp(10), dp(10)])
             layout.add_widget(self.routes_content)
             
+            self.current_sub_tab['routes'] = 'manual'
+            self._update_sub_tab_colors('routes', 'manual')
             self.show_manual_routes()
             self.content_area.add_widget(layout)
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش مسیرها: {e}", error_details)
     
+    def _update_sub_tab_colors(self, tab_type, active):
+        """به‌روزرسانی رنگ تب‌های داخلی"""
+        if tab_type not in self.sub_tab_buttons:
+            return
+        for btn in self.sub_tab_buttons[tab_type]:
+            btn.background_color = (0.3, 0.5, 0.8, 1) if btn.text == active else (0.3, 0.5, 0.8, 0.6)
+    
     def show_manual_routes(self):
         try:
+            self.current_sub_tab['routes'] = 'مدیریت دستی'
+            self._update_sub_tab_colors('routes', 'مدیریت دستی')
             self.routes_content.clear_widgets()
             
             scroll = ScrollView(
@@ -460,29 +511,10 @@ class AdminScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             
-            self.route_name_input = RTLTextInput(
-                hint_text='نام مسیر',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            self.route_name_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.route_name_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.route_name_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.route_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.route_name_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.route_name_input._hidden_input)
+            self.route_name_input = self._create_text_input('نام مسیر')
             content.add_widget(self.route_name_input)
             
-            add_btn = PersianButton(
-                text='افزودن',
-                size_hint_y=None,
-                height=dp(45),
-                background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1)
-            )
-            add_btn.bind(on_press=self.add_route_manual)
+            add_btn = self._create_button('افزودن', self.add_route_manual)
             content.add_widget(add_btn)
             
             content.add_widget(RTLLabel(
@@ -554,11 +586,15 @@ class AdminScreen(Screen):
     
     def add_route_manual(self, instance):
         try:
-            if self.route_name_input.text:
-                add_route({'name': self.route_name_input.text})
-                self.route_name_input.text = ''
-                self.refresh_routes_list()
-                self.show_message('✅ موفق', 'مسیر با موفقیت اضافه شد')
+            name = self.route_name_input.text.strip()
+            if not name:
+                self.show_message('❌ خطا', 'نام مسیر الزامی است')
+                return
+            
+            add_route({'name': name})
+            self.route_name_input.text = ''
+            self.refresh_routes_list()
+            self.show_message('✅ موفق', 'مسیر با موفقیت اضافه شد')
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در افزودن مسیر: {e}", error_details)
@@ -574,6 +610,8 @@ class AdminScreen(Screen):
     
     def show_excel_routes(self):
         try:
+            self.current_sub_tab['routes'] = 'ورود از اکسل'
+            self._update_sub_tab_colors('routes', 'ورود از اکسل')
             self.routes_content.clear_widgets()
             
             layout = BoxLayout(
@@ -620,35 +658,28 @@ class AdminScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش ورود اکسل مسیرها: {e}", error_details)
 
     def import_routes_from_excel_file(self, filepath):
-        """وارد کردن مسیرها از فایل اکسل"""
         logger.info(f"🔍 import_routes_from_excel_file: {filepath}")
-        
         try:
-            # ✅ بررسی انتخاب فایل
             if not filepath or not str(filepath).strip():
                 self.show_message('❌ خطا', 'فایلی انتخاب نشده است.')
                 return
-            
-            # ✅ بررسی وجود فایل
             if not os.path.exists(filepath):
                 self.show_message('❌ خطا', f'فایل وجود ندارد:\n{filepath}')
                 return
-            
-            # ✅ بررسی پسوند فایل (فقط xlsx)
+            file_size = os.path.getsize(filepath)
+            if file_size == 0:
+                self.show_message('❌ خطا', 'فایل انتخاب شده خالی است!')
+                return
             if not filepath.lower().endswith('.xlsx'):
                 self.show_message('❌ خطا', 'فایل باید با فرمت .xlsx باشد')
                 return
             
-            # ✅ اجرای مستقیم (بدون تأخیر)
             success, message = import_routes_from_excel(filepath)
-            logger.info(f"🔍 import result: success={success}, message={message}")
-            
             if success:
                 self.show_message('✅ اطلاعات با موفقیت در دیتابیس ذخیره شد.', message)
-                Clock.schedule_once(lambda dt: self.switch_tab(1), 0.5)
+                self.show_manual_routes()
             else:
                 self.show_message('❌ خطا', message)
-                
         except Exception as e:
             logger.error(f"❌ error: {e}")
             import traceback
@@ -656,7 +687,7 @@ class AdminScreen(Screen):
             ErrorPopup.show_error(f"خطا در ورود مسیرها از اکسل: {e}", traceback.format_exc())
     
     # ============================================================
-    # ✅ تب مشتریان (با تغییرات)
+    # ✅ تب مشتریان
     # ============================================================
     
     def show_customers_tab(self):
@@ -672,7 +703,6 @@ class AdminScreen(Screen):
             
             btn_manual = PersianButton(
                 text='مدیریت دستی',
-                background_color=(0.3, 0.5, 0.8, 1),
                 size_hint_y=None,
                 height=dp(40),
                 color=(1, 1, 1, 1)
@@ -682,7 +712,6 @@ class AdminScreen(Screen):
             
             btn_excel = PersianButton(
                 text='ورود از اکسل',
-                background_color=(0.3, 0.5, 0.8, 0.6),
                 size_hint_y=None,
                 height=dp(40),
                 color=(1, 1, 1, 1)
@@ -690,11 +719,15 @@ class AdminScreen(Screen):
             btn_excel.bind(on_press=lambda x: self.show_excel_customers())
             tabs.add_widget(btn_excel)
             
+            self.sub_tab_buttons['customers'] = [btn_manual, btn_excel]
+            
             layout.add_widget(tabs)
             
             self.customers_content = BoxLayout(orientation='vertical', padding=[dp(10), dp(10), dp(10), dp(10)])
             layout.add_widget(self.customers_content)
             
+            self.current_sub_tab['customers'] = 'manual'
+            self._update_sub_tab_colors('customers', 'مدیریت دستی')
             self.show_manual_customers()
             self.content_area.add_widget(layout)
         except Exception as e:
@@ -703,6 +736,8 @@ class AdminScreen(Screen):
     
     def show_manual_customers(self):
         try:
+            self.current_sub_tab['customers'] = 'مدیریت دستی'
+            self._update_sub_tab_colors('customers', 'مدیریت دستی')
             self.customers_content.clear_widgets()
             
             scroll = ScrollView(
@@ -738,9 +773,13 @@ class AdminScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             routes = get_routes()
-            route_names = [r.get('name', '') for r in routes] if routes else ['']
+            if routes:
+                route_names = [r.get('name', '') for r in routes]
+            else:
+                route_names = ['ابتدا مسیر ایجاد کنید']
+            
             self.customer_route_spinner = PersianComboBox(
-                text=route_names[0] if route_names else '',
+                text=route_names[0],
                 values=route_names,
                 size_hint_y=None,
                 height=dp(55)
@@ -750,74 +789,19 @@ class AdminScreen(Screen):
             self.customer_route_spinner.main_btn.font_size = sp(18)
             content.add_widget(self.customer_route_spinner)
             
-            self.customer_name_input = RTLTextInput(
-                hint_text='نام مشتری',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            self.customer_name_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.customer_name_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.customer_name_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.customer_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.customer_name_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.customer_name_input._hidden_input)
+            self.customer_name_input = self._create_text_input('نام مشتری')
             content.add_widget(self.customer_name_input)
             
-            self.customer_store_input = RTLTextInput(
-                hint_text='نام فروشگاه',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            self.customer_store_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.customer_store_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.customer_store_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.customer_store_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.customer_store_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.customer_store_input._hidden_input)
+            self.customer_store_input = self._create_text_input('نام فروشگاه')
             content.add_widget(self.customer_store_input)
             
-            self.customer_mobile_input = RTLTextInput(
-                hint_text='موبایل',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            self.customer_mobile_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.customer_mobile_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.customer_mobile_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.customer_mobile_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.customer_mobile_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.customer_mobile_input._hidden_input)
+            self.customer_mobile_input = self._create_text_input('موبایل')
             content.add_widget(self.customer_mobile_input)
             
-            self.customer_address_input = RTLTextInput(
-                hint_text='آدرس',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(36)
-            )
-            self.customer_address_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.customer_address_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.customer_address_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.customer_address_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.customer_address_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.customer_address_input._hidden_input)
+            self.customer_address_input = self._create_text_input('آدرس')
             content.add_widget(self.customer_address_input)
             
-            add_btn = PersianButton(
-                text='افزودن مشتری',
-                size_hint_y=None,
-                height=dp(45),
-                background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1)
-            )
-            add_btn.bind(on_press=self.add_customer_manual)
+            add_btn = self._create_button('افزودن مشتری', self.add_customer_manual)
             content.add_widget(add_btn)
             
             content.add_widget(RTLLabel(
@@ -860,8 +844,17 @@ class AdminScreen(Screen):
             self.customers_list.clear_widgets()
             
             selected_route = self.customer_route_spinner.text
-            all_customers = get_customers()
+            if selected_route == 'ابتدا مسیر ایجاد کنید':
+                self.customers_list.add_widget(RTLLabel(
+                    text='⚠️ ابتدا یک مسیر ایجاد کنید',
+                    size_hint_y=None,
+                    height=dp(35),
+                    font_size=sp(13),
+                    color=(0.8, 0.6, 0.2, 1)
+                ))
+                return
             
+            all_customers = get_customers()
             filtered = [c for c in all_customers if c.get('route_name') == selected_route]
             
             if not filtered:
@@ -870,4 +863,331 @@ class AdminScreen(Screen):
                     size_hint_y=None,
                     height=dp(35),
                     font_size=sp(13),
-                    color=(0.5, 0.5, 0.5, 
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+                return
+            
+            for customer in filtered:
+                box = BoxLayout(
+                    size_hint_y=None,
+                    height=dp(50),
+                    spacing=dp(5),
+                    padding=[dp(5), dp(5), dp(5), dp(5)]
+                )
+                info = f"{customer.get('name', '')}\n{customer.get('store_name', '')}\n{customer.get('mobile', '')}"
+                box.add_widget(RTLLabel(
+                    text=info,
+                    size_hint_x=0.7,
+                    font_size=sp(12),
+                    color=(1, 1, 1, 1)
+                ))
+                del_btn = PersianButton(
+                    text='حذف',
+                    size_hint_x=0.3,
+                    background_color=(0.8, 0.2, 0.2, 1),
+                    size_hint_y=None,
+                    height=dp(35),
+                    color=(1, 1, 1, 1)
+                )
+                del_btn.bind(on_press=lambda x, c=customer: self.delete_customer_and_refresh(c.get('id')))
+                box.add_widget(del_btn)
+                self.customers_list.add_widget(box)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در به‌روزرسانی لیست مشتریان: {e}", error_details)
+    
+    def add_customer_manual(self, instance):
+        try:
+            route_name = self.customer_route_spinner.text
+            if route_name == 'ابتدا مسیر ایجاد کنید':
+                self.show_message('❌ خطا', 'لطفاً ابتدا یک مسیر ایجاد کنید')
+                return
+            
+            name = self.customer_name_input.text.strip()
+            if not name:
+                self.show_message('❌ خطا', 'نام مشتری الزامی است')
+                return
+            
+            mobile = self.customer_mobile_input.text.strip()
+            if mobile:
+                valid, msg = self._validate_mobile(mobile)
+                if not valid:
+                    self.show_message('❌ خطا', msg)
+                    return
+            
+            customer = {
+                'name': name,
+                'store_name': self.customer_store_input.text.strip(),
+                'route_name': route_name,
+                'mobile': mobile,
+                'address': self.customer_address_input.text.strip()
+            }
+            add_customer(customer)
+            
+            self.customer_name_input.text = ''
+            self.customer_store_input.text = ''
+            self.customer_mobile_input.text = ''
+            self.customer_address_input.text = ''
+            
+            self.refresh_customers_list()
+            self.show_message('✅ موفق', 'مشتری با موفقیت اضافه شد')
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در افزودن مشتری: {e}", error_details)
+    
+    def delete_customer_and_refresh(self, customer_id):
+        try:
+            delete_customer(customer_id)
+            self.refresh_customers_list()
+            self.show_message('✅ موفق', 'مشتری با موفقیت حذف شد')
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در حذف مشتری: {e}", error_details)
+    
+    def show_excel_customers(self):
+        try:
+            self.current_sub_tab['customers'] = 'ورود از اکسل'
+            self._update_sub_tab_colors('customers', 'ورود از اکسل')
+            self.customers_content.clear_widgets()
+            
+            layout = BoxLayout(
+                orientation='vertical',
+                padding=dp(15),
+                spacing=dp(12)
+            )
+            
+            layout.add_widget(RTLLabel(
+                text='📎 ورود مشتریان از فایل Excel',
+                font_size=sp(18),
+                color=(1, 1, 1, 1),
+                size_hint_y=None,
+                height=dp(40),
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='فرمت فایل اکسل: name, store_name, route_name, mobile, address',
+                font_size=sp(14),
+                color=(0.7, 0.7, 0.7, 1),
+                size_hint_y=None,
+                height=dp(35),
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='📌 ستون‌ها به ترتیب:\n1- نام مشتری  2- نام فروشگاه  3- نام مسیر  4- موبایل  5- آدرس',
+                font_size=sp(13),
+                color=(0.6, 0.8, 0.6, 1),
+                size_hint_y=None,
+                height=dp(50),
+            ))
+            
+            self.customers_file_picker = FilePicker(
+                on_select=self.import_customers_from_excel_file,
+                file_type='excel',
+                size_hint_y=None,
+                height=dp(120)
+            )
+            layout.add_widget(self.customers_file_picker)
+            
+            self.customers_content.add_widget(layout)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش ورود اکسل مشتریان: {e}", error_details)
+
+    def import_customers_from_excel_file(self, filepath):
+        logger.info(f"🔍 import_customers_from_excel_file: {filepath}")
+        try:
+            if not filepath or not str(filepath).strip():
+                self.show_message('❌ خطا', 'فایلی انتخاب نشده است.')
+                return
+            if not os.path.exists(filepath):
+                self.show_message('❌ خطا', f'فایل وجود ندارد:\n{filepath}')
+                return
+            file_size = os.path.getsize(filepath)
+            if file_size == 0:
+                self.show_message('❌ خطا', 'فایل انتخاب شده خالی است!')
+                return
+            if not filepath.lower().endswith('.xlsx'):
+                self.show_message('❌ خطا', 'فایل باید با فرمت .xlsx باشد')
+                return
+            
+            success, message = import_customers_from_excel(filepath)
+            if success:
+                self.show_message('✅ اطلاعات با موفقیت در دیتابیس ذخیره شد.', message)
+                self.show_manual_customers()
+            else:
+                self.show_message('❌ خطا', message)
+        except Exception as e:
+            logger.error(f"❌ error: {e}")
+            import traceback
+            traceback.print_exc()
+            ErrorPopup.show_error(f"خطا در ورود مشتریان از اکسل: {e}", traceback.format_exc())
+    
+    # ============================================================
+    # ✅ تب تنظیمات
+    # ============================================================
+    
+    def show_settings_tab(self):
+        try:
+            settings = get_settings()
+            
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint=(1, 1),
+                scroll_type=['bars', 'content'],
+                bar_width=dp(8)
+            )
+            
+            content = GridLayout(
+                cols=2,
+                spacing=dp(8),
+                size_hint_y=None,
+                padding=dp(10)
+            )
+            content.bind(minimum_height=content.setter('height'))
+            
+            fields = [
+                ('supervision_rate', 'درصد سرکشی به مشتری', '0.3', 'float'),
+                ('conversion_rate', 'نرخ تبدیل سرکشی به فاکتور', '0.25', 'float'),
+                ('avg_invoice_amount', 'میانگین مبلغ فاکتور', '1000000', 'int'),
+                ('target_amount', 'مبلغ تارگت ریالی', '50000000', 'int'),
+                ('target_count', 'میزان تارگت تعدادی', '100', 'int'),
+                ('target_invoice_count', 'میزان تارگت تعداد فاکتور', '20', 'int'),
+                ('target_customer_count', 'میزان تارگت تعداد مشتری', '50', 'int'),
+                ('target_new_customer_count', 'میزان تارگت مشتری جدید', '10', 'int'),
+                ('target_cash_sales', 'تارگت فروش نقدی', '30000000', 'int'),
+                ('target_credit_sales', 'تارگت فروش غیر نقدی', '20000000', 'int'),
+                ('work_start_time', 'ساعت شروع به کار', '08:00', 'time'),
+                ('first_visit_time', 'ساعت اولین ویزیت', '09:00', 'time'),
+                ('min_daily_hours', 'حداقل ساعت کاری روزانه', '6', 'int'),
+            ]
+            
+            inputs = {}
+            for key, label, default, field_type in fields:
+                content.add_widget(RTLLabel(
+                    text=label + ':',
+                    size_hint_y=None,
+                    height=dp(60),
+                    font_size=sp(14),
+                    color=(1, 1, 1, 1)
+                ))
+                
+                value = settings.get(key, default)
+                if field_type in ['float', 'int']:
+                    input_filter = 'float' if field_type == 'float' else 'int'
+                    input_field = self._create_text_input('')
+                    input_field.text = str(value)
+                    input_field.input_filter = input_filter
+                elif field_type == 'time':
+                    input_field = self._create_text_input('HH:MM')
+                    input_field.text = value
+                else:
+                    input_field = self._create_text_input('')
+                    input_field.text = str(value)
+                
+                content.add_widget(input_field)
+                inputs[key] = input_field
+            
+            save_btn = PersianButton(
+                text='ذخیره تنظیمات',
+                size_hint_y=None,
+                height=dp(45),
+                background_color=(0.2, 0.6, 1, 1),
+                size_hint_x=0.5,
+                color=(1, 1, 1, 1)
+            )
+            save_btn.bind(on_press=lambda x: self.save_settings(inputs))
+            content.add_widget(save_btn)
+            
+            scroll.add_widget(content)
+            self.content_area.add_widget(scroll)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش تنظیمات: {e}", error_details)
+    
+    def save_settings(self, inputs):
+        try:
+            settings = {}
+            for key, input_field in inputs.items():
+                value = input_field.text.strip()
+                
+                if key in ['supervision_rate', 'conversion_rate']:
+                    try:
+                        value = float(value)
+                    except:
+                        value = 0.0
+                elif key in ['avg_invoice_amount', 'target_amount', 'target_count', 'target_invoice_count', 
+                            'target_customer_count', 'target_new_customer_count', 'target_cash_sales', 
+                            'target_credit_sales', 'min_daily_hours']:
+                    try:
+                        value = int(value)
+                    except:
+                        value = 0
+                elif key in ['work_start_time', 'first_visit_time']:
+                    valid, msg = self._validate_time(value)
+                    if not valid:
+                        self.show_message('❌ خطا', f'{key}: {msg}')
+                        return
+                
+                settings[key] = value
+            
+            update_settings(settings)
+            self.show_message('✅ موفق', 'تنظیمات با موفقیت ذخیره شد')
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در ذخیره تنظیمات: {e}", error_details)
+    
+    # ============================================================
+    # ✅ نمایش پیام
+    # ============================================================
+    
+    def show_message(self, title, message):
+        try:
+            from utils.rtl_widgets import RTLMessageLabel
+            
+            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                           size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            scroll = ScrollView(size_hint_y=None, height=dp(200))
+            msg_label = RTLMessageLabel(
+                text=message,
+                font_size=sp(20) if len(message) < 100 else sp(16),
+                color=(1, 1, 1, 1),
+                size_hint_y=None
+            )
+            # ✅ تنظیم text_size بر اساس عرض
+            msg_label.bind(width=lambda i, w: setattr(i, 'text_size', (w - dp(20), None)))
+            msg_label.bind(texture_size=lambda i, v: setattr(i, 'height', v[1]))
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
+            
+            btn = PersianButton(
+                text='باشه',
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(22),
+                color=(1, 1, 1, 1),
+                background_color=(0.2, 0.6, 1, 1)
+            )
+            content.add_widget(btn)
+            
+            popup = Popup(
+                title=title,
+                content=content,
+                size_hint=(0.9, 0.6),
+                background_color=(0.08, 0.08, 0.08, 1)
+            )
+            popup.title_color = (1, 1, 1, 1)
+            popup.title_size = sp(24)
+            btn.bind(on_press=popup.dismiss)
+            popup.open()
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
+    
+    def logout(self, instance):
+        self.manager.current = 'login'
