@@ -30,7 +30,7 @@ except ImportError:
 
 from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel
 from utils.user_manager import login
-from utils.storage import get_data_path
+from utils.storage import get_data_path, ensure_public_dirs
 from error_handler import ErrorPopup
 
 
@@ -308,7 +308,7 @@ class LoginScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ توابع بکاپ و بازیابی
+    # ✅ توابع بکاپ و بازیابی (اصلاح شده)
     # ============================================================
 
     def _get_backup_dir(self):
@@ -317,11 +317,16 @@ class LoginScreen(Screen):
         return get_backup_path()
 
     def do_backup(self, instance):
-        """انجام بکاپ از داده‌ها در پوشه عمومی"""
+        """انجام بکاپ کامل از داده‌ها در پوشه عمومی"""
         try:
             import zipfile
+            import shutil
+            
+            # ✅ اطمینان از وجود پوشه‌های عمومی
+            ensure_public_dirs()
             
             data_path = get_data_path()
+            print(f"📂 مسیر داده برای بکاپ: {data_path}")
             
             if platform == 'android' and ANDROID_AVAILABLE and request_permissions:
                 try:
@@ -333,26 +338,59 @@ class LoginScreen(Screen):
                     print(f"⚠️ خطا در درخواست دسترسی: {e}")
             
             backup_dir = self._get_backup_dir()
+            print(f"📂 مسیر بکاپ: {backup_dir}")
+            
+            # ✅ ایجاد پوشه بکاپ
             os.makedirs(backup_dir, exist_ok=True)
             
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             backup_file = os.path.join(backup_dir, f'backup_{timestamp}.zip')
+            print(f"📂 فایل بکاپ: {backup_file}")
             
+            # ✅ لیست فایل‌هایی که باید بکاپ بشن
+            files_to_backup = []
+            
+            # ✅ دیتابیس اصلی
+            db_path = os.path.join(data_path, 'planandroid.db')
+            if os.path.exists(db_path):
+                files_to_backup.append(('planandroid.db', db_path))
+                print(f"✅ دیتابیس پیدا شد: {db_path}")
+            else:
+                print(f"⚠️ دیتابیس پیدا نشد: {db_path}")
+            
+            # ✅ فایل‌های JSON
+            for filename in os.listdir(data_path):
+                if filename.endswith('.json'):
+                    filepath = os.path.join(data_path, filename)
+                    files_to_backup.append((filename, filepath))
+                    print(f"✅ فایل JSON پیدا شد: {filename}")
+            
+            if not files_to_backup:
+                self.show_message('⚠️ خطا', 'هیچ داده‌ای برای بکاپ وجود ندارد!')
+                return
+            
+            # ✅ ایجاد فایل ZIP
             with zipfile.ZipFile(backup_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for filename in os.listdir(data_path):
-                    if filename.endswith('.json'):
-                        filepath = os.path.join(data_path, filename)
-                        zipf.write(filepath, filename)
+                for arcname, filepath in files_to_backup:
+                    zipf.write(filepath, arcname)
+                    print(f"📦 اضافه شد به بکاپ: {arcname}")
             
-            self.show_message('✅ موفق', 'بکاپ با موفقیت ایجاد شد')
-            
-            Clock.schedule_once(lambda dt: self.show_message(
-                '📍 مسیر بکاپ', 
-                f'{backup_file}'
-            ), 1.5)
+            # ✅ بررسی وجود فایل
+            if os.path.exists(backup_file):
+                file_size = os.path.getsize(backup_file)
+                print(f"✅ بکاپ ایجاد شد: {backup_file} ({file_size} bytes)")
+                
+                # ✅ نمایش پیام موفقیت
+                self.show_message(
+                    '✅ موفق', 
+                    f'بکاپ با موفقیت ایجاد شد!\n\n📁 {os.path.basename(backup_file)}\n📊 حجم: {file_size // 1024} KB'
+                )
+            else:
+                self.show_message('❌ خطا', 'فایل بکاپ ایجاد نشد!')
             
         except Exception as e:
             error_details = traceback.format_exc()
+            print(f"❌ خطا در ایجاد بکاپ: {e}")
             ErrorPopup.show_error(f"خطا در ایجاد بکاپ: {e}", error_details)
     
     def do_restore(self, instance):
@@ -426,7 +464,14 @@ class LoginScreen(Screen):
     def _on_backup_file_selected(self, file_path):
         """وقتی فایل بکاپ انتخاب شد"""
         try:
+            print(f"📂 فایل بکاپ انتخاب شد: {file_path}")
+            
             if not file_path:
+                return
+            
+            # ✅ بررسی وجود فایل
+            if not os.path.exists(file_path):
+                self.show_message('خطا', 'فایل انتخاب شده وجود ندارد!')
                 return
             
             # ✅ بررسی پسوند فایل
@@ -518,9 +563,11 @@ class LoginScreen(Screen):
         """اجرای واقعی بازیابی"""
         try:
             import zipfile
+            import shutil
             from utils.storage import get_data_path
             
             data_path = get_data_path()
+            print(f"📂 مسیر داده برای بازیابی: {data_path}")
             
             # ✅ بستن پاپ‌آپ تأیید
             self._dismiss_confirm_popup()
@@ -529,23 +576,41 @@ class LoginScreen(Screen):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             pre_restore_backup = os.path.join(data_path, f'pre_restore_{timestamp}.zip')
             
-            with zipfile.ZipFile(pre_restore_backup, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for filename in os.listdir(data_path):
-                    if filename.endswith('.json'):
-                        filepath = os.path.join(data_path, filename)
-                        zipf.write(filepath, filename)
+            print(f"📂 ایجاد بکاپ پیش از بازیابی: {pre_restore_backup}")
+            
+            # ✅ لیست فایل‌های فعلی
+            files_to_backup = []
+            for filename in os.listdir(data_path):
+                if filename.endswith('.json') or filename == 'planandroid.db':
+                    filepath = os.path.join(data_path, filename)
+                    files_to_backup.append((filename, filepath))
+            
+            if files_to_backup:
+                with zipfile.ZipFile(pre_restore_backup, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for arcname, filepath in files_to_backup:
+                        zipf.write(filepath, arcname)
+                        print(f"📦 بکاپ پیش از بازیابی: {arcname}")
             
             # ✅ استخراج فایل بکاپ
+            print(f"📂 استخراج فایل بکاپ: {backup_path}")
             with zipfile.ZipFile(backup_path, 'r') as zipf:
                 zipf.extractall(data_path)
+                print(f"📦 فایل‌های استخراج شده: {zipf.namelist()}")
             
-            self.show_message('✅ موفق', 'داده‌ها با موفقیت بازیابی شدند\n\nاپلیکیشن مجدداً راه‌اندازی خواهد شد.')
+            # ✅ به‌روزرسانی فایل‌های JSON
+            for filename in os.listdir(data_path):
+                if filename.endswith('.json'):
+                    filepath = os.path.join(data_path, filename)
+                    print(f"✅ به‌روزرسانی: {filename}")
+            
+            self.show_message('✅ موفق', 'داده‌ها با موفقیت بازیابی شدند!\n\nاپلیکیشن مجدداً راه‌اندازی خواهد شد.')
             
             # ✅ ری‌استارت برنامه
             Clock.schedule_once(lambda dt: self._restart_app(), 2)
             
         except Exception as e:
             error_details = traceback.format_exc()
+            print(f"❌ خطا در اجرای بازیابی: {e}")
             ErrorPopup.show_error(f"خطا در اجرای بازیابی: {e}", error_details)
     
     def _restart_app(self):

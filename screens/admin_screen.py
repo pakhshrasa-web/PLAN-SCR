@@ -623,6 +623,15 @@ class AdminScreen(Screen):
                 height=dp(35),
             ))
             
+            # ✅ اضافه کردن راهنما
+            layout.add_widget(RTLLabel(
+                text='📌 فقط ستون اول فایل خوانده می‌شود\nسطر اول عنوان و سطرهای بعدی نام مسیرها هستند',
+                font_size=sp(13),
+                color=(0.6, 0.8, 0.6, 1),
+                size_hint_y=None,
+                height=dp(50),
+            ))
+            
             self.routes_file_picker = FilePicker(
                 on_select=self.import_routes_from_excel_file,
                 file_type='excel',
@@ -637,20 +646,59 @@ class AdminScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش ورود اکسل مسیرها: {e}", error_details)
 
     def import_routes_from_excel_file(self, filepath):
-        """وارد کردن مسیرها از فایل اکسل - با دریافت مستقیم مسیر"""
+        """وارد کردن مسیرها از فایل اکسل"""
+        print(f"🔍 import_routes_from_excel_file START: filepath={filepath}")
         try:
             if not filepath:
                 self.show_message('خطا', 'لطفاً ابتدا فایل را انتخاب کنید')
                 return
             
-            success, message = import_routes_from_excel(filepath)
-            self.show_message('موفق' if success else 'خطا', message)
+            # ✅ بررسی وجود فایل
+            if not os.path.exists(filepath):
+                self.show_message('خطا', f'فایل وجود ندارد: {filepath}')
+                return
             
-            if success:
-                self.show_manual_routes()
+            # ✅ بررسی اندازه فایل
+            file_size = os.path.getsize(filepath)
+            print(f"📏 حجم فایل: {file_size} bytes")
+            
+            # ✅ بررسی پسوند فایل
+            if not filepath.lower().endswith(('.xlsx', '.xls')):
+                self.show_message('خطا', 'فایل انتخاب شده باید با فرمت اکسل (.xlsx یا .xls) باشد')
+                return
+            
+            # ✅ نمایش پیام در حال پردازش
+            self.show_message('⏳ در حال پردازش', f'در حال خواندن فایل:\n{os.path.basename(filepath)}')
+            
+            # ✅ با تاخیر کوتاه اجرا کن
+            Clock.schedule_once(lambda dt: self._process_routes_import(filepath), 0.5)
+            
         except Exception as e:
+            print(f"❌ import routes error: {e}")
+            import traceback
+            traceback.print_exc()
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ورود مسیرها از اکسل: {e}", error_details)
+
+    def _process_routes_import(self, filepath):
+        """پردازش واقعی وارد کردن مسیرها"""
+        try:
+            success, message = import_routes_from_excel(filepath)
+            print(f"🔍 import result: success={success}, message={message}")
+            
+            if success:
+                self.show_message('✅ موفق', message)
+                # ✅ بازگشت به تب مدیریت دستی
+                Clock.schedule_once(lambda dt: self.show_manual_routes(), 0.5)
+            else:
+                self.show_message('❌ خطا', message)
+                
+        except Exception as e:
+            print(f"❌ _process_routes_import error: {e}")
+            import traceback
+            traceback.print_exc()
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در پردازش مسیرها: {e}", error_details)
     
     # ========== تب مشتریان ==========
     
@@ -945,6 +993,9 @@ class AdminScreen(Screen):
     
     def show_excel_customers(self):
         try:
+            from utils.storage import ensure_public_dirs
+            ensure_public_dirs()
+
             self.customers_content.clear_widgets()
             
             layout = BoxLayout(
@@ -969,9 +1020,18 @@ class AdminScreen(Screen):
                 height=dp(35),
             ))
             
+            # ✅ اضافه کردن راهنما
+            layout.add_widget(RTLLabel(
+                text='📌 ستون‌ها به ترتیب:\n1- نام مشتری  2- نام فروشگاه  3- نام مسیر  4- موبایل  5- آدرس',
+                font_size=sp(13),
+                color=(0.6, 0.8, 0.6, 1),
+                size_hint_y=None,
+                height=dp(50),
+            ))
+            
             self.customers_file_picker = FilePicker(
                 on_select=self.import_customers_from_excel_file,
-                file_type='excel',  # ✅ مشخص کردن نوع فایل
+                file_type='excel',
                 size_hint_y=None,
                 height=dp(120)
             )
@@ -992,25 +1052,54 @@ class AdminScreen(Screen):
             
             # ✅ بررسی وجود فایل
             if not os.path.exists(filepath):
-                self.show_message('خطا', f'فایل وجود ندارد: {filepath}')
+                self.show_message('خطا', f'فایل وجود ندارد:\n{filepath}')
                 return
             
             # ✅ بررسی اندازه فایل
             file_size = os.path.getsize(filepath)
             print(f"📏 حجم فایل: {file_size} bytes")
             
-            success, message = import_customers_from_excel(filepath)
-            print(f"🔍 import result: success={success}, message={message}")
-            self.show_message('موفق' if success else 'خطا', message)
+            if file_size == 0:
+                self.show_message('خطا', 'فایل انتخاب شده خالی است!')
+                return
             
-            if success:
-                self.show_manual_customers()
+            # ✅ بررسی پسوند فایل
+            if not filepath.lower().endswith(('.xlsx', '.xls')):
+                self.show_message('خطا', 'فایل انتخاب شده باید با فرمت اکسل (.xlsx یا .xls) باشد')
+                return
+            
+            # ✅ نمایش پیام در حال پردازش
+            self.show_message('⏳ در حال پردازش', f'در حال خواندن فایل:\n{os.path.basename(filepath)}')
+            
+            # ✅ با تاخیر کوتاه اجرا کن
+            Clock.schedule_once(lambda dt: self._process_customers_import(filepath), 0.5)
+            
         except Exception as e:
-            print(f"❌ import error: {e}")
+            print(f"❌ import customers error: {e}")
             import traceback
             traceback.print_exc()
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ورود مشتریان از اکسل: {e}", error_details)
+
+    def _process_customers_import(self, filepath):
+        """پردازش واقعی وارد کردن مشتریان"""
+        try:
+            success, message = import_customers_from_excel(filepath)
+            print(f"🔍 import result: success={success}, message={message}")
+            
+            if success:
+                self.show_message('✅ موفق', message)
+                # ✅ بازگشت به تب مدیریت دستی
+                Clock.schedule_once(lambda dt: self.show_manual_customers(), 0.5)
+            else:
+                self.show_message('❌ خطا', message)
+                
+        except Exception as e:
+            print(f"❌ _process_customers_import error: {e}")
+            import traceback
+            traceback.print_exc()
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در پردازش مشتریان: {e}", error_details)
     
     # ========== تب تنظیمات ==========
     
