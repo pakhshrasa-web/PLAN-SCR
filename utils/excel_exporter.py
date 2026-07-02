@@ -1,11 +1,13 @@
 """
-ساخت خروجی Excel از ویزیت‌ها - نسخه بهینه برای اندروید
+ساخت خروجی Excel از ویزیت‌ها - نسخه بهینه برای اندروید با ذخیره در Downloads
 """
 
 import os
+from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
+from kivy.utils import platform
 
 from utils.file_manager import get_daily_logs, get_data_path
 
@@ -27,17 +29,44 @@ def safe_str(value, default=''):
     return str(value)
 
 
+def get_export_path():
+    """دریافت مسیر مناسب برای ذخیره فایل اکسل در Downloads"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'گزارش_فروش_{timestamp}.xlsx'
+    
+    if platform == 'android':
+        try:
+            # ✅ استفاده از android.storage برای دریافت مسیر Downloads
+            from android.storage import primary_external_storage_path
+            downloads_path = primary_external_storage_path()
+            if downloads_path:
+                path = os.path.join(downloads_path, 'Download')
+            else:
+                # Fallback
+                path = '/storage/emulated/0/Download'
+        except:
+            # Fallback
+            path = '/storage/emulated/0/Download'
+    else:
+        # ویندوز / دسکتاپ
+        path = os.path.join(os.path.expanduser('~'), 'Downloads')
+    
+    # ✅ ایجاد پوشه اگر وجود نداشت
+    os.makedirs(path, exist_ok=True)
+    
+    return os.path.join(path, filename)
+
+
 def export_to_excel():
     """
     خروجی گرفتن از تمام ویزیت‌ها به فایل Excel
     برگرداندن مسیر کامل فایل ایجاد شده
     """
     try:
-        data_path = get_data_path()
         all_logs = get_daily_logs()
         
         if not all_logs:
-            return None
+            return None, "هیچ داده‌ای برای خروجی وجود ندارد"
         
         wb = Workbook()
         
@@ -216,18 +245,35 @@ def export_to_excel():
         for col in range(1, len(daily_headers) + 1):
             ws3.column_dimensions[get_column_letter(col)].width = 15
         
-        # ========== ذخیره فایل ==========
-        reports_dir = os.path.join(data_path, 'reports')
-        os.makedirs(reports_dir, exist_ok=True)
-        
-        from datetime import datetime
-        filename = f"sales_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        filepath = os.path.join(reports_dir, filename)
+        # ========== ذخیره فایل در Downloads ==========
+        filepath = get_export_path()
         
         wb.save(filepath)
         
-        return filepath
+        return True, filepath
         
     except Exception as e:
         print(f"❌ خطا در خروجی Excel: {e}")
-        return None
+        import traceback
+        traceback.print_exc()
+        return False, str(e)
+
+
+def export_to_excel_simple():
+    """نسخه ساده خروجی اکسل - فقط برای تست"""
+    try:
+        filepath = get_export_path()
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "گزارش"
+        
+        ws['A1'] = "گزارش فروش"
+        ws['A1'].font = Font(bold=True, size=14)
+        
+        ws['A2'] = f"تاریخ ایجاد: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        wb.save(filepath)
+        return True, filepath
+    except Exception as e:
+        return False, str(e)
