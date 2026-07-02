@@ -73,7 +73,7 @@ class FilePicker(BoxLayout):
             self._pick_file_desktop()
     
     def _pick_file_with_filechooser(self):
-        """انتخاب فایل با FileChooserListView (نسخه بهبود یافته)"""
+        """انتخاب فایل با FileChooserListView"""
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
@@ -101,25 +101,23 @@ class FilePicker(BoxLayout):
             if not os.path.exists(start_path):
                 start_path = '/storage/emulated/0/Download/'
             
-            # ✅ تنظیم فیلتر
-            if self.file_type == 'excel':
-                filters = ['*.xlsx', '*.xls']
-                filter_description = 'اکسل (.xlsx, .xls)'
-            else:
-                filters = ['*.zip']
-                filter_description = 'بکاپ (.zip)'
-            
+            # ✅ نمایش همه فایل‌ها (بدون فیلتر)
             filechooser = FileChooserListView(
                 path=start_path,
-                filters=filters,
+                filters=['*'],  # ✅ تغییر از ['*.xlsx', '*.xls'] به ['*']
                 size_hint_y=0.8,
                 show_hidden=False
             )
             content.add_widget(filechooser)
             
-            # ✅ استفاده از PersianLabel (همینجا فقط کافیه RTLLabel رو به PersianLabel تغییر بدی)
+            # ✅ راهنما
+            if self.file_type == 'excel':
+                filter_description = 'اکسل (.xlsx, .xls)'
+            else:
+                filter_description = 'بکاپ (.zip)'
+            
             help_label = PersianLabel(
-                text=f'📌 نمایش فقط فایل‌های {filter_description}',
+                text=f'📌 لطفاً یک فایل {filter_description} انتخاب کنید',
                 size_hint_y=None,
                 height=dp(30),
                 font_size=sp(14),
@@ -163,6 +161,7 @@ class FilePicker(BoxLayout):
                     file_path = filechooser.selection[0]
                     print(f"📂 فایل انتخاب شد: {file_path}")
                     
+                    # ✅ بررسی پسوند فایل (دستی)
                     is_valid = False
                     if self.file_type == 'excel':
                         is_valid = file_path.lower().endswith(('.xlsx', '.xls'))
