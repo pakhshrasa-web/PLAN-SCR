@@ -462,17 +462,27 @@ class ReportScreen(Screen):
             instance.bg_rect.size = instance.size
     
     def export_excel(self, instance):
-        """خروجی Excel با نمایش مسیر"""
+        """خروجی اکسل با نمایش مسیر"""
         try:
-            filepath = export_to_excel()
-            if filepath:
-                message = f"فایل Excel با موفقیت ذخیره شد\n\n📁 مسیر:\n{filepath}"
-                self.show_message('✅ موفق', message)
+            # ✅ نمایش دیالوگ در حال ساخت
+            self.show_message('⏳ در حال ساخت', 'لطفاً صبر کنید...')
+            
+            success, result = export_to_excel()
+            
+            if success:
+                # ✅ نمایش مسیر کامل به کاربر
+                self.show_message(
+                    '✅ موفق', 
+                    f'فایل اکسل با موفقیت ساخته شد\n\n'
+                    f'📍 مسیر: {result}\n\n'
+                    f'📁 پوشه: {os.path.dirname(result)}\n\n'
+                    f'💡 برای دسترسی به فایل، به پوشه Downloads مراجعه کنید.'
+                )
             else:
-                self.show_message('⚠️ خطا', 'هیچ داده‌ای برای خروجی وجود ندارد')
+                self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
         except Exception as e:
             error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در خروجی Excel: {e}", error_details)
+            ErrorPopup.show_error(f"خطا در خروجی اکسل: {e}", error_details)
     
     def go_back(self, instance):
         self.manager.current = 'user'

@@ -12,6 +12,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
+import os
 
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel
 from utils.file_manager import (
@@ -983,11 +984,20 @@ class AdminScreen(Screen):
 
     def import_customers_from_excel_file(self, filepath):
         """وارد کردن مشتریان از فایل اکسل"""
-        print(f"🔍 import_customers_from_excel_file: filepath={filepath}")
+        print(f"🔍 import_customers_from_excel_file START: filepath={filepath}")
         try:
             if not filepath:
                 self.show_message('خطا', 'لطفاً ابتدا فایل را انتخاب کنید')
                 return
+            
+            # ✅ بررسی وجود فایل
+            if not os.path.exists(filepath):
+                self.show_message('خطا', f'فایل وجود ندارد: {filepath}')
+                return
+            
+            # ✅ بررسی اندازه فایل
+            file_size = os.path.getsize(filepath)
+            print(f"📏 حجم فایل: {file_size} bytes")
             
             success, message = import_customers_from_excel(filepath)
             print(f"🔍 import result: success={success}, message={message}")

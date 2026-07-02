@@ -146,7 +146,7 @@ class LoginScreen(Screen):
                 hint_text='نام کاربری',
                 size_hint_y=None,
                 height=dp(90),
-                font_size=sp(24)
+                font_size=sp(36)
             )
             self.username.bg_color = (0.15, 0.15, 0.15, 1)
             self.username.border_color = (0.3, 0.3, 0.3, 1)
@@ -167,7 +167,7 @@ class LoginScreen(Screen):
                 password=True,
                 size_hint_y=None,
                 height=dp(90),
-                font_size=sp(24)
+                font_size=sp(32)
             )
             self.password.bg_color = (0.15, 0.15, 0.15, 1)
             self.password.border_color = (0.3, 0.3, 0.3, 1)
