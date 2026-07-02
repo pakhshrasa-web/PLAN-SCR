@@ -1,21 +1,21 @@
 """
-وارد کردن اطلاعات از فایل Excel - نسخه بهینه‌سازی شده
+وارد کردن اطلاعات از فایل Excel - نسخه نهایی با پشتیبانی از JSON و SQLite
 """
 
 import os
 import openpyxl
 from kivy.logger import Logger as logger
+
+# ✅ لایه ذخیره‌سازی فعلی
+# فعلاً از file_manager (JSON) استفاده می‌شود.
+# بعداً فقط این import با DatabaseManager جایگزین خواهد شد.
 from utils.file_manager import add_route, add_customer, get_routes, get_customers
+# from database.database_manager import DatabaseManager
 
 
 class ExcelImportError(Exception):
     """خطاهای مربوط به وارد کردن اکسل"""
     pass
-
-
-def _get_sheet_names(wb):
-    """دریافت نام تمام شیت‌ها"""
-    return wb.sheetnames
 
 
 def _validate_headers(ws, expected_headers):
@@ -35,16 +35,6 @@ def _validate_headers(ws, expected_headers):
         raise ExcelImportError(f"ستون‌های زیر در فایل وجود ندارند: {', '.join(missing)}")
     
     return headers
-
-
-def _safe_int(value, default=0):
-    """تبدیل امن به عدد صحیح"""
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
 
 
 def load_excel_file(filepath):
@@ -70,7 +60,7 @@ def load_excel_file(filepath):
     if file_size == 0:
         raise ExcelImportError("فایل خالی است")
     
-    # بررسی پسوند فایل
+    # فقط xlsx (پشتیبانی از xls برای سازگاری)
     if not filepath.lower().endswith(('.xlsx', '.xls')):
         raise ExcelImportError("فایل باید با فرمت اکسل (.xlsx یا .xls) باشد")
     
@@ -98,18 +88,18 @@ def import_routes_from_excel(filepath):
     وارد کردن مسیرها از فایل Excel
     فرمت فایل: ستون اول = name
     """
-    logger.info(f"🔍 import_routes_from_excel: filepath={filepath}")
+    logger.info(f"🔍 import_routes_from_excel: {filepath}")
     
     wb = None
     try:
-        # ✅ بارگذاری فایل
+        # بارگذاری فایل
         wb, ws, sheet_name = load_excel_file(filepath)
         
-        # ✅ اعتبارسنجی ستون‌ها
+        # اعتبارسنجی ستون‌ها
         expected_headers = ['name']
-        headers = _validate_headers(ws, expected_headers)
+        _validate_headers(ws, expected_headers)
         
-        # ✅ دریافت مسیرهای موجود (با Set برای سرعت بالا)
+        # دریافت مسیرهای موجود (با Set برای سرعت بالا)
         existing_routes = {r.get('name', '') for r in get_routes()}
         logger.info(f"📋 {len(existing_routes)} مسیر موجود در سیستم")
         
@@ -117,7 +107,7 @@ def import_routes_from_excel(filepath):
         duplicate_count = 0
         error_count = 0
         
-        # ✅ خواندن سطرها
+        # خواندن سطرها
         for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             try:
                 if not row or not row[0]:
@@ -176,24 +166,29 @@ def import_customers_from_excel(filepath):
     وارد کردن مشتریان از فایل Excel
     فرمت فایل: name, store_name, route_name, mobile, address
     """
-    logger.info(f"🔍 import_customers_from_excel: filepath={filepath}")
+    logger.info(f"🔍 import_customers_from_excel: {filepath}")
     
     wb = None
     try:
-        # ✅ بارگذاری فایل
+        # بارگذاری فایل
         wb, ws, sheet_name = load_excel_file(filepath)
         
-        # ✅ اعتبارسنجی ستون‌ها
+        # اعتبارسنجی ستون‌ها
         expected_headers = ['name', 'store_name', 'route_name', 'mobile', 'address']
-        headers = _validate_headers(ws, expected_headers)
+        _validate_headers(ws, expected_headers)
         
-        # ✅ دریافت مسیرهای موجود (با Set برای سرعت بالا)
+        # دریافت مسیرهای موجود (با Set برای سرعت بالا)
         routes = get_routes()
         route_names = {r.get('name', '') for r in routes}
         logger.info(f"📋 {len(route_names)} مسیر موجود در سیستم")
         
-        # ✅ دریافت مشتریان موجود (با Set برای سرعت بالا)
-        existing_customers = {c.get('name', '') for c in get_customers()}
+        # ✅ دریافت مشتریان موجود
+        # برای تشخیص تکراری‌ها از ترکیب name + mobile استفاده می‌کنیم
+        # فرمت کلید: "name|mobile" (اگر موبایل خالی باشد، "name|" خواهد بود)
+        existing_customers = {}
+        for c in get_customers():
+            key = f"{c.get('name', '')}|{c.get('mobile', '')}"
+            existing_customers[key] = True
         logger.info(f"📋 {len(existing_customers)} مشتری موجود در سیستم")
         
         imported_count = 0
@@ -201,7 +196,7 @@ def import_customers_from_excel(filepath):
         error_count = 0
         new_routes_added = 0
         
-        # ✅ خواندن سطرها
+        # خواندن سطرها
         for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             try:
                 if not row:
@@ -222,20 +217,23 @@ def import_customers_from_excel(filepath):
                 
                 logger.debug(f"📝 سطر {idx}: نام='{name}', مسیر='{route_name}', موبایل='{mobile}'")
                 
-                # ✅ بررسی تکراری بودن با Set
-                if name in existing_customers:
+                # ✅ بررسی تکراری بودن با ترکیب name + mobile
+                # ✅ فرمت یکسان با existing_customers: "name|mobile"
+                customer_key = f"{name}|{mobile}"
+                
+                if customer_key in existing_customers:
                     duplicate_count += 1
-                    logger.debug(f"⚠️ مشتری '{name}' تکراری است")
+                    logger.debug(f"⚠️ مشتری '{name}' با موبایل '{mobile}' تکراری است")
                     continue
                 
-                # ✅ بررسی وجود مسیر (با Set)
+                # بررسی وجود مسیر (با Set)
                 if route_name and route_name not in route_names:
                     route_names.add(route_name)
                     add_route({'name': route_name})
                     new_routes_added += 1
                     logger.info(f"✅ مسیر جدید '{route_name}' اضافه شد")
                 
-                # ✅ افزودن مشتری
+                # افزودن مشتری
                 customer = {
                     'name': name,
                     'store_name': store_name,
@@ -245,7 +243,7 @@ def import_customers_from_excel(filepath):
                 }
                 add_customer(customer)
                 imported_count += 1
-                existing_customers.add(name)
+                existing_customers[customer_key] = True
                 logger.info(f"✅ مشتری '{name}' اضافه شد")
                     
             except Exception as e:
@@ -352,7 +350,7 @@ def import_from_excel(filepath, data_type='customers'):
     تابع عمومی برای وارد کردن از اکسل
     data_type: 'customers' یا 'routes'
     """
-    logger.info(f"🔍 import_from_excel: filepath={filepath}, data_type={data_type}")
+    logger.info(f"🔍 import_from_excel: {filepath}, data_type={data_type}")
     
     if data_type == 'routes':
         return import_routes_from_excel(filepath)
