@@ -1,5 +1,5 @@
 # screens/admin_screen.py
-# ========== صفحه مدیریت با اسکرول دقیق ==========
+# ========== صفحه مدیریت ==========
 
 import traceback
 from kivy.metrics import dp, sp
@@ -12,6 +12,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
+from kivy.logger import Logger as logger
 import os
 
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel
@@ -29,25 +30,20 @@ from constants import ROLES
 
 
 class AdminScreen(Screen):
+    """صفحه مدیریت - فقط رابط کاربری"""
+
     def __init__(self, **kwargs):
         try:
             super().__init__(**kwargs)
-            # پس‌زمینه تیره
             with self.canvas.before:
                 Color(0.08, 0.08, 0.08, 1)
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
-            
-            # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
-            
             self.current_tab = 0
             self.build_ui()
-            
-            # ✅ اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
         except Exception as e:
@@ -60,25 +56,20 @@ class AdminScreen(Screen):
         self.bg_rect.size = instance.size
     
     # ============================================================
-    # ✅ مدیریت فوکوس و انتخاب خودکار متن
+    # ✅ مدیریت فوکوس
     # ============================================================
     
     def _on_field_focus(self, instance, value):
-        """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            # ✅ اسکرول با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
-        """انتخاب کل متن فیلد"""
         if instance and hasattr(instance, 'select_all'):
             instance.select_all()
     
     def _scroll_to_field(self, instance):
-        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
         try:
-            # پیدا کردن ScrollView
             scroll = None
             for child in self.content_area.children:
                 if isinstance(child, ScrollView):
@@ -88,53 +79,36 @@ class AdminScreen(Screen):
             if not scroll:
                 return
             
-            # موقعیت فیلد در پنجره
             field_pos = instance.to_window(0, 0)
             field_y = field_pos[1]
-            
-            # ارتفاع کیبورد (تقریبی)
             keyboard_height = 250
-            
-            # ارتفاع قابل مشاهده صفحه
             window_height = Window.height
-            
-            # موقعیت هدف: بالای کیبورد با فاصله
             target_y = window_height - keyboard_height - dp(80)
             
-            # محتوای ScrollView
             content_height = scroll.children[0].height if scroll.children else 1
             scroll_height = scroll.height
             
             if content_height > scroll_height:
-                # اگر فیلد پایین‌تر از هدف بود، اسکرول کن
                 if field_y > target_y:
-                    # محاسبه نسبت اسکرول
                     field_ratio = (content_height - field_y) / content_height
                     scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
                     scroll.scroll_y = scroll_value
                 elif field_y < dp(50):
-                    # فیلد خیلی بالاست، اسکرول به پایین
                     scroll.scroll_y = 0.9
-                else:
-                    # فیلد در محدوده قابل قبول است
-                    pass
-                    
         except Exception as e:
-            print(f"⚠️ خطا در اسکرول به فیلد: {e}")
+            logger.warning(f"⚠️ خطا در اسکرول: {e}")
     
     # ============================================================
-    # ✅ مدیریت کلیدهای کیبورد
+    # ✅ مدیریت کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
-        """مدیریت کلیدهای کیبورد"""
-        if key == 9:  # Tab
+        if key == 9:
             self._focus_next()
             return True
         return False
     
     def _focus_next(self):
-        """فوکوس به فیلد بعدی"""
         if not self.focusable_fields:
             return
         for i, field in enumerate(self.focusable_fields):
@@ -147,7 +121,7 @@ class AdminScreen(Screen):
         try:
             main_layout = BoxLayout(orientation='vertical', padding=[dp(5), dp(5), dp(5), dp(5)])
             
-            # ========== تب‌ها (در بالا) ==========
+            # ========== تب‌ها ==========
             tabs_layout = BoxLayout(
                 size_hint_y=None,
                 height=dp(38),
@@ -196,11 +170,9 @@ class AdminScreen(Screen):
             
             main_layout.add_widget(tabs_layout)
             
-            # ========== محتوای تب‌ها ==========
             self.content_area = BoxLayout(orientation='vertical')
             main_layout.add_widget(self.content_area)
             
-            # ========== دکمه خروج ==========
             logout_btn = PersianButton(
                 text='خروج',
                 background_color=(0.8, 0.2, 0.2, 1),
@@ -222,7 +194,6 @@ class AdminScreen(Screen):
         try:
             self.current_tab = tab_id
             self.content_area.clear_widgets()
-            # ✅ ریست کردن لیست فیلدها برای هر تب جدید
             self.focusable_fields = []
             
             if tab_id == 0:
@@ -237,7 +208,9 @@ class AdminScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در تغییر تب: {e}", error_details)
     
-    # ========== تب عامل‌ها ==========
+    # ============================================================
+    # ✅ تب عامل‌ها (بدون تغییر)
+    # ============================================================
     
     def show_agents_tab(self):
         try:
@@ -397,7 +370,7 @@ class AdminScreen(Screen):
                 name_input.text = ''
                 phone_input.text = ''
                 email_input.text = ''
-                self.show_message('موفق', 'عامل با موفقیت اضافه شد')
+                self.show_message('✅ موفق', 'عامل با موفقیت اضافه شد')
                 self.switch_tab(0)
         except Exception as e:
             error_details = traceback.format_exc()
@@ -406,13 +379,15 @@ class AdminScreen(Screen):
     def delete_agent_and_refresh(self, agent_id):
         try:
             delete_agent(agent_id)
-            self.show_message('موفق', 'عامل با موفقیت حذف شد')
+            self.show_message('✅ موفق', 'عامل با موفقیت حذف شد')
             self.switch_tab(0)
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در حذف عامل: {e}", error_details)
     
-    # ========== تب مسیرها ==========
+    # ============================================================
+    # ✅ تب مسیرها (با تغییرات)
+    # ============================================================
     
     def show_routes_tab(self):
         try:
@@ -583,7 +558,7 @@ class AdminScreen(Screen):
                 add_route({'name': self.route_name_input.text})
                 self.route_name_input.text = ''
                 self.refresh_routes_list()
-                self.show_message('موفق', 'مسیر با موفقیت اضافه شد')
+                self.show_message('✅ موفق', 'مسیر با موفقیت اضافه شد')
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در افزودن مسیر: {e}", error_details)
@@ -592,7 +567,7 @@ class AdminScreen(Screen):
         try:
             delete_route(route_id)
             self.refresh_routes_list()
-            self.show_message('موفق', 'مسیر با موفقیت حذف شد')
+            self.show_message('✅ موفق', 'مسیر با موفقیت حذف شد')
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در حذف مسیر: {e}", error_details)
@@ -616,20 +591,19 @@ class AdminScreen(Screen):
             ))
             
             layout.add_widget(RTLLabel(
-                text='فرمت فایل اکسل: ستون اول نام مسیر',
+                text='فرمت فایل اکسل: فقط ستون اول (نام مسیر) خوانده می‌شود',
                 font_size=sp(14),
                 color=(0.7, 0.7, 0.7, 1),
                 size_hint_y=None,
                 height=dp(35),
             ))
             
-            # ✅ اضافه کردن راهنما
             layout.add_widget(RTLLabel(
-                text='📌 فقط ستون اول فایل خوانده می‌شود\nسطر اول عنوان و سطرهای بعدی نام مسیرها هستند',
+                text='📌 سطر اول عنوان و سطرهای بعدی نام مسیرها هستند',
                 font_size=sp(13),
                 color=(0.6, 0.8, 0.6, 1),
                 size_hint_y=None,
-                height=dp(50),
+                height=dp(40),
             ))
             
             self.routes_file_picker = FilePicker(
@@ -647,60 +621,43 @@ class AdminScreen(Screen):
 
     def import_routes_from_excel_file(self, filepath):
         """وارد کردن مسیرها از فایل اکسل"""
-        print(f"🔍 import_routes_from_excel_file START: filepath={filepath}")
+        logger.info(f"🔍 import_routes_from_excel_file: {filepath}")
+        
         try:
-            if not filepath:
-                self.show_message('خطا', 'لطفاً ابتدا فایل را انتخاب کنید')
+            # ✅ بررسی انتخاب فایل
+            if not filepath or not str(filepath).strip():
+                self.show_message('❌ خطا', 'فایلی انتخاب نشده است.')
                 return
             
             # ✅ بررسی وجود فایل
             if not os.path.exists(filepath):
-                self.show_message('خطا', f'فایل وجود ندارد: {filepath}')
+                self.show_message('❌ خطا', f'فایل وجود ندارد:\n{filepath}')
                 return
             
-            # ✅ بررسی اندازه فایل
-            file_size = os.path.getsize(filepath)
-            print(f"📏 حجم فایل: {file_size} bytes")
-            
-            # ✅ بررسی پسوند فایل
-            if not filepath.lower().endswith(('.xlsx', '.xls')):
-                self.show_message('خطا', 'فایل انتخاب شده باید با فرمت اکسل (.xlsx یا .xls) باشد')
+            # ✅ بررسی پسوند فایل (فقط xlsx)
+            if not filepath.lower().endswith('.xlsx'):
+                self.show_message('❌ خطا', 'فایل باید با فرمت .xlsx باشد')
                 return
             
-            # ✅ نمایش پیام در حال پردازش
-            self.show_message('⏳ در حال پردازش', f'در حال خواندن فایل:\n{os.path.basename(filepath)}')
-            
-            # ✅ با تاخیر کوتاه اجرا کن
-            Clock.schedule_once(lambda dt: self._process_routes_import(filepath), 0.5)
-            
-        except Exception as e:
-            print(f"❌ import routes error: {e}")
-            import traceback
-            traceback.print_exc()
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در ورود مسیرها از اکسل: {e}", error_details)
-
-    def _process_routes_import(self, filepath):
-        """پردازش واقعی وارد کردن مسیرها"""
-        try:
+            # ✅ اجرای مستقیم (بدون تأخیر)
             success, message = import_routes_from_excel(filepath)
-            print(f"🔍 import result: success={success}, message={message}")
+            logger.info(f"🔍 import result: success={success}, message={message}")
             
             if success:
-                self.show_message('✅ موفق', message)
-                # ✅ بازگشت به تب مدیریت دستی
-                Clock.schedule_once(lambda dt: self.show_manual_routes(), 0.5)
+                self.show_message('✅ اطلاعات با موفقیت در دیتابیس ذخیره شد.', message)
+                Clock.schedule_once(lambda dt: self.switch_tab(1), 0.5)
             else:
                 self.show_message('❌ خطا', message)
                 
         except Exception as e:
-            print(f"❌ _process_routes_import error: {e}")
+            logger.error(f"❌ error: {e}")
             import traceback
             traceback.print_exc()
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در پردازش مسیرها: {e}", error_details)
+            ErrorPopup.show_error(f"خطا در ورود مسیرها از اکسل: {e}", traceback.format_exc())
     
-    # ========== تب مشتریان ==========
+    # ============================================================
+    # ✅ تب مشتریان (با تغییرات)
+    # ============================================================
     
     def show_customers_tab(self):
         try:
@@ -913,378 +870,4 @@ class AdminScreen(Screen):
                     size_hint_y=None,
                     height=dp(35),
                     font_size=sp(13),
-                    color=(0.5, 0.5, 0.5, 1)
-                ))
-                return
-            
-            for customer in filtered:
-                box = BoxLayout(
-                    size_hint_y=None,
-                    height=dp(50),
-                    spacing=dp(5),
-                    padding=[dp(5), dp(5), dp(5), dp(5)]
-                )
-                info = f"{customer.get('name', '')}\n{customer.get('store_name', '')}\n{customer.get('mobile', '')}"
-                box.add_widget(RTLLabel(
-                    text=info,
-                    size_hint_x=0.7,
-                    font_size=sp(12),
-                    color=(1, 1, 1, 1)
-                ))
-                del_btn = PersianButton(
-                    text='حذف',
-                    size_hint_x=0.3,
-                    background_color=(0.8, 0.2, 0.2, 1),
-                    size_hint_y=None,
-                    height=dp(35),
-                    color=(1, 1, 1, 1)
-                )
-                del_btn.bind(on_press=lambda x, c=customer: self.delete_customer_and_refresh(c.get('id')))
-                box.add_widget(del_btn)
-                self.customers_list.add_widget(box)
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در به‌روزرسانی لیست مشتریان: {e}", error_details)
-    
-    def add_customer_manual(self, instance):
-        try:
-            route_name = self.customer_route_spinner.text
-            name = self.customer_name_input.text
-            store = self.customer_store_input.text
-            mobile = self.customer_mobile_input.text
-            address = self.customer_address_input.text
-            
-            if not route_name:
-                self.show_message('خطا', 'لطفاً ابتدا مسیر را انتخاب کنید')
-                return
-            
-            if not name:
-                self.show_message('خطا', 'نام مشتری الزامی است')
-                return
-            
-            customer = {
-                'name': name,
-                'store_name': store,
-                'route_name': route_name,
-                'mobile': mobile,
-                'address': address
-            }
-            add_customer(customer)
-            
-            self.customer_name_input.text = ''
-            self.customer_store_input.text = ''
-            self.customer_mobile_input.text = ''
-            self.customer_address_input.text = ''
-            
-            self.refresh_customers_list()
-            self.show_message('موفق', 'مشتری با موفقیت اضافه شد')
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در افزودن مشتری: {e}", error_details)
-    
-    def delete_customer_and_refresh(self, customer_id):
-        try:
-            delete_customer(customer_id)
-            self.refresh_customers_list()
-            self.show_message('موفق', 'مشتری با موفقیت حذف شد')
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در حذف مشتری: {e}", error_details)
-    
-    def show_excel_customers(self):
-        try:
-            from utils.storage import ensure_public_dirs
-            ensure_public_dirs()
-
-            self.customers_content.clear_widgets()
-            
-            layout = BoxLayout(
-                orientation='vertical',
-                padding=dp(15),
-                spacing=dp(12)
-            )
-            
-            layout.add_widget(RTLLabel(
-                text='📎 ورود مشتریان از فایل Excel',
-                font_size=sp(18),
-                color=(1, 1, 1, 1),
-                size_hint_y=None,
-                height=dp(40),
-            ))
-            
-            layout.add_widget(RTLLabel(
-                text='فرمت فایل اکسل: name, store_name, route_name, mobile, address',
-                font_size=sp(14),
-                color=(0.7, 0.7, 0.7, 1),
-                size_hint_y=None,
-                height=dp(35),
-            ))
-            
-            # ✅ اضافه کردن راهنما
-            layout.add_widget(RTLLabel(
-                text='📌 ستون‌ها به ترتیب:\n1- نام مشتری  2- نام فروشگاه  3- نام مسیر  4- موبایل  5- آدرس',
-                font_size=sp(13),
-                color=(0.6, 0.8, 0.6, 1),
-                size_hint_y=None,
-                height=dp(50),
-            ))
-            
-            self.customers_file_picker = FilePicker(
-                on_select=self.import_customers_from_excel_file,
-                file_type='excel',
-                size_hint_y=None,
-                height=dp(120)
-            )
-            layout.add_widget(self.customers_file_picker)
-            
-            self.customers_content.add_widget(layout)
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش ورود اکسل مشتریان: {e}", error_details)
-
-    def import_customers_from_excel_file(self, filepath):
-        """وارد کردن مشتریان از فایل اکسل"""
-        print(f"🔍 import_customers_from_excel_file START: filepath={filepath}")
-        try:
-            if not filepath:
-                self.show_message('خطا', 'لطفاً ابتدا فایل را انتخاب کنید')
-                return
-            
-            # ✅ بررسی وجود فایل
-            if not os.path.exists(filepath):
-                self.show_message('خطا', f'فایل وجود ندارد:\n{filepath}')
-                return
-            
-            # ✅ بررسی اندازه فایل
-            file_size = os.path.getsize(filepath)
-            print(f"📏 حجم فایل: {file_size} bytes")
-            
-            if file_size == 0:
-                self.show_message('خطا', 'فایل انتخاب شده خالی است!')
-                return
-            
-            # ✅ بررسی پسوند فایل
-            if not filepath.lower().endswith(('.xlsx', '.xls')):
-                self.show_message('خطا', 'فایل انتخاب شده باید با فرمت اکسل (.xlsx یا .xls) باشد')
-                return
-            
-            # ✅ نمایش پیام در حال پردازش
-            self.show_message('⏳ در حال پردازش', f'در حال خواندن فایل:\n{os.path.basename(filepath)}')
-            
-            # ✅ با تاخیر کوتاه اجرا کن
-            Clock.schedule_once(lambda dt: self._process_customers_import(filepath), 0.5)
-            
-        except Exception as e:
-            print(f"❌ import customers error: {e}")
-            import traceback
-            traceback.print_exc()
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در ورود مشتریان از اکسل: {e}", error_details)
-
-    def _process_customers_import(self, filepath):
-        """پردازش واقعی وارد کردن مشتریان"""
-        try:
-            success, message = import_customers_from_excel(filepath)
-            print(f"🔍 import result: success={success}, message={message}")
-            
-            if success:
-                self.show_message('✅ موفق', message)
-                # ✅ بازگشت به تب مدیریت دستی
-                Clock.schedule_once(lambda dt: self.show_manual_customers(), 0.5)
-            else:
-                self.show_message('❌ خطا', message)
-                
-        except Exception as e:
-            print(f"❌ _process_customers_import error: {e}")
-            import traceback
-            traceback.print_exc()
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در پردازش مشتریان: {e}", error_details)
-    
-    # ========== تب تنظیمات ==========
-    
-    def show_settings_tab(self):
-        try:
-            settings = get_settings()
-            
-            scroll = ScrollView(
-                do_scroll_x=False,
-                do_scroll_y=True,
-                size_hint=(1, 1),
-                scroll_type=['bars', 'content'],
-                bar_width=dp(8)
-            )
-            
-            content = GridLayout(
-                cols=2,
-                spacing=dp(8),
-                size_hint_y=None,
-                padding=dp(10)
-            )
-            content.bind(minimum_height=content.setter('height'))
-            
-            fields = [
-                ('supervision_rate', 'درصد سرکشی به مشتری', '0.3', 'float'),
-                ('conversion_rate', 'نرخ تبدیل سرکشی به فاکتور', '0.25', 'float'),
-                ('avg_invoice_amount', 'میانگین مبلغ فاکتور', '1000000', 'int'),
-                ('target_amount', 'مبلغ تارگت ریالی', '50000000', 'int'),
-                ('target_count', 'میزان تارگت تعدادی', '100', 'int'),
-                ('target_invoice_count', 'میزان تارگت تعداد فاکتور', '20', 'int'),
-                ('target_customer_count', 'میزان تارگت تعداد مشتری', '50', 'int'),
-                ('target_new_customer_count', 'میزان تارگت مشتری جدید', '10', 'int'),
-                ('target_cash_sales', 'تارگت فروش نقدی', '30000000', 'int'),
-                ('target_credit_sales', 'تارگت فروش غیر نقدی', '20000000', 'int'),
-                ('work_start_time', 'ساعت شروع به کار', '08:00', 'time'),
-                ('first_visit_time', 'ساعت اولین ویزیت', '09:00', 'time'),
-                ('min_daily_hours', 'حداقل ساعت کاری روزانه', '6', 'int'),
-            ]
-            
-            inputs = {}
-            for item in fields:
-                key = item[0]
-                label = item[1]
-                default = item[2]
-                field_type = item[3]
-                
-                content.add_widget(RTLLabel(
-                    text=label + ':',
-                    size_hint_y=None,
-                    height=dp(60),
-                    font_size=sp(14),
-                    color=(1, 1, 1, 1)
-                ))
-                
-                value = settings.get(key, default)
-                if field_type == 'float':
-                    input_field = RTLTextInput(
-                        text=str(value),
-                        multiline=False,
-                        size_hint_y=None,
-                        height=dp(60),
-                        input_filter='float',
-                        font_size=sp(36)
-                    )
-                elif field_type == 'int':
-                    input_field = RTLTextInput(
-                        text=str(value),
-                        multiline=False,
-                        size_hint_y=None,
-                        height=dp(60),
-                        input_filter='int',
-                        font_size=sp(36)
-                    )
-                elif field_type == 'time':
-                    input_field = RTLTextInput(
-                        text=value,
-                        multiline=False,
-                        size_hint_y=None,
-                        height=dp(60),
-                        hint_text='HH:MM',
-                        font_size=sp(36)
-                    )
-                else:
-                    input_field = RTLTextInput(
-                        text=str(value),
-                        multiline=False,
-                        size_hint_y=None,
-                        height=dp(60),
-                        font_size=sp(36)
-                    )
-                
-                input_field.bg_color = (0.15, 0.15, 0.15, 1)
-                input_field.border_color = (0.3, 0.3, 0.3, 1)
-                input_field.border_color_focus = (0.2, 0.5, 0.9, 1)
-                input_field._hidden_input.foreground_color = (1, 1, 1, 1)
-                input_field._hidden_input.bind(focus=self._on_field_focus)
-                self.focusable_fields.append(input_field._hidden_input)
-                
-                content.add_widget(input_field)
-                inputs[key] = input_field
-            
-            save_btn = PersianButton(
-                text='ذخیره تنظیمات',
-                size_hint_y=None,
-                height=dp(45),
-                background_color=(0.2, 0.6, 1, 1),
-                size_hint_x=0.5,
-                color=(1, 1, 1, 1)
-            )
-            save_btn.bind(on_press=lambda x: self.save_settings(inputs))
-            content.add_widget(save_btn)
-            
-            scroll.add_widget(content)
-            self.content_area.add_widget(scroll)
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش تنظیمات: {e}", error_details)
-    
-    def save_settings(self, inputs):
-        try:
-            settings = {}
-            for key, input_field in inputs.items():
-                value = input_field.text
-                
-                if key in ['supervision_rate', 'conversion_rate']:
-                    try:
-                        value = float(value)
-                    except:
-                        value = 0.0
-                elif key in ['avg_invoice_amount', 'target_amount', 'target_count', 'target_invoice_count', 
-                            'target_customer_count', 'target_new_customer_count', 'target_cash_sales', 
-                            'target_credit_sales', 'min_daily_hours']:
-                    try:
-                        value = int(value)
-                    except:
-                        value = 0
-                elif key in ['work_start_time', 'first_visit_time']:
-                    pass
-                
-                settings[key] = value
-            
-            update_settings(settings)
-            self.show_message('موفق', 'تنظیمات با موفقیت ذخیره شد')
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در ذخیره تنظیمات: {e}", error_details)
-    
-    def show_message(self, title, message):
-        try:
-            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
-            
-            content.add_widget(RTLLabel(
-                text=message,
-                size_hint_y=None,
-                height=dp(100),
-                font_size=sp(24),
-                color=(1, 1, 1, 1)
-            ))
-            btn = PersianButton(
-                text='باشه',
-                size_hint_y=None,
-                height=dp(55),
-                font_size=sp(22),
-                color=(1, 1, 1, 1),
-                background_color=(0.2, 0.6, 1, 1)
-            )
-            content.add_widget(btn)
-            popup = Popup(
-                title=title,
-                content=content,
-                size_hint=(0.9, 0.5),
-                background_color=(0.08, 0.08, 0.08, 1)
-            )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(24)
-            btn.bind(on_press=popup.dismiss)
-            popup.open()
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
-    
-    def logout(self, instance):
-        self.manager.current = 'login'
+                    color=(0.5, 0.5, 0.5, 
