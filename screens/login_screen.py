@@ -308,31 +308,14 @@ class LoginScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ توابع بکاپ و بازیابی (نسخه جدید با پوشه عمومی)
+    # ✅ توابع بکاپ و بازیابی
     # ============================================================
-    
+
     def _get_backup_dir(self):
         """دریافت مسیر پوشه بکاپ در فضای عمومی"""
-        try:
-            if platform == 'android' and ANDROID_AVAILABLE and primary_external_storage_path:
-                # در اندروید از پوشه Downloads استفاده میکنیم
-                downloads_path = primary_external_storage_path()
-                if downloads_path:
-                    backup_dir = os.path.join(downloads_path, 'Download', 'PlanAndroid_Backups')
-                else:
-                    # fallback: از پوشه داده اپ استفاده کن
-                    backup_dir = os.path.join(get_data_path(), 'backups')
-            else:
-                # در ویندوز از پوشه Documents
-                documents_path = os.path.join(os.path.expanduser('~'), 'Documents')
-                backup_dir = os.path.join(documents_path, 'PlanAndroid_Backups')
-            
-            return backup_dir
-        except Exception as e:
-            print(f"⚠️ خطا در دریافت مسیر بکاپ: {e}")
-            # fallback: از پوشه داده اپ استفاده کن
-            return os.path.join(get_data_path(), 'backups')
-    
+        from utils.storage import get_backup_path
+        return get_backup_path()
+
     def do_backup(self, instance):
         """انجام بکاپ از داده‌ها در پوشه عمومی"""
         try:
@@ -340,38 +323,33 @@ class LoginScreen(Screen):
             
             data_path = get_data_path()
             
-            # ✅ درخواست دسترسی نوشتن در اندروید
             if platform == 'android' and ANDROID_AVAILABLE and request_permissions:
                 try:
-                    request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+                    request_permissions([
+                        Permission.WRITE_EXTERNAL_STORAGE,
+                        Permission.READ_EXTERNAL_STORAGE
+                    ])
                 except Exception as e:
                     print(f"⚠️ خطا در درخواست دسترسی: {e}")
             
-            # ✅ پوشه بکاپ
             backup_dir = self._get_backup_dir()
             os.makedirs(backup_dir, exist_ok=True)
             
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             backup_file = os.path.join(backup_dir, f'backup_{timestamp}.zip')
             
-            # ✅ ایجاد فایل بکاپ
             with zipfile.ZipFile(backup_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for filename in os.listdir(data_path):
                     if filename.endswith('.json'):
                         filepath = os.path.join(data_path, filename)
                         zipf.write(filepath, filename)
             
-            # ✅ دیالوگ اول: موفقیت
-            self.show_message(
-                '✅ موفق', 
-                'بکاپ با موفقیت ایجاد شد'
-            )
+            self.show_message('✅ موفق', 'بکاپ با موفقیت ایجاد شد')
             
-            # ✅ دیالوگ دوم: مسیر فایل (با تأخیر)
             Clock.schedule_once(lambda dt: self.show_message(
-                'مسیر', 
-                f'{backup_file}\n\n '
-            ), 2)
+                '📍 مسیر بکاپ', 
+                f'{backup_file}'
+            ), 1.5)
             
         except Exception as e:
             error_details = traceback.format_exc()

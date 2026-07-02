@@ -488,49 +488,46 @@ class ReportScreen(Screen):
         self.manager.current = 'user'
     
     def show_message(self, title, message):
+        """نمایش پیام با فونت مناسب و خوانا"""
         try:
-            from kivy.uix.label import Label
+            from utils.rtl_widgets import RTLMessageLabel
             
-            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(20))
+            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ✅ استفاده از Label معمولی با فونت فارسی
-            msg_label = Label(
+            msg_label = RTLMessageLabel(
                 text=message,
-                size_hint_y=None,
-                height=dp(120),
-                font_size=sp(12),  # ✅ خیلی بزرگ
+                font_size=sp(24),
                 color=(1, 1, 1, 1),
-                font_name='PersianFont',
-                halign='center',
-                valign='middle',
-                text_size=(dp(400), dp(120))
+                height=dp(300)
             )
             content.add_widget(msg_label)
             
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
-                height=dp(60),
-                font_size=sp(16),
+                height=dp(55),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
+            
             popup = Popup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.55),
+                size_hint=(0.9, 0.7),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
             popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(14)
+            popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
+            
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
