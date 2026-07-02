@@ -1,12 +1,96 @@
 """
-وارد کردن اطلاعات از فایل Excel - نسخه بهینه برای اندروید
+وارد کردن اطلاعات از فایل Excel - نسخه بهینه‌سازی شده
 """
 
 import os
 import openpyxl
-from kivy.clock import Clock
+from kivy.logger import Logger as logger
 from utils.file_manager import add_route, add_customer, get_routes, get_customers
-from utils.storage import ensure_public_dirs, get_import_path
+
+
+class ExcelImportError(Exception):
+    """خطاهای مربوط به وارد کردن اکسل"""
+    pass
+
+
+def _get_sheet_names(wb):
+    """دریافت نام تمام شیت‌ها"""
+    return wb.sheetnames
+
+
+def _validate_headers(ws, expected_headers):
+    """بررسی وجود ستون‌های مورد نیاز"""
+    if ws.max_row < 1:
+        raise ExcelImportError("فایل خالی است")
+    
+    # خواندن سطر اول (عنوان ستون‌ها)
+    headers = []
+    for col in range(1, ws.max_column + 1):
+        cell_value = ws.cell(row=1, column=col).value
+        headers.append(str(cell_value).strip().lower() if cell_value else '')
+    
+    # بررسی وجود همه ستون‌های مورد نیاز
+    missing = [h for h in expected_headers if h not in headers]
+    if missing:
+        raise ExcelImportError(f"ستون‌های زیر در فایل وجود ندارند: {', '.join(missing)}")
+    
+    return headers
+
+
+def _safe_int(value, default=0):
+    """تبدیل امن به عدد صحیح"""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def load_excel_file(filepath):
+    """
+    بارگذاری فایل اکسل با مدیریت خطا
+    
+    Returns:
+        (workbook, worksheet, sheet_name)
+    
+    Raises:
+        ExcelImportError: در صورت بروز خطا
+    """
+    if not filepath:
+        raise ExcelImportError("مسیر فایل نامعتبر است")
+    
+    if not os.path.exists(filepath):
+        raise ExcelImportError(f"فایل وجود ندارد: {filepath}")
+    
+    # بررسی حجم فایل
+    file_size = os.path.getsize(filepath)
+    logger.info(f"📏 حجم فایل: {file_size} bytes")
+    
+    if file_size == 0:
+        raise ExcelImportError("فایل خالی است")
+    
+    # بررسی پسوند فایل
+    if not filepath.lower().endswith(('.xlsx', '.xls')):
+        raise ExcelImportError("فایل باید با فرمت اکسل (.xlsx یا .xls) باشد")
+    
+    try:
+        logger.info("📂 در حال بارگذاری فایل اکسل...")
+        wb = openpyxl.load_workbook(filepath, data_only=True)
+        
+        if not wb.sheetnames:
+            raise ExcelImportError("فایل هیچ شیتی ندارد")
+        
+        ws = wb.active
+        sheet_name = ws.title
+        
+        logger.info(f"✅ فایل بارگذاری شد: {sheet_name} - {ws.max_row} سطر")
+        return wb, ws, sheet_name
+        
+    except openpyxl.utils.exceptions.InvalidFileException:
+        raise ExcelImportError("فایل معتبر اکسل نیست")
+    except Exception as e:
+        raise ExcelImportError(f"خطا در خواندن فایل: {str(e)}")
 
 
 def import_routes_from_excel(filepath):
@@ -14,35 +98,24 @@ def import_routes_from_excel(filepath):
     وارد کردن مسیرها از فایل Excel
     فرمت فایل: ستون اول = name
     """
-    print(f"🔍 import_routes_from_excel: filepath={filepath}")
+    logger.info(f"🔍 import_routes_from_excel: filepath={filepath}")
     
-    if not filepath:
-        return False, "مسیر فایل نامعتبر است"
-    
-    if not os.path.exists(filepath):
-        return False, f"فایل وجود ندارد: {filepath}"
-    
+    wb = None
     try:
-        # ✅ لاگ حجم فایل
-        file_size = os.path.getsize(filepath)
-        print(f"📏 حجم فایل: {file_size} bytes")
-        
-        if file_size == 0:
-            return False, "فایل خالی است"
-        
         # ✅ بارگذاری فایل
-        print("📂 در حال بارگذاری فایل اکسل...")
-        wb = openpyxl.load_workbook(filepath, data_only=True)
-        ws = wb.active
-        print(f"✅ فایل بارگذاری شد، {ws.max_row} سطر")
+        wb, ws, sheet_name = load_excel_file(filepath)
+        
+        # ✅ اعتبارسنجی ستون‌ها
+        expected_headers = ['name']
+        headers = _validate_headers(ws, expected_headers)
+        
+        # ✅ دریافت مسیرهای موجود (با Set برای سرعت بالا)
+        existing_routes = {r.get('name', '') for r in get_routes()}
+        logger.info(f"📋 {len(existing_routes)} مسیر موجود در سیستم")
         
         imported_count = 0
         duplicate_count = 0
         error_count = 0
-        
-        # ✅ دریافت مسیرهای موجود
-        existing_routes = [r.get('name', '') for r in get_routes()]
-        print(f"📋 {len(existing_routes)} مسیر موجود در سیستم")
         
         # ✅ خواندن سطرها
         for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
@@ -56,23 +129,22 @@ def import_routes_from_excel(filepath):
                     error_count += 1
                     continue
                 
-                print(f"📝 سطر {idx}: نام مسیر = '{name}'")
+                logger.debug(f"📝 سطر {idx}: نام مسیر = '{name}'")
                 
                 if name not in existing_routes:
                     add_route({'name': name})
                     imported_count += 1
-                    existing_routes.append(name)
-                    print(f"✅ مسیر '{name}' اضافه شد")
+                    existing_routes.add(name)
+                    logger.info(f"✅ مسیر '{name}' اضافه شد")
                 else:
                     duplicate_count += 1
-                    print(f"⚠️ مسیر '{name}' تکراری است")
+                    logger.debug(f"⚠️ مسیر '{name}' تکراری است")
                     
             except Exception as e:
                 error_count += 1
-                print(f"❌ خطا در سطر {idx}: {e}")
+                logger.warning(f"❌ خطا در سطر {idx}: {e}")
         
-        wb.close()
-        print(f"📊 نتیجه: {imported_count} جدید، {duplicate_count} تکراری، {error_count} خطا")
+        logger.info(f"📊 نتیجه: {imported_count} جدید، {duplicate_count} تکراری، {error_count} خطا")
         
         msg = f"{imported_count} مسیر جدید وارد شد."
         if duplicate_count > 0:
@@ -81,12 +153,22 @@ def import_routes_from_excel(filepath):
             msg += f" {error_count} سطر خطا داشت."
         
         return True, msg
-    
+        
+    except ExcelImportError as e:
+        logger.error(f"❌ خطا: {e}")
+        return False, str(e)
     except Exception as e:
-        print(f"❌ خطا در import_routes_from_excel: {e}")
+        logger.error(f"❌ خطای غیرمنتظره: {e}")
         import traceback
         traceback.print_exc()
-        return False, f"خطا در خواندن فایل: {str(e)}"
+        return False, f"خطا: {str(e)}"
+    finally:
+        if wb:
+            try:
+                wb.close()
+                logger.debug("📂 فایل اکسل بسته شد")
+            except:
+                pass
 
 
 def import_customers_from_excel(filepath):
@@ -94,36 +176,30 @@ def import_customers_from_excel(filepath):
     وارد کردن مشتریان از فایل Excel
     فرمت فایل: name, store_name, route_name, mobile, address
     """
-    print(f"🔍 import_customers_from_excel: filepath={filepath}")
+    logger.info(f"🔍 import_customers_from_excel: filepath={filepath}")
     
-    if not filepath:
-        return False, "مسیر فایل نامعتبر است"
-    
-    if not os.path.exists(filepath):
-        return False, f"فایل وجود ندارد: {filepath}"
-    
+    wb = None
     try:
-        # ✅ لاگ حجم فایل
-        file_size = os.path.getsize(filepath)
-        print(f"📏 حجم فایل: {file_size} bytes")
-        
-        if file_size == 0:
-            return False, "فایل خالی است"
-        
         # ✅ بارگذاری فایل
-        print("📂 در حال بارگذاری فایل اکسل...")
-        wb = openpyxl.load_workbook(filepath, data_only=True)
-        ws = wb.active
-        print(f"✅ فایل بارگذاری شد، {ws.max_row} سطر")
+        wb, ws, sheet_name = load_excel_file(filepath)
+        
+        # ✅ اعتبارسنجی ستون‌ها
+        expected_headers = ['name', 'store_name', 'route_name', 'mobile', 'address']
+        headers = _validate_headers(ws, expected_headers)
+        
+        # ✅ دریافت مسیرهای موجود (با Set برای سرعت بالا)
+        routes = get_routes()
+        route_names = {r.get('name', '') for r in routes}
+        logger.info(f"📋 {len(route_names)} مسیر موجود در سیستم")
+        
+        # ✅ دریافت مشتریان موجود (با Set برای سرعت بالا)
+        existing_customers = {c.get('name', '') for c in get_customers()}
+        logger.info(f"📋 {len(existing_customers)} مشتری موجود در سیستم")
         
         imported_count = 0
         duplicate_count = 0
         error_count = 0
-        
-        # ✅ دریافت مسیرهای موجود
-        routes = get_routes()
-        route_names = [r.get('name', '') for r in routes]
-        print(f"📋 {len(route_names)} مسیر موجود در سیستم")
+        new_routes_added = 0
         
         # ✅ خواندن سطرها
         for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
@@ -141,56 +217,68 @@ def import_customers_from_excel(filepath):
                 
                 if not name:
                     error_count += 1
-                    print(f"⚠️ سطر {idx}: نام مشتری خالی است")
+                    logger.warning(f"⚠️ سطر {idx}: نام مشتری خالی است")
                     continue
                 
-                print(f"📝 سطر {idx}: نام='{name}', مسیر='{route_name}', موبایل='{mobile}'")
+                logger.debug(f"📝 سطر {idx}: نام='{name}', مسیر='{route_name}', موبایل='{mobile}'")
                 
-                # بررسی تکراری نبودن
-                existing = get_customers()
-                is_duplicate = any(c.get('name') == name for c in existing)
-                
-                if not is_duplicate:
-                    # بررسی وجود مسیر
-                    if route_name and route_name not in route_names:
-                        route_names.append(route_name)
-                        add_route({'name': route_name})
-                        print(f"✅ مسیر جدید '{route_name}' اضافه شد")
-                    
-                    customer = {
-                        'name': name,
-                        'store_name': store_name,
-                        'route_name': route_name,
-                        'mobile': mobile,
-                        'address': address
-                    }
-                    add_customer(customer)
-                    imported_count += 1
-                    print(f"✅ مشتری '{name}' اضافه شد")
-                else:
+                # ✅ بررسی تکراری بودن با Set
+                if name in existing_customers:
                     duplicate_count += 1
-                    print(f"⚠️ مشتری '{name}' تکراری است")
+                    logger.debug(f"⚠️ مشتری '{name}' تکراری است")
+                    continue
+                
+                # ✅ بررسی وجود مسیر (با Set)
+                if route_name and route_name not in route_names:
+                    route_names.add(route_name)
+                    add_route({'name': route_name})
+                    new_routes_added += 1
+                    logger.info(f"✅ مسیر جدید '{route_name}' اضافه شد")
+                
+                # ✅ افزودن مشتری
+                customer = {
+                    'name': name,
+                    'store_name': store_name,
+                    'route_name': route_name,
+                    'mobile': mobile,
+                    'address': address
+                }
+                add_customer(customer)
+                imported_count += 1
+                existing_customers.add(name)
+                logger.info(f"✅ مشتری '{name}' اضافه شد")
                     
             except Exception as e:
                 error_count += 1
-                print(f"❌ خطا در سطر {idx}: {e}")
+                logger.warning(f"❌ خطا در سطر {idx}: {e}")
         
-        wb.close()
-        print(f"📊 نتیجه: {imported_count} جدید، {duplicate_count} تکراری، {error_count} خطا")
+        logger.info(f"📊 نتیجه: {imported_count} جدید، {duplicate_count} تکراری، {error_count} خطا، {new_routes_added} مسیر جدید")
         
         msg = f"{imported_count} مشتری جدید وارد شد."
         if duplicate_count > 0:
             msg += f" {duplicate_count} مشتری تکراری نادیده گرفته شد."
         if error_count > 0:
             msg += f" {error_count} سطر خطا داشت."
+        if new_routes_added > 0:
+            msg += f" {new_routes_added} مسیر جدید ایجاد شد."
         
         return True, msg
-    
+        
+    except ExcelImportError as e:
+        logger.error(f"❌ خطا: {e}")
+        return False, str(e)
     except Exception as e:
-        print(f"❌ خطا در import_customers_from_excel: {e}")
+        logger.error(f"❌ خطای غیرمنتظره: {e}")
         import traceback
         traceback.print_exc()
-        return False, f"خطا در خواندن فایل: {str(e)}"
+        return False, f"خطا: {str(e)}"
+    finally:
+        if wb:
+            try:
+                wb.close()
+                logger.debug("📂 فایل اکسل بسته شد")
+            except:
+                pass
 
 
 def get_excel_template_routes():
@@ -237,8 +325,8 @@ def save_excel_template(data_type='customers'):
     data_type: 'customers' یا 'routes'
     """
     try:
-        # ✅ اطمینان از وجود پوشه
-        ensure_public_dirs()
+        from utils.storage import get_import_path
+        
         import_path = get_import_path()
         
         if data_type == 'routes':
@@ -251,11 +339,11 @@ def save_excel_template(data_type='customers'):
         filepath = os.path.join(import_path, filename)
         wb.save(filepath)
         
-        print(f"✅ فایل نمونه ذخیره شد: {filepath}")
+        logger.info(f"✅ فایل نمونه ذخیره شد: {filepath}")
         return True, filepath
         
     except Exception as e:
-        print(f"❌ خطا در ذخیره فایل نمونه: {e}")
+        logger.error(f"❌ خطا در ذخیره فایل نمونه: {e}")
         return False, str(e)
 
 
@@ -264,7 +352,7 @@ def import_from_excel(filepath, data_type='customers'):
     تابع عمومی برای وارد کردن از اکسل
     data_type: 'customers' یا 'routes'
     """
-    print(f"🔍 import_from_excel: filepath={filepath}, data_type={data_type}")
+    logger.info(f"🔍 import_from_excel: filepath={filepath}, data_type={data_type}")
     
     if data_type == 'routes':
         return import_routes_from_excel(filepath)
