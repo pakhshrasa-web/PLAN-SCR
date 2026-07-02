@@ -1,5 +1,5 @@
 """
-ویجت انتخاب فایل - نسخه نهایی با پشتیبانی از SAF برای اندروید
+ویجت انتخاب فایل - نسخه نهایی برای اندروید با plyer
 """
 
 from kivy.uix.boxlayout import BoxLayout
@@ -11,6 +11,7 @@ import os
 from utils.persian_text import PersianLabel
 from utils.rtl_widgets import PersianButton
 
+# ✅ فقط در دسکتاپ از plyer استفاده می‌کنیم
 try:
     from plyer import filechooser
     PLYER_AVAILABLE = True
@@ -19,7 +20,7 @@ except ImportError:
 
 
 class FilePicker(BoxLayout):
-    """ویجت انتخاب فایل - با پشتیبانی از اندروید و دسکتاپ"""
+    """ویجت انتخاب فایل"""
     
     def __init__(self, on_select=None, file_type='excel', **kwargs):
         super().__init__(orientation='vertical', spacing=10, **kwargs)
@@ -60,7 +61,6 @@ class FilePicker(BoxLayout):
         self.add_widget(self.file_label)
         
         self._extensions = extensions
-        self._selection_pending = False
     
     def pick_file(self, instance):
         """باز کردن انتخابگر فایل"""
@@ -72,158 +72,67 @@ class FilePicker(BoxLayout):
             self._pick_file_desktop()
     
     def _pick_file_android(self):
-        """انتخاب فایل در اندروید - با SAF از طریق plyer"""
+        """انتخاب فایل در اندروید - فقط با plyer و SAF"""
         if not PLYER_AVAILABLE:
-            print("❌ plyer در دسترس نیست! تلاش با FileChooserListView...")
-            self._pick_file_with_filechooser()
+            self._show_error("خطا: plyer در دسترس نیست!")
             return
         
         try:
-            # ✅ تنظیم فیلتر بر اساس نوع فایل
+            # ✅ تنظیم فیلتر
             if self.file_type == 'excel':
-                filters = ['*.xlsx', '*.xls']
+                filters = [('Excel files', '*.xlsx', '*.xls')]
                 title = 'انتخاب فایل اکسل'
             else:
-                filters = ['*.zip']
+                filters = [('Zip files', '*.zip')]
                 title = 'انتخاب فایل بکاپ'
             
-            # ✅ باز کردن انتخابگر با plyer (از SAF استفاده می‌کند)
+            print(f"📂 باز کردن انتخابگر با plyer - filters: {filters}")
+            
+            # ✅ باز کردن انتخابگر
             filechooser.open_file(
                 on_selection=self._on_plyer_selection,
                 filters=filters,
                 title=title
             )
-            print("📂 انتخابگر با plyer (SAF) باز شد")
             
         except Exception as e:
-            print(f"⚠️ خطا در plyer: {e}")
-            # Fallback به FileChooserListView
-            self._pick_file_with_filechooser()
+            print(f"❌ خطا در plyer: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_error(f"خطا: {str(e)}")
     
     def _on_plyer_selection(self, selection):
         """پردازش نتیجه انتخاب از plyer"""
         print(f"🔍 _on_plyer_selection: {selection}")
         
-        if selection and len(selection) > 0:
-            file_path = selection[0]
-            print(f"📂 فایل انتخاب شد: {file_path}")
-            
-            # ✅ بررسی پسوند فایل
-            is_valid = any(file_path.lower().endswith(ext) for ext in self._extensions)
-            
-            if is_valid:
-                self._process_selection([file_path])
-            else:
-                ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
-                self._update_label(f'⚠️ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
-                self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
-        else:
+        if not selection or len(selection) == 0:
             self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
-    
-    def _pick_file_with_filechooser(self):
-        """انتخاب فایل با FileChooserListView (Fallback برای زمانی که plyer کار نمی‌کند)"""
-        try:
-            from kivy.uix.filechooser import FileChooserListView
-            from kivy.uix.popup import Popup
-            from utils.storage import get_import_path, get_backup_path, ensure_public_dirs
+            return
+        
+        file_path = selection[0]
+        print(f"📂 فایل انتخاب شد: {file_path}")
+        
+        if not file_path:
+            self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
+            return
+        
+        # ✅ بررسی پسوند فایل
+        is_valid = any(file_path.lower().endswith(ext) for ext in self._extensions)
+        
+        if is_valid:
+            self.selected_file = file_path
+            filename = file_path.replace('\\', '/').split('/')[-1]
+            emoji = '📊' if self.file_type == 'excel' else '📦'
+            self._update_label(f'{emoji} {filename}', (50, 200, 50, 255))
             
-            content = BoxLayout(orientation='vertical', spacing=dp(5))
-            
-            ensure_public_dirs()
-            
-            # ✅ مسیر مستقیم
-            if self.file_type == 'excel':
-                start_path = get_import_path()
-                filter_description = 'اکسل (.xlsx, .xls)'
-            else:
-                start_path = get_backup_path()
-                filter_description = 'بکاپ (.zip)'
-            
-            print(f"📂 مسیر شروع FileChooser: {start_path}")
-            
-            if not os.path.exists(start_path):
-                os.makedirs(start_path, exist_ok=True)
-            
-            filechooser = FileChooserListView(
-                path=start_path,
-                filters=['*'],
-                size_hint_y=0.8,
-                show_hidden=False
-            )
-            content.add_widget(filechooser)
-            
-            help_label = PersianLabel(
-                text=f'📌 لطفاً یک فایل {filter_description} انتخاب کنید',
-                size_hint_y=None,
-                height=dp(30),
-                font_size=sp(14),
-                color=(0.6, 0.8, 0.6, 1)
-            )
-            content.add_widget(help_label)
-            
-            btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(5), padding=dp(5))
-            
-            select_btn = PersianButton(
-                text='✅ انتخاب',
-                size_hint_x=0.4,
-                background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(18)
-            )
-            
-            cancel_btn = PersianButton(
-                text='❌ انصراف',
-                size_hint_x=0.4,
-                background_color=(0.8, 0.2, 0.2, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(18)
-            )
-            
-            btn_layout.add_widget(select_btn)
-            btn_layout.add_widget(cancel_btn)
-            content.add_widget(btn_layout)
-            
-            popup = Popup(
-                title='📂 انتخاب فایل',
-                content=content,
-                size_hint=(0.92, 0.8),
-                auto_dismiss=False
-            )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(22)
-            
-            def on_select(instance):
-                if filechooser.selection:
-                    file_path = filechooser.selection[0]
-                    print(f"📂 فایل انتخاب شد: {file_path}")
-                    
-                    is_valid = any(file_path.lower().endswith(ext) for ext in self._extensions)
-                    
-                    if is_valid:
-                        popup.dismiss()
-                        Clock.schedule_once(lambda dt: self._process_selection([file_path]), 0.1)
-                    else:
-                        ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
-                        self._update_label(f'⚠️ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
-                        self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
-                else:
-                    popup.dismiss()
-                    self._update_label('⚠️ هیچ فایلی انتخاب نشد', (200, 150, 50, 255))
-            
-            def on_cancel(instance):
-                popup.dismiss()
-                self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
-            
-            select_btn.bind(on_press=on_select)
-            cancel_btn.bind(on_press=on_cancel)
-            
-            popup.open()
-            
-        except Exception as e:
-            print(f"❌ خطا در FileChooserListView: {e}")
-            import traceback
-            traceback.print_exc()
-            self._show_error(f"خطا در انتخاب فایل: {str(e)}")
+            print(f"🔍 FilePicker: calling on_select with {file_path}")
+            if self.on_select:
+                Clock.schedule_once(lambda dt: self.on_select(file_path), 0.1)
+        else:
+            self.selected_file = None
+            ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
+            self._update_label(f'❌ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
+            self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
     
     def _pick_file_desktop(self):
         """انتخاب فایل در دسکتاپ با plyer"""
@@ -242,8 +151,8 @@ class FilePicker(BoxLayout):
             self._show_error("کتابخانه انتخاب فایل در دسترس نیست")
     
     def _process_selection(self, selection):
-        """پردازش انتخاب فایل"""
-        print(f"🔍 FilePicker._process_selection: selection={selection}")
+        """پردازش انتخاب فایل (برای دسکتاپ)"""
+        print(f"🔍 FilePicker._process_selection: {selection}")
         
         try:
             if not selection or len(selection) == 0:
