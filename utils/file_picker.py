@@ -5,11 +5,13 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.metrics import dp, sp
 from kivy.utils import platform
+from kivy.clock import Clock
 import os
 
 from utils.persian_text import PersianLabel
 from utils.rtl_widgets import PersianButton
 
+# ✅ plyer رو فقط برای دسکتاپ استفاده می‌کنیم
 try:
     from plyer import filechooser
     PLYER_AVAILABLE = True
@@ -65,51 +67,48 @@ class FilePicker(BoxLayout):
         print(f"🔍 FilePicker.pick_file: file_type={self.file_type}, platform={platform}")
         
         if platform == 'android':
-            self._pick_file_android()
+            # ✅ در اندروید مستقیماً از FileChooserListView استفاده کن
+            self._pick_file_with_filechooser()
         else:
             self._pick_file_desktop()
     
-    def _pick_file_android(self):
-        """انتخاب فایل در اندروید - تلاش با plyer اول"""
-        # ✅ ابتدا try با plyer
-        if PLYER_AVAILABLE:
-            try:
-                filters = [('Excel files', '*.xlsx', '*.xls')] if self.file_type == 'excel' else [('Zip files', '*.zip')]
-                filechooser.open_file(
-                    on_selection=self._process_selection,
-                    filters=filters
-                )
-                print("📂 انتخابگر با plyer باز شد")
-                return
-            except Exception as e:
-                print(f"⚠️ خطا در plyer: {e}")
-        
-        # ✅ Fallback به FileChooserListView
-        self._pick_file_with_filechooser()
-    
     def _pick_file_with_filechooser(self):
-        """انتخاب فایل با FileChooserListView (Fallback)"""
+        """انتخاب فایل با FileChooserListView (نسخه بهبود یافته)"""
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
-            from utils.storage import get_import_path, get_backup_path
+            from utils.storage import get_import_path, get_backup_path, get_public_download_path, ensure_public_dirs
             
             content = BoxLayout(orientation='vertical', spacing=dp(5))
             
-            # ✅ انتخاب مسیر شروع
-            if self.file_type == 'excel':
-                start_path = '/storage/emulated/0/Download/'
-            else:
-                start_path = '/storage/emulated/0/Download/'
+            # ✅ اطمینان از وجود پوشه‌ها
+            ensure_public_dirs()
+            
+            # ✅ انتخاب مسیر شروع با استفاده از تابع جدید
+            start_path = get_public_download_path()
+            print(f"📂 مسیر شروع FileChooser: {start_path}")
             
             # ✅ اگر پوشه import وجود داره، از اون استفاده کن
             try:
-                from utils.storage import get_import_path
-                import_path = get_import_path()
-                if os.path.exists(import_path):
-                    start_path = import_path
-            except:
-                pass
+                if self.file_type == 'excel':
+                    import_path = get_import_path()
+                    if os.path.exists(import_path):
+                        start_path = import_path
+                        print(f"📂 استفاده از مسیر import: {start_path}")
+                else:
+                    backup_path = get_backup_path()
+                    if os.path.exists(backup_path):
+                        start_path = backup_path
+                        print(f"📂 استفاده از مسیر backup: {start_path}")
+            except Exception as e:
+                print(f"⚠️ خطا در دریافت مسیر اختصاصی: {e}")
+            
+            # ✅ بررسی وجود مسیر
+            if not os.path.exists(start_path):
+                print(f"⚠️ مسیر شروع وجود ندارد: {start_path}")
+                # استفاده از پوشه دانلود پیش‌فرض
+                start_path = '/storage/emulated/0/Download/'
+                print(f"📂 استفاده از مسیر پیش‌فرض: {start_path}")
             
             filechooser = FileChooserListView(
                 path=start_path,
@@ -153,19 +152,25 @@ class FilePicker(BoxLayout):
             def on_select(instance):
                 if filechooser.selection:
                     file_path = filechooser.selection[0]
+                    print(f"📂 فایل انتخاب شد: {file_path}")
+                    
+                    # ✅ بررسی پسوند فایل
+                    is_valid = False
                     if self.file_type == 'excel':
-                        if file_path.lower().endswith(('.xlsx', '.xls')):
-                            popup.dismiss()
-                            self._process_selection([file_path])
-                        else:
-                            self._update_label('⚠️ فقط فایل اکسل مجاز است', (200, 50, 50, 255))
+                        is_valid = file_path.lower().endswith(('.xlsx', '.xls'))
+                    else:  # backup
+                        is_valid = file_path.lower().endswith('.zip')
+                    
+                    if is_valid:
+                        popup.dismiss()
+                        # ✅ با تاخیر کوتاه پردازش کن
+                        Clock.schedule_once(lambda dt: self._process_selection([file_path]), 0.1)
                     else:
-                        if file_path.lower().endswith('.zip'):
-                            popup.dismiss()
-                            self._process_selection([file_path])
-                        else:
-                            self._update_label('⚠️ فقط فایل zip مجاز است', (200, 50, 50, 255))
+                        ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
+                        self._update_label(f'⚠️ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
+                        self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
                 else:
+                    popup.dismiss()
                     self._update_label('⚠️ هیچ فایلی انتخاب نشد', (200, 150, 50, 255))
             
             def on_cancel(instance):
@@ -187,11 +192,14 @@ class FilePicker(BoxLayout):
         """انتخاب فایل در دسکتاپ با plyer"""
         if PLYER_AVAILABLE:
             try:
+                filters = [('Excel files', '*.xlsx', '*.xls')] if self.file_type == 'excel' else [('Zip files', '*.zip')]
                 filechooser.open_file(
                     on_selection=self._process_selection,
-                    filters=[('Excel files', '*.xlsx', '*.xls')] if self.file_type == 'excel' else [('Zip files', '*.zip')]
+                    filters=filters
                 )
+                print("📂 انتخابگر دسکتاپ با plyer باز شد")
             except Exception as e:
+                print(f"❌ خطا در plyer دسکتاپ: {e}")
                 self._show_error(f"خطا: {str(e)}")
         else:
             self._show_error("کتابخانه انتخاب فایل در دسترس نیست")
@@ -214,6 +222,13 @@ class FilePicker(BoxLayout):
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
                 return
             
+            # ✅ بررسی وجود فایل
+            if not os.path.exists(file_path):
+                self.selected_file = None
+                self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
+                self._show_error(f'فایل وجود ندارد: {os.path.basename(file_path)}')
+                return
+            
             file_lower = file_path.lower()
             is_valid = any(file_lower.endswith(ext) for ext in self._extensions)
             print(f"🔍 FilePicker: is_valid={is_valid}")
@@ -225,7 +240,8 @@ class FilePicker(BoxLayout):
                 
                 print(f"🔍 FilePicker: calling on_select with {file_path}")
                 if self.on_select:
-                    self.on_select(file_path)
+                    # ✅ با تاخیر کوتاه صدا بزن
+                    Clock.schedule_once(lambda dt: self.on_select(file_path), 0.1)
             else:
                 self.selected_file = None
                 ext_text = ' یا '.join(self._extensions)
@@ -234,6 +250,8 @@ class FilePicker(BoxLayout):
                 
         except Exception as e:
             print(f"❌ FilePicker error: {e}")
+            import traceback
+            traceback.print_exc()
             self.selected_file = None
             self._update_label(f'⚠️ خطا', (200, 50, 50, 255))
             self._show_error(f'خطا در پردازش: {str(e)}')
