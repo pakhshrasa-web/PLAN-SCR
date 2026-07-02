@@ -70,19 +70,49 @@ class FilePicker(BoxLayout):
             self._pick_file_desktop()
     
     def _pick_file_android(self):
-        """انتخاب فایل در اندروید با FileChooserListView"""
+        """انتخاب فایل در اندروید - تلاش با plyer اول"""
+        # ✅ ابتدا try با plyer
+        if PLYER_AVAILABLE:
+            try:
+                filters = [('Excel files', '*.xlsx', '*.xls')] if self.file_type == 'excel' else [('Zip files', '*.zip')]
+                filechooser.open_file(
+                    on_selection=self._process_selection,
+                    filters=filters
+                )
+                print("📂 انتخابگر با plyer باز شد")
+                return
+            except Exception as e:
+                print(f"⚠️ خطا در plyer: {e}")
+        
+        # ✅ Fallback به FileChooserListView
+        self._pick_file_with_filechooser()
+    
+    def _pick_file_with_filechooser(self):
+        """انتخاب فایل با FileChooserListView (Fallback)"""
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
-            from utils.storage import get_import_path
+            from utils.storage import get_import_path, get_backup_path
             
             content = BoxLayout(orientation='vertical', spacing=dp(5))
             
-            # ✅ مسیر پیش‌فرض: پوشه import
-            import_path = get_import_path()
+            # ✅ انتخاب مسیر شروع
+            if self.file_type == 'excel':
+                start_path = '/storage/emulated/0/Download/'
+            else:
+                start_path = '/storage/emulated/0/Download/'
+            
+            # ✅ اگر پوشه import وجود داره، از اون استفاده کن
+            try:
+                from utils.storage import get_import_path
+                import_path = get_import_path()
+                if os.path.exists(import_path):
+                    start_path = import_path
+            except:
+                pass
             
             filechooser = FileChooserListView(
-                path=import_path,
+                path=start_path,
                 filters=['*'],
                 size_hint_y=0.8,
                 show_hidden=False
@@ -93,7 +123,7 @@ class FilePicker(BoxLayout):
             
             select_btn = PersianButton(
                 text='✅ انتخاب',
-                size_hint_x=0.3,
+                size_hint_x=0.4,
                 background_color=(0.2, 0.7, 0.2, 1),
                 color=(1, 1, 1, 1),
                 font_size=sp(18)
@@ -101,29 +131,20 @@ class FilePicker(BoxLayout):
             
             cancel_btn = PersianButton(
                 text='❌ انصراف',
-                size_hint_x=0.3,
+                size_hint_x=0.4,
                 background_color=(0.8, 0.2, 0.2, 1),
                 color=(1, 1, 1, 1),
                 font_size=sp(18)
             )
             
-            path_btn = PersianButton(
-                text='📂 مسیر',
-                size_hint_x=0.2,
-                background_color=(0.4, 0.5, 0.6, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(14)
-            )
-            
             btn_layout.add_widget(select_btn)
-            btn_layout.add_widget(path_btn)
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
             popup = Popup(
                 title='📂 انتخاب فایل',
                 content=content,
-                size_hint=(0.92, 0.85),
+                size_hint=(0.92, 0.8),
                 auto_dismiss=False
             )
             popup.title_color = (1, 1, 1, 1)
@@ -151,78 +172,16 @@ class FilePicker(BoxLayout):
                 popup.dismiss()
                 self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
             
-            def on_path(instance):
-                from kivy.uix.textinput import TextInput
-                
-                path_content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
-                
-                path_input = TextInput(
-                    text=filechooser.path,
-                    size_hint_y=None,
-                    height=dp(50),
-                    font_size=sp(18),
-                    background_color=(0.2, 0.2, 0.2, 1),
-                    foreground_color=(1, 1, 1, 1)
-                )
-                path_content.add_widget(path_input)
-                
-                btn_path_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(5))
-                go_btn = PersianButton(
-                    text='برو',
-                    size_hint_x=0.5,
-                    background_color=(0.2, 0.7, 0.2, 1),
-                    color=(1, 1, 1, 1)
-                )
-                close_btn = PersianButton(
-                    text='بستن',
-                    size_hint_x=0.5,
-                    background_color=(0.8, 0.2, 0.2, 1),
-                    color=(1, 1, 1, 1)
-                )
-                btn_path_layout.add_widget(go_btn)
-                btn_path_layout.add_widget(close_btn)
-                path_content.add_widget(btn_path_layout)
-                
-                path_popup = Popup(
-                    title='📂 وارد کردن مسیر',
-                    content=path_content,
-                    size_hint=(0.85, 0.35)
-                )
-                
-                def on_go(instance):
-                    new_path = path_input.text.strip()
-                    if os.path.exists(new_path):
-                        filechooser.path = new_path
-                        path_popup.dismiss()
-                    else:
-                        self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
-                
-                def on_close(instance):
-                    path_popup.dismiss()
-                
-                go_btn.bind(on_press=on_go)
-                close_btn.bind(on_press=on_close)
-                path_popup.open()
-            
             select_btn.bind(on_press=on_select)
             cancel_btn.bind(on_press=on_cancel)
-            path_btn.bind(on_press=on_path)
             
             popup.open()
             
         except Exception as e:
-            print(f"❌ خطا در انتخابگر اندروید: {e}")
+            print(f"❌ خطا در FileChooserListView: {e}")
             import traceback
             traceback.print_exc()
-            # ✅ Fallback به plyer
-            if PLYER_AVAILABLE:
-                try:
-                    filechooser.open_file(
-                        on_selection=self._process_selection,
-                        filters=[('Excel files', '*.xlsx', '*.xls')] if self.file_type == 'excel' else [('Zip files', '*.zip')]
-                    )
-                except Exception as e2:
-                    self._show_error(f"خطا: {str(e2)}")
+            self._show_error(f"خطا در انتخاب فایل: {str(e)}")
     
     def _pick_file_desktop(self):
         """انتخاب فایل در دسکتاپ با plyer"""
