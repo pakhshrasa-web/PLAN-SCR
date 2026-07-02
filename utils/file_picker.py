@@ -9,7 +9,7 @@ from kivy.clock import Clock
 import os
 
 from utils.persian_text import PersianLabel
-from utils.rtl_widgets import PersianButton
+from utils.rtl_widgets import PersianButton, RTLLabel
 
 # ✅ plyer رو فقط برای دسکتاپ استفاده می‌کنیم
 try:
@@ -86,7 +86,6 @@ class FilePicker(BoxLayout):
             
             start_path = get_public_download_path()
             
-            # ✅ انتخاب مسیر مناسب
             try:
                 if self.file_type == 'excel':
                     import_path = get_import_path()
@@ -102,26 +101,24 @@ class FilePicker(BoxLayout):
             if not os.path.exists(start_path):
                 start_path = '/storage/emulated/0/Download/'
             
-            # ✅ تنظیم فیلتر بر اساس نوع فایل
+            # ✅ تنظیم فیلتر
             if self.file_type == 'excel':
-                # ✅ فقط فایل‌های اکسل
                 filters = ['*.xlsx', '*.xls']
-                filter_description = 'فایل‌های اکسل'
+                filter_description = 'اکسل (.xlsx, .xls)'
             else:
-                # ✅ فقط فایل‌های ZIP
                 filters = ['*.zip']
-                filter_description = 'فایل‌های بکاپ'
+                filter_description = 'بکاپ (.zip)'
             
             filechooser = FileChooserListView(
                 path=start_path,
-                filters=filters,  # ✅ اعمال فیلتر
+                filters=filters,
                 size_hint_y=0.8,
                 show_hidden=False
             )
             content.add_widget(filechooser)
             
-            # ✅ اضافه کردن راهنما
-            help_label = RTLLabel(
+            # ✅ استفاده از PersianLabel (همینجا فقط کافیه RTLLabel رو به PersianLabel تغییر بدی)
+            help_label = PersianLabel(
                 text=f'📌 نمایش فقط فایل‌های {filter_description}',
                 size_hint_y=None,
                 height=dp(30),
@@ -166,7 +163,6 @@ class FilePicker(BoxLayout):
                     file_path = filechooser.selection[0]
                     print(f"📂 فایل انتخاب شد: {file_path}")
                     
-                    # ✅ بررسی پسوند فایل
                     is_valid = False
                     if self.file_type == 'excel':
                         is_valid = file_path.lower().endswith(('.xlsx', '.xls'))
