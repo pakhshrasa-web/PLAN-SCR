@@ -2,6 +2,7 @@
 # ========== صفحه ورود ==========
 
 import traceback
+import os
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
