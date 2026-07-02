@@ -120,11 +120,13 @@ def restore_backup(backup_path):
             return False, msg
         
         data_path = get_data_path()
+        backup_dir = get_backup_path()
         logger.info(f"📂 بازیابی به: {data_path}")
         
-        # ✅ ایجاد بکاپ از داده‌های فعلی (قبل از بازیابی)
+        # ✅ ایجاد بکاپ از داده‌های فعلی (قبل از بازیابی) در پوشه بکاپ
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        pre_restore_backup = os.path.join(data_path, f'pre_restore_{timestamp}.zip')
+        os.makedirs(backup_dir, exist_ok=True)  # ✅ اطمینان از وجود پوشه بکاپ
+        pre_restore_backup = os.path.join(backup_dir, f'pre_restore_{timestamp}.zip')
         
         files_to_backup = []
         for filename in os.listdir(data_path):
