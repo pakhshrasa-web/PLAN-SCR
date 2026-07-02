@@ -1,10 +1,7 @@
 # screens/login_screen.py
-# ========== صفحه ورود با اسکرول دقیق ==========
+# ========== صفحه ورود ==========
 
 import traceback
-import os
-import sys
-from datetime import datetime
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -14,27 +11,18 @@ from kivy.uix.scrollview import ScrollView
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
-from kivy.uix.textinput import TextInput
-from kivy.utils import platform  # ✅ اضافه شد
-
-# ✅ ایمپورت‌های اندروید با try/except
-try:
-    from android.storage import primary_external_storage_path
-    from android.permissions import request_permissions, Permission
-    ANDROID_AVAILABLE = True
-except ImportError:
-    ANDROID_AVAILABLE = False
-    primary_external_storage_path = None
-    request_permissions = None
-    Permission = None
+from kivy.utils import platform
+from kivy.logger import Logger as logger
 
 from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel
 from utils.user_manager import login
-from utils.storage import get_data_path, ensure_public_dirs
+from utils.backup_manager import create_backup, restore_backup, validate_backup_file
+from utils.file_picker import FilePicker
 from error_handler import ErrorPopup
 
 
 class LoginScreen(Screen):
+    """صفحه ورود - فقط رابط کاربری"""
 
     def __init__(self, **kwargs):
         try:
@@ -44,15 +32,9 @@ class LoginScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
-            
-            # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
-            
             self.build_ui()
-            
-            # ✅ اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
         except Exception as e:
@@ -68,7 +50,6 @@ class LoginScreen(Screen):
         try:
             main_layout = BoxLayout(orientation='vertical')
             
-            # ✅ ScrollView با قابلیت اسکرول دستی
             self.scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -138,7 +119,6 @@ class LoginScreen(Screen):
                 color=(1, 1, 1, 1)
             )
             content.add_widget(title)
-            
             content.add_widget(Label(size_hint_y=None, height=dp(10)))
             
             # ========== فیلد نام کاربری ==========
@@ -152,15 +132,11 @@ class LoginScreen(Screen):
             self.username.border_color = (0.3, 0.3, 0.3, 1)
             self.username.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.username._hidden_input.foreground_color = (1, 1, 1, 1)
-            
-            # ✅ اتصال رویداد فوکوس برای انتخاب خودکار متن
             self.username._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.username._hidden_input)
-            
             content.add_widget(self.username)
-
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
-
+            
             # ========== فیلد رمز عبور ==========
             self.password = RTLTextInput(
                 hint_text='رمز عبور',
@@ -173,11 +149,8 @@ class LoginScreen(Screen):
             self.password.border_color = (0.3, 0.3, 0.3, 1)
             self.password.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.password._hidden_input.foreground_color = (1, 1, 1, 1)
-            
-            # ✅ اتصال رویداد فوکوس برای انتخاب خودکار متن
             self.password._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.password._hidden_input)
-            
             content.add_widget(self.password)
             
             # ========== دکمه ورود ==========
@@ -190,7 +163,6 @@ class LoginScreen(Screen):
             )
             btn.bind(on_press=self.check_login)
             content.add_widget(btn)
-            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
             # ========== دکمه ثبت نام ==========
@@ -199,9 +171,7 @@ class LoginScreen(Screen):
                 size_hint_y=None,
                 height=dp(60),
                 background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1),
-                halign='center',
-                valign='middle'
+                color=(1, 1, 1, 1)
             )
             register_btn.bind(on_press=self.open_register)
             content.add_widget(register_btn)
@@ -210,7 +180,6 @@ class LoginScreen(Screen):
             main_layout.add_widget(self.scroll)
             self.add_widget(main_layout)
             
-            # ✅ تنظیم اسکرول به بالا
             Clock.schedule_once(self._adjust_scroll, 0.1)
             
         except Exception as e:
@@ -219,76 +188,51 @@ class LoginScreen(Screen):
             raise
     
     def _adjust_scroll(self, dt):
-        """تنظیم اسکرول به بالا"""
         if hasattr(self, 'scroll'):
             self.scroll.scroll_y = 1
     
     # ============================================================
-    # ✅ مدیریت فوکوس و انتخاب خودکار متن
+    # ✅ مدیریت فوکوس
     # ============================================================
     
     def _on_field_focus(self, instance, value):
-        """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
-            # ✅ وقتی فیلد فوکوس میشه، کل متن رو انتخاب کن
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            
-            # ✅ اسکرول به فیلد با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
-        """انتخاب کل متن فیلد"""
         if instance and hasattr(instance, 'select_all'):
             instance.select_all()
     
     def _scroll_to_field(self, instance):
-        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
         try:
             if not hasattr(self, 'scroll'):
                 return
             
-            # موقعیت فیلد در پنجره
             field_pos = instance.to_window(0, 0)
             field_y = field_pos[1]
-            
-            # ارتفاع کیبورد (تقریبی)
             keyboard_height = 250
-            
-            # ارتفاع قابل مشاهده صفحه
             window_height = Window.height
-            
-            # موقعیت هدف: بالای کیبورد با فاصله
             target_y = window_height - keyboard_height - dp(80)
             
-            # محتوای ScrollView
             content_height = self.scroll.children[0].height if self.scroll.children else 1
             scroll_height = self.scroll.height
             
             if content_height > scroll_height:
-                # اگر فیلد پایین‌تر از هدف بود، اسکرول کن
                 if field_y > target_y:
-                    # محاسبه نسبت اسکرول
-                    # نسبت موقعیت فیلد به کل محتوا
                     field_ratio = (content_height - field_y) / content_height
-                    # تنظیم اسکرول با کمی آفست
                     scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
                     self.scroll.scroll_y = scroll_value
                 elif field_y < dp(50):
-                    # فیلد خیلی بالاست، اسکرول به پایین
                     self.scroll.scroll_y = 0.9
-                else:
-                    # فیلد در محدوده قابل قبول است
-                    pass
-                    
         except Exception as e:
-            print(f"⚠️ خطا در اسکرول به فیلد: {e}")
+            logger.warning(f"⚠️ خطا در اسکرول: {e}")
     
     # ============================================================
-    # ✅ مدیریت کلیدهای کیبورد
+    # ✅ مدیریت کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
-        """مدیریت کلیدهای کیبورد"""
         if key == 9:  # Tab
             self._focus_next()
             return True
@@ -298,7 +242,6 @@ class LoginScreen(Screen):
         return False
     
     def _focus_next(self):
-        """فوکوس به فیلد بعدی"""
         if not self.focusable_fields:
             return
         for i, field in enumerate(self.focusable_fields):
@@ -308,102 +251,23 @@ class LoginScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ توابع بکاپ و بازیابی (اصلاح شده)
+    # ✅ بکاپ و بازیابی (فقط رابط کاربری)
     # ============================================================
-
-    def _get_backup_dir(self):
-        """دریافت مسیر پوشه بکاپ در فضای عمومی"""
-        from utils.storage import get_backup_path
-        return get_backup_path()
-
+    
     def do_backup(self, instance):
-        """انجام بکاپ کامل از داده‌ها در پوشه عمومی"""
-        try:
-            import zipfile
-            import shutil
-            
-            # ✅ اطمینان از وجود پوشه‌های عمومی
-            ensure_public_dirs()
-            
-            data_path = get_data_path()
-            print(f"📂 مسیر داده برای بکاپ: {data_path}")
-            
-            if platform == 'android' and ANDROID_AVAILABLE and request_permissions:
-                try:
-                    request_permissions([
-                        Permission.WRITE_EXTERNAL_STORAGE,
-                        Permission.READ_EXTERNAL_STORAGE
-                    ])
-                except Exception as e:
-                    print(f"⚠️ خطا در درخواست دسترسی: {e}")
-            
-            backup_dir = self._get_backup_dir()
-            print(f"📂 مسیر بکاپ: {backup_dir}")
-            
-            # ✅ ایجاد پوشه بکاپ
-            os.makedirs(backup_dir, exist_ok=True)
-            
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_file = os.path.join(backup_dir, f'backup_{timestamp}.zip')
-            print(f"📂 فایل بکاپ: {backup_file}")
-            
-            # ✅ لیست فایل‌هایی که باید بکاپ بشن
-            files_to_backup = []
-            
-            # ✅ دیتابیس اصلی
-            db_path = os.path.join(data_path, 'planandroid.db')
-            if os.path.exists(db_path):
-                files_to_backup.append(('planandroid.db', db_path))
-                print(f"✅ دیتابیس پیدا شد: {db_path}")
-            else:
-                print(f"⚠️ دیتابیس پیدا نشد: {db_path}")
-            
-            # ✅ فایل‌های JSON
-            for filename in os.listdir(data_path):
-                if filename.endswith('.json'):
-                    filepath = os.path.join(data_path, filename)
-                    files_to_backup.append((filename, filepath))
-                    print(f"✅ فایل JSON پیدا شد: {filename}")
-            
-            if not files_to_backup:
-                self.show_message('⚠️ خطا', 'هیچ داده‌ای برای بکاپ وجود ندارد!')
-                return
-            
-            # ✅ ایجاد فایل ZIP
-            with zipfile.ZipFile(backup_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for arcname, filepath in files_to_backup:
-                    zipf.write(filepath, arcname)
-                    print(f"📦 اضافه شد به بکاپ: {arcname}")
-            
-            # ✅ بررسی وجود فایل
-            if os.path.exists(backup_file):
-                file_size = os.path.getsize(backup_file)
-                print(f"✅ بکاپ ایجاد شد: {backup_file} ({file_size} bytes)")
-                
-                # ✅ نمایش پیام موفقیت
-                self.show_message(
-                    '✅ موفق', 
-                    f'بکاپ با موفقیت ایجاد شد!\n\n📁 {os.path.basename(backup_file)}\n📊 حجم: {file_size // 1024} KB'
-                )
-            else:
-                self.show_message('❌ خطا', 'فایل بکاپ ایجاد نشد!')
-            
-        except Exception as e:
-            error_details = traceback.format_exc()
-            print(f"❌ خطا در ایجاد بکاپ: {e}")
-            ErrorPopup.show_error(f"خطا در ایجاد بکاپ: {e}", error_details)
+        """ایجاد بکاپ"""
+        success, message, backup_path = create_backup()
+        self.show_message('✅ موفق' if success else '❌ خطا', message)
     
     def do_restore(self, instance):
-        """بازیابی داده‌ها از فایل بکاپ با FilePicker"""
+        """باز کردن دیالوگ انتخاب فایل بکاپ"""
         try:
-            from utils.file_picker import FilePicker
-            
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.15, 0.15, 0.15, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
+                           size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
                 text='📂 لطفاً فایل بکاپ را انتخاب کنید:',
@@ -421,17 +285,15 @@ class LoginScreen(Screen):
                 color=(0.6, 0.6, 0.6, 1)
             ))
             
-            # ✅ استفاده از FilePicker با file_type='backup'
             self.restore_file_picker = FilePicker(
                 on_select=self._on_backup_file_selected,
-                file_type='backup',  # ✅ مشخص کردن نوع فایل
+                file_type='backup',
                 size_hint_y=None,
                 height=dp(120)
             )
             content.add_widget(self.restore_file_picker)
             
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(55))
-            
             cancel_btn = PersianButton(
                 text='❌ انصراف',
                 background_color=(0.8, 0.2, 0.2, 1),
@@ -442,10 +304,8 @@ class LoginScreen(Screen):
             )
             cancel_btn.bind(on_press=lambda x: self._dismiss_restore_popup())
             btn_layout.add_widget(cancel_btn)
-            
             content.add_widget(btn_layout)
             
-            # ✅ ذخیره popup برای بستن بعدی
             self.restore_popup = Popup(
                 title='📂 بازیابی اطلاعات',
                 content=content,
@@ -460,30 +320,21 @@ class LoginScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در بازیابی: {e}", error_details)
-
+    
     def _on_backup_file_selected(self, file_path):
-        """وقتی فایل بکاپ انتخاب شد"""
+        """پس از انتخاب فایل بکاپ"""
         try:
-            print(f"📂 فایل بکاپ انتخاب شد: {file_path}")
+            logger.info(f"📂 فایل بکاپ انتخاب شد: {file_path}")
             
-            if not file_path:
-                return
-            
-            # ✅ بررسی وجود فایل
-            if not os.path.exists(file_path):
-                self.show_message('خطا', 'فایل انتخاب شده وجود ندارد!')
-                return
-            
-            # ✅ بررسی پسوند فایل
-            if not file_path.lower().endswith('.zip'):
-                self.show_message('خطا', 'فایل انتخاب شده باید با فرمت .zip باشد')
-                return
-            
-            # ✅ بستن پاپ‌آپ انتخاب فایل
             if hasattr(self, 'restore_popup') and self.restore_popup:
                 self.restore_popup.dismiss()
             
-            # ✅ نمایش دیالوگ تأیید بازیابی
+            # ✅ اعتبارسنجی فایل
+            is_valid, msg, _ = validate_backup_file(file_path)
+            if not is_valid:
+                self.show_message('❌ خطا', msg)
+                return
+            
             self._confirm_restore(file_path)
             
         except Exception as e:
@@ -528,7 +379,7 @@ class LoginScreen(Screen):
                 font_size=sp(18),
                 color=(1, 1, 1, 1)
             )
-            cancel_btn.bind(on_press=lambda x: self._dismiss_confirm_popup())
+            cancel_btn.bind(on_press=self._dismiss_confirm_popup)
             
             btn_layout.add_widget(restore_btn)
             btn_layout.add_widget(cancel_btn)
@@ -550,71 +401,23 @@ class LoginScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
     
     def _dismiss_restore_popup(self):
-        """بستن پاپ‌آپ انتخاب فایل"""
         if hasattr(self, 'restore_popup') and self.restore_popup:
             self.restore_popup.dismiss()
     
-    def _dismiss_confirm_popup(self):
-        """بستن پاپ‌آپ تأیید"""
+    def _dismiss_confirm_popup(self, instance=None):
         if hasattr(self, 'confirm_popup') and self.confirm_popup:
             self.confirm_popup.dismiss()
     
     def _perform_restore(self, backup_path):
-        """اجرای واقعی بازیابی"""
-        try:
-            import zipfile
-            import shutil
-            from utils.storage import get_data_path
-            
-            data_path = get_data_path()
-            print(f"📂 مسیر داده برای بازیابی: {data_path}")
-            
-            # ✅ بستن پاپ‌آپ تأیید
-            self._dismiss_confirm_popup()
-            
-            # ✅ ایجاد بکاپ از داده‌های فعلی قبل از بازیابی
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            pre_restore_backup = os.path.join(data_path, f'pre_restore_{timestamp}.zip')
-            
-            print(f"📂 ایجاد بکاپ پیش از بازیابی: {pre_restore_backup}")
-            
-            # ✅ لیست فایل‌های فعلی
-            files_to_backup = []
-            for filename in os.listdir(data_path):
-                if filename.endswith('.json') or filename == 'planandroid.db':
-                    filepath = os.path.join(data_path, filename)
-                    files_to_backup.append((filename, filepath))
-            
-            if files_to_backup:
-                with zipfile.ZipFile(pre_restore_backup, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    for arcname, filepath in files_to_backup:
-                        zipf.write(filepath, arcname)
-                        print(f"📦 بکاپ پیش از بازیابی: {arcname}")
-            
-            # ✅ استخراج فایل بکاپ
-            print(f"📂 استخراج فایل بکاپ: {backup_path}")
-            with zipfile.ZipFile(backup_path, 'r') as zipf:
-                zipf.extractall(data_path)
-                print(f"📦 فایل‌های استخراج شده: {zipf.namelist()}")
-            
-            # ✅ به‌روزرسانی فایل‌های JSON
-            for filename in os.listdir(data_path):
-                if filename.endswith('.json'):
-                    filepath = os.path.join(data_path, filename)
-                    print(f"✅ به‌روزرسانی: {filename}")
-            
-            self.show_message('✅ موفق', 'داده‌ها با موفقیت بازیابی شدند!\n\nاپلیکیشن مجدداً راه‌اندازی خواهد شد.')
-            
-            # ✅ ری‌استارت برنامه
-            Clock.schedule_once(lambda dt: self._restart_app(), 2)
-            
-        except Exception as e:
-            error_details = traceback.format_exc()
-            print(f"❌ خطا در اجرای بازیابی: {e}")
-            ErrorPopup.show_error(f"خطا در اجرای بازیابی: {e}", error_details)
+        """اجرای بازیابی"""
+        self._dismiss_confirm_popup()
+        success, message = restore_backup(backup_path)
+        self.show_message('✅ موفق' if success else '❌ خطا', message)
+        
+        if success:
+            Clock.schedule_once(lambda dt: self._restart_app(), 2.5)
     
     def _restart_app(self):
-        """ری‌استارت برنامه"""
         from kivy.app import App
         App.get_running_app().stop()
     
@@ -643,7 +446,7 @@ class LoginScreen(Screen):
             ErrorPopup.show_error(f"خطا در ورود: {e}", error_details)
     
     # ============================================================
-    # ✅ نمایش پیام با فونت بزرگ
+    # ✅ نمایش پیام
     # ============================================================
     
     def show_message(self, title, message):
@@ -656,16 +459,19 @@ class LoginScreen(Screen):
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
+                           size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ✅ پیام با PersianLabel
+            # ✅ اسکرول برای متن‌های بلند
+            scroll = ScrollView(size_hint_y=None, height=dp(300))
             msg_label = RTLMessageLabel(
                 text=message,
-                font_size=sp(26),  # ✅ فونت مناسب
+                font_size=sp(22) if len(message) < 100 else sp(18),
                 color=(1, 1, 1, 1),
-                height=dp(300)
+                size_hint_y=None
             )
-            content.add_widget(msg_label)
+            msg_label.bind(texture_size=msg_label.setter('size'))
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
             
             btn = PersianButton(
                 text='باشه',
@@ -681,7 +487,8 @@ class LoginScreen(Screen):
                 title=title,
                 content=content,
                 size_hint=(0.9, 0.7),
-                background_color=(0.08, 0.08, 0.08, 1)
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=True
             )
             popup.title_color = (1, 1, 1, 1)
             popup.title_size = sp(24)
