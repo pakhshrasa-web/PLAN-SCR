@@ -9,9 +9,8 @@ from kivy.clock import Clock
 import os
 
 from utils.persian_text import PersianLabel
-from utils.rtl_widgets import PersianButton, RTLLabel
+from utils.rtl_widgets import PersianButton
 
-# ✅ plyer رو فقط برای دسکتاپ استفاده می‌کنیم
 try:
     from plyer import filechooser
     PLYER_AVAILABLE = True
@@ -67,55 +66,54 @@ class FilePicker(BoxLayout):
         print(f"🔍 FilePicker.pick_file: file_type={self.file_type}, platform={platform}")
         
         if platform == 'android':
-            # ✅ در اندروید مستقیماً از FileChooserListView استفاده کن
             self._pick_file_with_filechooser()
         else:
             self._pick_file_desktop()
     
     def _pick_file_with_filechooser(self):
-        """انتخاب فایل با FileChooserListView"""
+        """انتخاب فایل با FileChooserListView - نسخه نهایی برای اندروید"""
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
             from kivy.clock import Clock
-            from utils.storage import get_import_path, get_backup_path, get_public_download_path, ensure_public_dirs
+            from utils.storage import get_import_path, get_backup_path, ensure_public_dirs
             
             content = BoxLayout(orientation='vertical', spacing=dp(5))
             
+            # ✅ اطمینان از وجود پوشه‌ها
             ensure_public_dirs()
             
-            start_path = get_public_download_path()
+            # ✅ انتخاب مسیر مستقیم
+            if self.file_type == 'excel':
+                start_path = get_import_path()
+                filter_description = 'اکسل (.xlsx, .xls)'
+            else:
+                start_path = get_backup_path()
+                filter_description = 'بکاپ (.zip)'
             
-            try:
-                if self.file_type == 'excel':
-                    import_path = get_import_path()
-                    if os.path.exists(import_path):
-                        start_path = import_path
-                else:
-                    backup_path = get_backup_path()
-                    if os.path.exists(backup_path):
-                        start_path = backup_path
-            except Exception as e:
-                print(f"⚠️ خطا در دریافت مسیر اختصاصی: {e}")
+            print(f"📂 مسیر شروع FileChooser: {start_path}")
             
+            # ✅ بررسی وجود مسیر
             if not os.path.exists(start_path):
-                start_path = '/storage/emulated/0/Download/'
+                try:
+                    os.makedirs(start_path, exist_ok=True)
+                    print(f"✅ پوشه ایجاد شد: {start_path}")
+                except Exception as e:
+                    print(f"⚠️ خطا در ایجاد پوشه: {e}")
+                    # Fallback به Download
+                    start_path = '/storage/emulated/0/Download/'
+                    print(f"📂 استفاده از مسیر جایگزین: {start_path}")
             
-            # ✅ نمایش همه فایل‌ها (بدون فیلتر)
+            # ✅ FileChooser بدون فیلتر (نمایش همه فایل‌ها)
             filechooser = FileChooserListView(
                 path=start_path,
-                filters=['*'],  # ✅ تغییر از ['*.xlsx', '*.xls'] به ['*']
+                filters=['*'],  # ✅ نمایش همه فایل‌ها
                 size_hint_y=0.8,
                 show_hidden=False
             )
             content.add_widget(filechooser)
             
-            # ✅ راهنما
-            if self.file_type == 'excel':
-                filter_description = 'اکسل (.xlsx, .xls)'
-            else:
-                filter_description = 'بکاپ (.zip)'
-            
+            # ✅ راهنمای انتخاب
             help_label = PersianLabel(
                 text=f'📌 لطفاً یک فایل {filter_description} انتخاب کنید',
                 size_hint_y=None,
@@ -170,6 +168,7 @@ class FilePicker(BoxLayout):
                     
                     if is_valid:
                         popup.dismiss()
+                        # ✅ پردازش با تاخیر
                         Clock.schedule_once(lambda dt: self._process_selection([file_path]), 0.1)
                     else:
                         ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
@@ -242,15 +241,17 @@ class FilePicker(BoxLayout):
             if is_valid:
                 self.selected_file = file_path
                 filename = file_path.replace('\\', '/').split('/')[-1]
-                self._update_label(f'✅ {filename}', (50, 200, 50, 255))
+                
+                # ✅ نمایش ایموجی مناسب
+                emoji = '📊' if self.file_type == 'excel' else '📦'
+                self._update_label(f'{emoji} {filename}', (50, 200, 50, 255))
                 
                 print(f"🔍 FilePicker: calling on_select with {file_path}")
                 if self.on_select:
-                    # ✅ با تاخیر کوتاه صدا بزن
                     Clock.schedule_once(lambda dt: self.on_select(file_path), 0.1)
             else:
                 self.selected_file = None
-                ext_text = ' یا '.join(self._extensions)
+                ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
                 self._update_label(f'❌ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
                 self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
                 
