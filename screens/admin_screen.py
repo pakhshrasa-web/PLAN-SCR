@@ -1150,20 +1150,16 @@ class AdminScreen(Screen):
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                        size=lambda i, v: setattr(content_rect, 'size', v))
             
-            scroll = ScrollView(size_hint_y=None, height=dp(200))
+            # ✅ RTLMessageLabel خودش اسکرول داره
             msg_label = RTLMessageLabel(
                 text=message,
                 font_size=sp(20) if len(message) < 100 else sp(16),
                 color=(1, 1, 1, 1),
-                size_hint_y=None
+                height=dp(250)
             )
-            # ✅ تنظیم text_size بر اساس عرض
-            msg_label.bind(width=lambda i, w: setattr(i, 'text_size', (w - dp(20), None)))
-            msg_label.bind(texture_size=lambda i, v: setattr(i, 'height', v[1]))
-            scroll.add_widget(msg_label)
-            content.add_widget(scroll)
+            content.add_widget(msg_label)
             
             btn = PersianButton(
                 text='باشه',
@@ -1189,5 +1185,10 @@ class AdminScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
     
+    # ============================================================
+    # ✅ خروج
+    # ============================================================
+    
     def logout(self, instance):
+        """خروج به صفحه ورود"""
         self.manager.current = 'login'

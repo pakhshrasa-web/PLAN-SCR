@@ -451,28 +451,24 @@ class LoginScreen(Screen):
     # ============================================================
     
     def show_message(self, title, message):
-        """نمایش پیام با PersianLabel"""
         try:
             from utils.rtl_widgets import RTLMessageLabel
             
-            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
+            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                        size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ✅ اسکرول برای متن‌های بلند
-            scroll = ScrollView(size_hint_y=None, height=dp(300))
+            # ✅ RTLMessageLabel خودش اسکرول داره
             msg_label = RTLMessageLabel(
                 text=message,
-                font_size=sp(22) if len(message) < 100 else sp(18),
+                font_size=sp(20) if len(message) < 100 else sp(16),
                 color=(1, 1, 1, 1),
-                size_hint_y=None
+                height=dp(250)
             )
-            msg_label.bind(texture_size=msg_label.setter('size'))
-            scroll.add_widget(msg_label)
-            content.add_widget(scroll)
+            content.add_widget(msg_label)
             
             btn = PersianButton(
                 text='باشه',
@@ -487,15 +483,13 @@ class LoginScreen(Screen):
             popup = Popup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.7),
-                background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=True
+                size_hint=(0.9, 0.6),
+                background_color=(0.08, 0.08, 0.08, 1)
             )
             popup.title_color = (1, 1, 1, 1)
             popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
-            
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
