@@ -1,5 +1,5 @@
 ﻿"""
-مدیریت ذخیره‌سازی داده‌ها - نسخه بازنویسی شده با معماری تمیز
+مدیریت ذخیره‌سازی داده‌ها - نسخه نهایی با Python IO
 """
 
 import os
@@ -8,7 +8,7 @@ from kivy.utils import platform
 from kivy.logger import Logger as logger
 
 # ============================================================
-# ✅ کش مسیرها (برای جلوگیری از تکرار os.makedirs)
+# ✅ کش مسیرها
 # ============================================================
 
 _cache = {
@@ -22,7 +22,7 @@ _cache = {
 }
 
 # ============================================================
-# ✅ مسیر ذخیره‌سازی داخلی اپ (دیتابیس و JSON)
+# ✅ مسیر ذخیره‌سازی داخلی اپ
 # ============================================================
 
 def init_data_path():
@@ -37,13 +37,14 @@ def init_data_path():
             from android.storage import app_storage_path
             path = app_storage_path()
             if path:
-                _cache['data_path'] = os.path.join(path, app_name)
+                # ✅ فقط از مسیر app_storage_path استفاده کن (بدون اضافه کردن planandroid)
+                _cache['data_path'] = path
                 logger.info(f"✅ مسیر اندروید: {_cache['data_path']}")
             else:
                 raise Exception("app_storage_path returned None")
         except Exception as e:
             logger.warning(f"⚠️ خطا در دریافت مسیر اندروید: {e}")
-            _cache['data_path'] = os.path.join('/data/data/org.pakhshrasa.planandroid/files', app_name)
+            _cache['data_path'] = '/data/data/org.pakhshrasa.planandroid/files'
     elif platform == 'win':
         _cache['data_path'] = os.path.join(os.environ.get('APPDATA', os.getcwd()), app_name)
         logger.info(f"✅ مسیر ویندوز: {_cache['data_path']}")
@@ -65,17 +66,16 @@ def init_data_path():
     return _cache['data_path']
 
 def get_data_path():
-    """بازگرداندن مسیر ذخیره‌سازی داخلی اپ (برای دیتابیس و JSON)"""
+    """بازگرداندن مسیر ذخیره‌سازی داخلی اپ"""
     if _cache['data_path'] is None:
         init_data_path()
     return _cache['data_path']
 
 # ============================================================
-# ✅ توابع مسیردهی پوشه شخصی برنامه (دسترسی کامل در اندروید)
+# ✅ توابع مسیردهی پوشه شخصی برنامه
 # ============================================================
 
 def get_app_import_path():
-    """مسیر پوشه import در پوشه شخصی برنامه"""
     if _cache['app_import'] is None:
         path = os.path.join(get_data_path(), 'import')
         os.makedirs(path, exist_ok=True)
@@ -84,7 +84,6 @@ def get_app_import_path():
     return _cache['app_import']
 
 def get_app_export_path():
-    """مسیر پوشه export در پوشه شخصی برنامه"""
     if _cache['app_export'] is None:
         path = os.path.join(get_data_path(), 'export')
         os.makedirs(path, exist_ok=True)
@@ -93,7 +92,6 @@ def get_app_export_path():
     return _cache['app_export']
 
 def get_app_backup_path():
-    """مسیر پوشه backup در پوشه شخصی برنامه"""
     if _cache['app_backup'] is None:
         path = os.path.join(get_data_path(), 'backup')
         os.makedirs(path, exist_ok=True)
@@ -102,11 +100,10 @@ def get_app_backup_path():
     return _cache['app_backup']
 
 # ============================================================
-# ✅ توابع مسیردهی عمومی (برای نمایش به کاربر)
+# ✅ توابع مسیردهی عمومی
 # ============================================================
 
 def _get_public_base_path():
-    """دریافت مسیر پایه فضای عمومی"""
     if platform == 'android':
         try:
             from android.storage import primary_external_storage_path
@@ -120,7 +117,6 @@ def _get_public_base_path():
         return os.path.join(os.path.expanduser('~'), 'Downloads')
 
 def get_public_import_path():
-    """مسیر عمومی import (فقط برای نمایش به کاربر)"""
     if _cache['public_import'] is None:
         path = os.path.join(_get_public_base_path(), 'plan_android_data', 'import')
         try:
@@ -132,7 +128,6 @@ def get_public_import_path():
     return _cache['public_import']
 
 def get_public_export_path():
-    """مسیر عمومی export (فقط برای نمایش به کاربر)"""
     if _cache['public_export'] is None:
         path = os.path.join(_get_public_base_path(), 'plan_android_data', 'export')
         try:
@@ -144,7 +139,6 @@ def get_public_export_path():
     return _cache['public_export']
 
 def get_public_backup_path():
-    """مسیر عمومی backup (فقط برای نمایش به کاربر)"""
     if _cache['public_backup'] is None:
         path = os.path.join(_get_public_base_path(), 'plan_android_data', 'backup')
         try:
@@ -156,68 +150,63 @@ def get_public_backup_path():
     return _cache['public_backup']
 
 # ============================================================
-# ✅ توابع اصلی (با اولویت پوشه شخصی در اندروید)
+# ✅ توابع اصلی
 # ============================================================
 
 def get_import_path():
-    """دریافت مسیر import - در اندروید از پوشه شخصی استفاده می‌کند"""
     if platform == 'android':
         return get_app_import_path()
     else:
         return get_public_import_path()
 
 def get_export_path():
-    """دریافت مسیر export - در اندروید از پوشه شخصی استفاده می‌کند"""
     if platform == 'android':
         return get_app_export_path()
     else:
         return get_public_export_path()
 
 def get_backup_path():
-    """دریافت مسیر backup - در اندروید از پوشه شخصی استفاده می‌کند"""
     if platform == 'android':
         return get_app_backup_path()
     else:
         return get_public_backup_path()
 
 # ============================================================
-# ✅ تابع اصلی برای تبدیل content:// به فایل واقعی
+# ✅ تابع کپی با Python IO (ساده و مطمئن)
 # ============================================================
 
-def copy_uri_to_app_folder(uri, filename=None, target_folder='import'):
+def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type='excel'):
     """
-    کپی فایل از URI به پوشه شخصی برنامه
-    این تابع تنها نقطه ارتباط با ContentResolver است
+    کپی فایل از URI به پوشه شخصی برنامه با Python IO
     
     Args:
-        uri: content:// URI
-        filename: نام فایل (اگر None باشد از URI استخراج می‌شود)
+        uri: content:// URI (string یا Uri)
+        filename: نام فایل (اختیاری)
         target_folder: 'import', 'export', 'backup'
+        file_type: 'excel' یا 'backup' (برای پسوند پیش‌فرض)
     
     Returns:
-        مسیر فایل کپی شده یا None در صورت خطا
+        مسیر فایل کپی شده یا None
     """
     try:
         from android import mActivity
-        from android.permissions import request_permissions, Permission
+        from android.net import Uri
+        from jnius import autoclass
         
-        logger.info(f"📂 کپی URI به پوشه {target_folder}: {uri}")
-        
-        # ✅ درخواست دسترسی
-        request_permissions([
-            Permission.READ_EXTERNAL_STORAGE,
-            Permission.WRITE_EXTERNAL_STORAGE
-        ])
+        # ✅ تبدیل به Uri
+        if isinstance(uri, str):
+            Uri_class = autoclass("android.net.Uri")
+            uri = Uri_class.parse(uri)
         
         # ✅ دریافت نام فایل
         if not filename:
-            filename = _extract_filename_from_uri(uri)
+            filename = _extract_filename_from_uri(uri, file_type)
         
         if not filename:
             logger.error("❌ نام فایل نامعتبر")
             return None
         
-        # ✅ دریافت مسیر مقصد
+        # ✅ مسیر مقصد
         if target_folder == 'import':
             dest_folder = get_app_import_path()
         elif target_folder == 'export':
@@ -229,7 +218,9 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import'):
         
         dest_path = os.path.join(dest_folder, filename)
         
-        # ✅ کپی فایل با ContentResolver
+        # ✅ کپی فایل با Python IO (ساده و مطمئن)
+        logger.info(f"📂 کپی فایل: {uri} → {dest_path}")
+        
         content_resolver = mActivity.getContentResolver()
         input_stream = content_resolver.openInputStream(uri)
         
@@ -237,14 +228,30 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import'):
             logger.error("❌ نمی‌توان InputStream دریافت کرد")
             return None
         
-        with input_stream:
-            with open(dest_path, 'wb') as output_file:
-                buffer = bytearray(8192)
-                while True:
-                    bytes_read = input_stream.read(buffer)
-                    if bytes_read == -1:
+        # ✅ با بافر 8192 برای سرعت مناسب
+        with open(dest_path, 'wb') as output_file:
+            buffer = bytearray(8192)
+            while True:
+                try:
+                    # ✅ روش ۱: خواندن با بافر (سریع‌تر)
+                    count = input_stream.read(buffer)
+                    if count <= 0:
                         break
-                    output_file.write(buffer[:bytes_read])
+                    output_file.write(buffer[:count])
+                except TypeError:
+                    # ✅ روش ۲: تک‌بایتی (کندتر ولی سازگار)
+                    while True:
+                        data = input_stream.read()
+                        if data == -1:
+                            break
+                        output_file.write(bytes([data]))
+                    break
+        
+        # ✅ بستن InputStream
+        try:
+            input_stream.close()
+        except:
+            pass
         
         logger.info(f"✅ فایل با موفقیت کپی شد: {dest_path}")
         return dest_path
@@ -255,30 +262,40 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import'):
         traceback.print_exc()
         return None
 
-def _extract_filename_from_uri(uri):
-    """استخراج نام فایل از URI با استفاده از ContentResolver"""
+def _extract_filename_from_uri(uri, file_type='excel'):
+    """استخراج نام فایل از URI با OpenableColumns"""
     try:
         from android import mActivity
-        from android.provider import MediaStore, DocumentsContract
+        from android.provider import OpenableColumns
+        from jnius import autoclass
         
-        # ✅ روش ۱: استفاده از MediaStore
-        projection = [MediaStore.MediaColumns.DISPLAY_NAME]
+        # ✅ تبدیل به Uri
+        if isinstance(uri, str):
+            Uri_class = autoclass("android.net.Uri")
+            uri = Uri_class.parse(uri)
         
+        content_resolver = mActivity.getContentResolver()
+        
+        # ✅ روش ۱: OpenableColumns.DISPLAY_NAME (بهترین روش)
         try:
-            cursor = mActivity.getContentResolver().query(
+            cursor = content_resolver.query(
                 uri,
-                projection,
+                [OpenableColumns.DISPLAY_NAME],
                 None,
                 None,
                 None
             )
             if cursor and cursor.moveToFirst():
-                filename = cursor.getString(0)
+                name_index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if name_index >= 0:
+                    filename = cursor.getString(name_index)
+                    cursor.close()
+                    if filename:
+                        return filename
+            if cursor:
                 cursor.close()
-                if filename:
-                    return filename
         except Exception as e:
-            logger.warning(f"⚠️ خطا در دریافت نام فایل: {e}")
+            logger.warning(f"⚠️ خطا در OpenableColumns: {e}")
         
         # ✅ روش ۲: استخراج از URI
         import urllib.parse
@@ -286,25 +303,33 @@ def _extract_filename_from_uri(uri):
         if '%' in raw:
             raw = urllib.parse.unquote(raw)
         
-        # گرفتن آخرین بخش
         filename = raw.split('/')[-1]
-        
-        # حذف پارامترها
         if '?' in filename:
             filename = filename.split('?')[0]
         
-        return filename
+        if filename and '.' in filename:
+            return filename
+        
+        # ✅ روش ۳: نام پیش‌فرض با پسوند مناسب
+        import hashlib
+        hash_val = hashlib.md5(str(uri).encode()).hexdigest()[:8]
+        
+        if file_type == 'excel':
+            return f"file_{hash_val}.xlsx"
+        elif file_type == 'backup':
+            return f"file_{hash_val}.zip"
+        else:
+            return f"file_{hash_val}.dat"
         
     except Exception as e:
         logger.warning(f"⚠️ خطا در استخراج نام فایل: {e}")
-        return str(uri).split('/')[-1]
+        return None
 
 # ============================================================
 # ✅ توابع JSON
 # ============================================================
 
 def load_json(filename):
-    """بارگذاری فایل JSON"""
     try:
         path = os.path.join(get_data_path(), filename)
         if os.path.exists(path):
@@ -315,7 +340,6 @@ def load_json(filename):
     return {}
 
 def save_json(filename, data):
-    """ذخیره فایل JSON"""
     try:
         path = os.path.join(get_data_path(), filename)
         with open(path, 'w', encoding='utf-8') as f:
@@ -330,7 +354,6 @@ def save_json(filename, data):
 # ============================================================
 
 def test_paths():
-    """تست مسیرها"""
     print("\n" + "="*50)
     print("🧪 تست مسیرها:")
     print("="*50)

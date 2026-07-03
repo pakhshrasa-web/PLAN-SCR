@@ -1,5 +1,5 @@
 """
-ویجت انتخاب فایل - نسخه حرفه‌ای برای اندروید با پشتیبانی از SAF
+ویجت انتخاب فایل - نسخه نهایی برای اندروید با SAF
 """
 
 from kivy.uix.boxlayout import BoxLayout
@@ -28,7 +28,6 @@ class FilePicker(BoxLayout):
         self.file_type = file_type
         self.size_hint_y = None
         self.height = dp(120)
-        self._pending_uri = None  # برای مدیریت غیرهمزمان
         
         if file_type == 'excel':
             btn_text = '📁 انتخاب فایل اکسل'
@@ -72,25 +71,25 @@ class FilePicker(BoxLayout):
             self._pick_file_desktop()
     
     # ============================================================
-    # ✅ اندروید - استفاده از plyer با SAF
+    # ✅ اندروید - با plyer و SAF
     # ============================================================
     
     def _pick_file_android(self):
-        """انتخاب فایل در اندروید با plyer و SAF"""
+        """انتخاب فایل در اندروید با plyer"""
         if not PLYER_AVAILABLE:
             self._show_error("خطا: plyer در دسترس نیست!")
             return
         
         try:
-            # تنظیم فیلتر (فقط برای نمایش، اعتبارسنجی نهایی دستی انجام میشه)
+            print("📂 باز کردن انتخابگر با plyer (SAF)")
+            
+            # ✅ تنظیم فیلتر
             if self.file_type == 'excel':
-                filters = [('Excel files', '*.xlsx', '*.xls')]
+                filters = ['*.xlsx', '*.xls']
                 title = 'انتخاب فایل اکسل'
             else:
-                filters = [('Zip files', '*.zip')]
+                filters = ['*.zip']
                 title = 'انتخاب فایل بکاپ'
-            
-            print(f"📂 باز کردن انتخابگر با plyer")
             
             filechooser.open_file(
                 on_selection=self._on_plyer_selection,
@@ -112,139 +111,71 @@ class FilePicker(BoxLayout):
             self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
             return
         
-        file_uri = selection[0]
-        print(f"📂 فایل انتخاب شد: {file_uri}")
+        file_path = selection[0]
+        print(f"📂 فایل انتخاب شد: {file_path}")
         
-        if not file_uri:
+        if not file_path:
             self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
             return
         
-        # ✅ ذخیره URI برای پردازش بعد از دریافت permission
-        self._pending_uri = file_uri
-        
-        # ✅ دریافت نام واقعی فایل
-        real_filename = self._get_filename_from_uri(file_uri)
-        print(f"📄 نام واقعی فایل: {real_filename}")
-        
-        # ✅ اعتبارسنجی پسوند (حتی اگر فیلتر درست کار نکرده باشه)
-        if not self._validate_extension(real_filename):
+        # ✅ اعتبارسنجی پسوند
+        if not self._validate_extension(file_path):
             ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
             self._update_label(f'⚠️ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
             self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
             return
         
-        # ✅ پردازش فایل
-        self._handle_android_uri(file_uri, real_filename)
+        # ✅ در اندروید، مسیر با content:// شروع میشه
+        if platform == 'android' and file_path.startswith('content://'):
+            # ✅ کپی فایل با SAF (بدون نیاز به Permission)
+            self._copy_from_saf(file_path)
+        else:
+            # ✅ دسکتاپ - مسیر مستقیم
+            self._process_selection([file_path])
     
     # ============================================================
-    # ✅ توابع کمکی برای اندروید
+    # ✅ کپی از SAF (بدون Permission)
     # ============================================================
     
-    def _get_filename_from_uri(self, uri):
-        """دریافت نام واقعی فایل از URI با استفاده از ContentResolver"""
+    def _copy_from_saf(self, uri_str):
+        """کپی فایل از SAF به پوشه برنامه (بدون نیاز به Permission)"""
         try:
             from android import mActivity
-            from android.content import ContentUris
             from android.net import Uri
-            from android.provider import DocumentsContract, MediaStore
-            from android.database import Cursor
-            
-            # روش ۱: اگر URI از نوع DocumentsContract است
-            if DocumentsContract.isDocumentUri(mActivity, uri):
-                doc_id = DocumentsContract.getDocumentId(uri)
-                if doc_id and ':' in doc_id:
-                    doc_id = doc_id.split(':')[-1]
-                
-                # دریافت نام فایل از MediaStore
-                projection = [MediaStore.MediaColumns.DISPLAY_NAME]
-                
-                try:
-                    cursor = mActivity.getContentResolver().query(
-                        uri,
-                        projection,
-                        None,
-                        None,
-                        None
-                    )
-                    if cursor and cursor.moveToFirst():
-                        filename = cursor.getString(0)
-                        cursor.close()
-                        if filename:
-                            return filename
-                except Exception as e:
-                    print(f"⚠️ خطا در دریافت نام فایل از MediaStore: {e}")
-            
-            # روش ۲: استخراج از خود URI
-            if '%' in str(uri):
-                from urllib.parse import unquote
-                return unquote(str(uri).split('/')[-1].split('?')[0])
-            
-            return str(uri).split('/')[-1].split('?')[0]
-            
-        except Exception as e:
-            print(f"⚠️ خطا در دریافت نام فایل: {e}")
-            # Fallback
-            return uri.split('/')[-1]
-    
-    def _get_real_path_from_uri(self, uri):
-        """دریافت مسیر واقعی فایل از URI (برای اندروید ۱۰-)
-        این تابع برای اندروید ۱۱+ کار نمی‌کند، برای آن از کپی استفاده می‌کنیم
-        """
-        try:
-            from android import mActivity
-            from android.provider import MediaStore
-            
-            # فقط برای اندروید ۱۰ و پایین‌تر
-            projection = [MediaStore.MediaColumns.DATA]
-            
-            cursor = mActivity.getContentResolver().query(
-                uri,
-                projection,
-                None,
-                None,
-                None
-            )
-            
-            if cursor and cursor.moveToFirst():
-                path = cursor.getString(0)
-                cursor.close()
-                if path and os.path.exists(path):
-                    return path
-            
-            return None
-            
-        except Exception as e:
-            print(f"⚠️ خطا در دریافت مسیر واقعی: {e}")
-            return None
-    
-    def _copy_uri_to_app_folder(self, uri, filename):
-        """کپی فایل از URI به پوشه شخصی برنامه با استفاده از ContentResolver"""
-        try:
-            from android import mActivity
+            from android.provider import OpenableColumns
             from utils.storage import get_import_path
             
             # ✅ دریافت پوشه import
             import_path = get_import_path()
             os.makedirs(import_path, exist_ok=True)
             
-            # ✅ مسیر مقصد
-            dest_path = os.path.join(import_path, filename)
-            
-            print(f"📂 کپی فایل از {uri} به {dest_path}")
-            
-            # ✅ استفاده از ContentResolver برای خواندن URI
+            # ✅ تبدیل رشته به Uri
+            uri = Uri.parse(uri_str)
             content_resolver = mActivity.getContentResolver()
             
-            # باز کردن InputStream از URI
+            # ✅ دریافت نام واقعی فایل از SAF
+            filename = self._get_display_name(content_resolver, uri)
+            if not filename:
+                # اگر نام پیدا نشد، از URI استخراج کن
+                filename = uri_str.split('/')[-1]
+                if ':' in filename:
+                    filename = filename.split(':')[-1]
+                if not filename or '.' not in filename:
+                    ext = '.xlsx' if self.file_type == 'excel' else '.zip'
+                    filename = f'file_{hash(uri_str)}{ext}'
+            
+            dest_path = os.path.join(import_path, filename)
+            
+            print(f"📂 کپی فایل از SAF به: {dest_path}")
+            
+            # ✅ کپی با InputStream (SAF خودش اجازه خواندن داره)
             input_stream = content_resolver.openInputStream(uri)
             
             if not input_stream:
-                raise Exception("نمی‌توان InputStream از URI دریافت کرد")
+                raise Exception("نمی‌توان InputStream دریافت کرد")
             
-            # خواندن و نوشتن فایل
             with input_stream:
                 with open(dest_path, 'wb') as output_file:
-                    # بافر 8KB برای کپی سریع
                     buffer = bytearray(8192)
                     while True:
                         bytes_read = input_stream.read(buffer)
@@ -253,56 +184,49 @@ class FilePicker(BoxLayout):
                         output_file.write(buffer[:bytes_read])
             
             print(f"✅ فایل با موفقیت کپی شد: {dest_path}")
-            return dest_path
+            self._process_selection([dest_path])
             
         except Exception as e:
-            print(f"❌ خطا در کپی فایل: {e}")
+            print(f"❌ خطا در کپی از SAF: {e}")
             import traceback
             traceback.print_exc()
+            self._show_error(f"خطا در کپی فایل: {str(e)}")
+    
+    def _get_display_name(self, content_resolver, uri):
+        """دریافت نام واقعی فایل از SAF با OpenableColumns"""
+        try:
+            from android.provider import OpenableColumns
+            
+            cursor = content_resolver.query(
+                uri,
+                [OpenableColumns.DISPLAY_NAME],
+                None,
+                None,
+                None
+            )
+            
+            if cursor and cursor.moveToFirst():
+                name_index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if name_index >= 0:
+                    filename = cursor.getString(name_index)
+                    cursor.close()
+                    return filename
+            
+            if cursor:
+                cursor.close()
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ خطا در دریافت نام فایل: {e}")
             return None
     
-    def _handle_android_uri(self, uri, filename):
-        """مدیریت کامل URI در اندروید"""
-        try:
-            from android.permissions import request_permissions, Permission
-            
-            # ✅ مرحله ۱: درخواست دسترسی
-            print("📱 درخواست دسترسی...")
-            request_permissions([
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE
-            ])
-            
-            # ✅ مرحله ۲: تلاش برای دریافت مسیر واقعی (برای اندروید ۱۰-)
-            real_path = self._get_real_path_from_uri(uri)
-            if real_path and os.path.exists(real_path):
-                print(f"✅ مسیر واقعی دریافت شد: {real_path}")
-                self._process_selection([real_path])
-                return
-            
-            # ✅ مرحله ۳: کپی فایل به پوشه شخصی برنامه (برای اندروید ۱۱+)
-            print("📂 کپی فایل به پوشه شخصی برنامه...")
-            dest_path = self._copy_uri_to_app_folder(uri, filename)
-            
-            if dest_path and os.path.exists(dest_path):
-                print(f"✅ فایل با موفقیت کپی شد: {dest_path}")
-                self._process_selection([dest_path])
-            else:
-                # اگر کپی موفق نشد، خطا نمایش بده
-                self._show_error("خطا در کپی فایل! لطفاً فایل را به پوشه import کپی کنید.")
-            
-        except Exception as e:
-            print(f"❌ خطا در مدیریت URI: {e}")
-            import traceback
-            traceback.print_exc()
-            self._show_error(f"خطا: {str(e)}")
-    
-    def _validate_extension(self, filename):
+    def _validate_extension(self, file_path):
         """اعتبارسنجی پسوند فایل"""
-        if not filename:
+        if not file_path:
             return False
-        filename_lower = filename.lower()
-        return any(filename_lower.endswith(ext) for ext in self._extensions)
+        file_lower = file_path.lower()
+        return any(file_lower.endswith(ext) for ext in self._extensions)
     
     # ============================================================
     # ✅ دسکتاپ
@@ -325,7 +249,7 @@ class FilePicker(BoxLayout):
             self._show_error("کتابخانه انتخاب فایل در دسترس نیست")
     
     # ============================================================
-    # ✅ پردازش نهایی انتخاب
+    # ✅ پردازش نهایی
     # ============================================================
     
     def _process_selection(self, selection):
@@ -346,7 +270,7 @@ class FilePicker(BoxLayout):
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
                 return
             
-            # ✅ بررسی وجود فایل (فقط برای مسیرهای معمولی)
+            # ✅ فقط برای دسکتاپ بررسی وجود فایل (در اندروید مسیر کپی شده)
             if not file_path.startswith('content://') and not os.path.exists(file_path):
                 self.selected_file = None
                 self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
@@ -432,5 +356,4 @@ class FilePicker(BoxLayout):
     def reset(self):
         """بازنشانی ویجت"""
         self.selected_file = None
-        self._pending_uri = None
         self._update_label('📄 هیچ فایلی انتخاب نشده', (150, 150, 150, 255))
