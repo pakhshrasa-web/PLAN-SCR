@@ -1,0 +1,182 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq \
+          build-essential git zip unzip \
+          autoconf libtool \
+          pkg-config zlib1g-dev libncurses5-dev \
+          libncursesw5-dev libtinfo5 cmake \
+          libffi-dev libssl-dev wget \
+          ccache \
+          libfreetype6-dev libjpeg-dev zlib1g-dev
+
+    - name: Install Python packages
+      run: |
+        pip install -q buildozer cython==0.29.37
+
+    - name: Set GCC as default compiler
+      run: |
+        sudo apt-get install -y gcc g++
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        echo "LD=g++" >> $GITHUB_ENV
+        sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
+        sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
+        gcc --version
+
+    - name: Create buildozer.spec
+      run: |
+        cat > buildozer.spec << 'EOF'
+        [app]
+        title = Plan Android
+        package.name = planandroid
+        package.domain = org.pakhshrasa
+
+        source.dir = .
+        source.include_exts = py,png,jpg,kv,atlas,ttf,json
+        source.include_patterns = data/*,fonts/*
+
+        version = 0.1.3
+
+        # ✅ Kivy بدون نسخه ثابت (Buildozer خودش انتخاب می‌کنه)
+        # ✅ sqlite3 برای دیتابیس
+        requirements = python3,kivy,sqlite3,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
+
+        orientation = portrait
+        fullscreen = 1
+
+        [buildozer]
+        log_level = 2
+        warn_on_root = 1
+
+        [buildozer:android]
+        android.ndk = 25b
+        android.api = 33
+        android.minapi = 21
+        android.archs = armeabi-v7a, arm64-v8a
+        
+        # ✅ فقط دسترسی‌های لازم (WRITE_EXTERNAL_STORAGE برای اندروید ۱۲-)
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+        
+        android.enable_androidx = True
+        android.allow_backup = True
+        android.unsafe_ssl = False
+        android.presplash_color = #FFFFFF
+        android.ignore_manifest = False
+        android.enable_on_back_invoked_callback = True
+        android.accept_sdk_license = True
+
+        android.version_code = 3
+
+        android.debug = 0
+        android.release = 1
+        EOF
+
+    - name: Create initial json files (if not exists)
+      run: |
+        mkdir -p data
+        
+        [ -f data/definitions.json ] || cat > data/definitions.json << 'EOF'
+        {
+          "agents": [],
+          "routes": [],
+          "customers": []
+        }
+        EOF
+        
+        [ -f data/settings.json ] || cat > data/settings.json << 'EOF'
+        {
+          "supervision_rate": 0.3,
+          "conversion_rate": 0.25,
+          "avg_invoice_amount": 1000000,
+          "target_amount": 50000000,
+          "target_count": 100,
+          "target_invoice_count": 20,
+          "target_customer_count": 50,
+          "target_new_customer_count": 10,
+          "target_cash_sales": 30000000,
+          "target_credit_sales": 20000000,
+          "work_start_time": "08:00",
+          "first_visit_time": "09:00",
+          "min_daily_hours": 6,
+          "first_customer_of_route": ""
+        }
+        EOF
+        
+        [ -f data/users.json ] || cat > data/users.json << 'EOF'
+        {
+          "users": []
+        }
+        EOF
+        
+        [ -f data/codes.json ] || cat > data/codes.json << 'EOF'
+        {
+          "codes": []
+        }
+        EOF
+        
+        [ -f data/admin_password.json ] || cat > data/admin_password.json << 'EOF'
+        {
+          "hashed_password": ""
+        }
+        EOF
+        
+        [ -f data/daily_log.json ] || cat > data/daily_log.json << 'EOF'
+        {}
+        EOF
+
+    - name: Ensure __init__.py files exist
+      run: |
+        touch utils/__init__.py
+        touch screens/__init__.py
+        echo "✅ __init__.py files ensured"
+
+    - name: Build with Buildozer
+      run: |
+        echo "y" | buildozer -v android release
+      env:
+        CC: gcc
+        CXX: g++
+        LD: g++
+
+    - name: Generate Keystore
+      run: |
+        keytool -genkey -v -keystore keystore.jks \
+          -alias myalias -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass password -keypass password \
+          -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=City, S=State, C=IR"
+
+    - name: Upload APK (Direct from Buildozer)
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: bin/*.apk
+        retention-days: 30
+        if-no-files-found: error
