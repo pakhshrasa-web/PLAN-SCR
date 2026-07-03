@@ -506,27 +506,28 @@ class PersianButton(Button):
     def set_text(self, text):
         self.label.set_text(text)
 
+
 # ============================================================
-# ✅ RTLMessageLabel - برای نمایش پیام‌های بزرگ و خوانا
+# ✅ RTLMessageLabel - نسخه اصلاح شده با اسکرول خودکار
 # ============================================================
 
 class RTLMessageLabel(BoxLayout):
-    """لیبل مخصوص نمایش پیام‌های بزرگ با قابلیت اسکرول"""
+    """لیبل مخصوص نمایش پیام‌های بزرگ با اسکرول خودکار"""
     
     def __init__(self, **kwargs):
         self._text = kwargs.pop('text', '')
         self._font_size = kwargs.pop('font_size', sp(24))
         self._color = kwargs.pop('color', (1, 1, 1, 1))
-        self._height = kwargs.pop('height', dp(300))
+        self._max_height = kwargs.pop('height', dp(300))
         
         super().__init__(**kwargs)
         
         self.orientation = 'vertical'
         self.size_hint_y = None
-        self.height = self._height
+        self.height = self._max_height
         self.padding = dp(10)
         
-        # ✅ ScrollView
+        # ✅ ScrollView داخلی
         self.scroll = ScrollView(
             do_scroll_x=False,
             do_scroll_y=True,
@@ -535,7 +536,7 @@ class RTLMessageLabel(BoxLayout):
             scroll_type=['bars', 'content']
         )
         
-        # ✅ استفاده از PersianLabel
+        # ✅ PersianLabel داخل ScrollView
         color_rgb = tuple(int(c * 255) if c <= 1 else int(c) for c in self._color)
         
         self.label = PersianLabel(
@@ -543,13 +544,35 @@ class RTLMessageLabel(BoxLayout):
             font_size=self._font_size,
             color=color_rgb,
             size_hint_y=None,
-            height=self._height
+            halign='right',
+            valign='top'
         )
+        
+        # ✅ تنظیم ارتفاع بر اساس محتوا
+        self.label.bind(texture_size=self._update_label_height)
         
         self.scroll.add_widget(self.label)
         self.add_widget(self.scroll)
+    
+    def _update_label_height(self, instance, texture_size):
+        """به‌روزرسانی ارتفاع label بر اساس محتوا"""
+        # اگر ارتفاع متن از حداکثر بیشتر بود، اسکرول فعال میشه
+        content_height = texture_size[1] + dp(20)
+        self.label.height = content_height
+        
+        # اگر ارتفاع محتوا کمتر از حداکثر بود، ارتفاع کل رو کم کن
+        if content_height < self._max_height:
+            self.height = content_height + dp(20)
+        else:
+            self.height = self._max_height
     
     def set_text(self, text):
         """تغییر متن"""
         self._text = text
         self.label.set_text(text)
+        # ✅ بعد از تغییر متن، ارتفاع رو دوباره محاسبه کن
+        Clock.schedule_once(lambda dt: self._update_label_height(self.label, self.label.texture_size), 0.1)
+    
+    def get_text(self):
+        """دریافت متن"""
+        return self._text
