@@ -72,28 +72,20 @@ class FilePicker(BoxLayout):
         try:
             from android import mActivity
             from jnius import autoclass
-            
-            PythonActivity = autoclass('org.kivy.android.PythonActivity')
-            activity = PythonActivity.mActivity
-            
-            # ذخیره callback در activity
-            if not hasattr(activity, '_file_picker_callback'):
-                activity._file_picker_callback = None
+            from android.activity import on_activity_result
             
             # تنظیم callback برای این نمونه
-            activity._file_picker_callback = self._on_intent_result
+            mActivity._file_picker_callback = self._on_intent_result
             
             # ثبت هندلر یکبار
-            if not hasattr(activity, '_file_picker_registered'):
-                from android.activity import on_activity_result
-                
+            if not hasattr(mActivity, '_file_picker_registered'):
                 @on_activity_result
                 def on_activity_result(request_code, result_code, data):
-                    callback = getattr(activity, '_file_picker_callback', None)
+                    callback = getattr(mActivity, '_file_picker_callback', None)
                     if callback:
                         callback(request_code, result_code, data)
                 
-                activity._file_picker_registered = True
+                mActivity._file_picker_registered = True
                 print("✅ FilePicker: هندلر Activity Result ثبت شد")
                 
         except Exception as e:
@@ -116,12 +108,11 @@ class FilePicker(BoxLayout):
         """انتخاب فایل در اندروید با Intent.ACTION_GET_CONTENT"""
         try:
             from android import mActivity
-            from android.content import Intent
-            from jnius import autoclass
+            from jnius import autoclass, cast
             
-            # تنظیم callback برای این نمونه
-            activity = mActivity
-            activity._file_picker_callback = self._on_intent_result
+            # ✅ استفاده از autoclass به جای import مستقیم
+            Intent = autoclass('android.content.Intent')
+            Activity = autoclass('android.app.Activity')
             
             # ایجاد Intent
             intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -141,6 +132,9 @@ class FilePicker(BoxLayout):
             
             print("📂 باز کردن انتخابگر با Intent.ACTION_GET_CONTENT")
             mActivity.startActivityForResult(intent, 1001)
+            
+            # ذخیره callback برای نتیجه
+            mActivity._file_picker_callback = self._on_intent_result
             
         except Exception as e:
             print(f"❌ خطا در باز کردن انتخابگر: {e}")
