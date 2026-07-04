@@ -1,5 +1,5 @@
 """
-ویجت انتخاب فایل - نسخه نهایی برای اندروید با SAF
+ویجت انتخاب فایل - نسخه نهایی برای اندروید با Intent.ACTION_GET_CONTENT
 """
 
 from kivy.uix.boxlayout import BoxLayout
@@ -19,8 +19,8 @@ except ImportError:
 
 
 class FilePicker(BoxLayout):
-    """ویجت انتخاب فایل - پشتیبانی از اندروید ۱۰ تا ۱۴"""
-    
+    """ویجت انتخاب فایل - پشتیبانی از اندروید ۱۰ تا ۱۴ با Intent"""
+
     def __init__(self, on_select=None, file_type='excel', **kwargs):
         super().__init__(orientation='vertical', spacing=10, **kwargs)
         self.on_select = on_select
@@ -28,6 +28,8 @@ class FilePicker(BoxLayout):
         self.file_type = file_type
         self.size_hint_y = None
         self.height = dp(120)
+        self._pending_callback = None
+        self._result_received = False
         
         if file_type == 'excel':
             btn_text = '📁 انتخاب فایل اکسل'
@@ -60,78 +62,136 @@ class FilePicker(BoxLayout):
         self.add_widget(self.file_label)
         
         self._extensions = extensions
+        
+        # ✅ ثبت هندلر برای اندروید
+        if platform == 'android':
+            self._register_result_handler()
+    
+    def _register_result_handler(self):
+        """ثبت هندلر برای نتیجه Intent در اندروید"""
+        try:
+            from android import mActivity
+            from jnius import autoclass
+            
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            activity = PythonActivity.mActivity
+            
+            # ذخیره callback در activity
+            if not hasattr(activity, '_file_picker_callback'):
+                activity._file_picker_callback = None
+            
+            # تنظیم callback برای این نمونه
+            activity._file_picker_callback = self._on_intent_result
+            
+            # ثبت هندلر یکبار
+            if not hasattr(activity, '_file_picker_registered'):
+                from android.activity import on_activity_result
+                
+                @on_activity_result
+                def on_activity_result(request_code, result_code, data):
+                    callback = getattr(activity, '_file_picker_callback', None)
+                    if callback:
+                        callback(request_code, result_code, data)
+                
+                activity._file_picker_registered = True
+                print("✅ FilePicker: هندلر Activity Result ثبت شد")
+                
+        except Exception as e:
+            print(f"⚠️ خطا در ثبت هندلر: {e}")
     
     def pick_file(self, instance):
         """باز کردن انتخابگر فایل"""
         print(f"🔍 FilePicker.pick_file: file_type={self.file_type}, platform={platform}")
         
         if platform == 'android':
-            self._pick_file_android()
+            self._pick_file_android_intent()
         else:
             self._pick_file_desktop()
     
     # ============================================================
-    # ✅ اندروید - با plyer و SAF
+    # ✅ اندروید - با Intent.ACTION_GET_CONTENT (بدون Permission)
     # ============================================================
     
-    def _pick_file_android(self):
-        """انتخاب فایل در اندروید با plyer"""
-        if not PLYER_AVAILABLE:
-            self._show_error("خطا: plyer در دسترس نیست!")
-            return
-        
+    def _pick_file_android_intent(self):
+        """انتخاب فایل در اندروید با Intent.ACTION_GET_CONTENT"""
         try:
-            print("📂 باز کردن انتخابگر با plyer (SAF)")
+            from android import mActivity
+            from android.content import Intent
+            from jnius import autoclass
             
-            # ✅ تنظیم فیلتر
+            # تنظیم callback برای این نمونه
+            activity = mActivity
+            activity._file_picker_callback = self._on_intent_result
+            
+            # ایجاد Intent
+            intent = Intent(Intent.ACTION_GET_CONTENT)
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            intent.setType("*/*")
+            
+            # فیلتر MIME type
             if self.file_type == 'excel':
-                filters = ['*.xlsx', '*.xls']
-                title = 'انتخاب فایل اکسل'
-            else:
-                filters = ['*.zip']
-                title = 'انتخاب فایل بکاپ'
+                mime_types = [
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.ms-excel"
+                ]
+            else:  # backup
+                mime_types = ["application/zip"]
             
-            filechooser.open_file(
-                on_selection=self._on_plyer_selection,
-                filters=filters,
-                title=title
-            )
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, mime_types)
+            
+            print("📂 باز کردن انتخابگر با Intent.ACTION_GET_CONTENT")
+            mActivity.startActivityForResult(intent, 1001)
             
         except Exception as e:
-            print(f"❌ خطا در plyer: {e}")
+            print(f"❌ خطا در باز کردن انتخابگر: {e}")
             import traceback
             traceback.print_exc()
             self._show_error(f"خطا: {str(e)}")
     
-    def _on_plyer_selection(self, selection):
-        """پردازش نتیجه انتخاب از plyer"""
-        print(f"🔍 _on_plyer_selection: {selection}")
+    def _on_intent_result(self, request_code, result_code, data):
+        """پردازش نتیجه Intent - در onActivityResult صدا زده می‌شود"""
+        print(f"🔍 _on_intent_result: request={request_code}, result={result_code}")
         
-        if not selection or len(selection) == 0:
+        if request_code != 1001:
+            return
+        
+        if self._result_received:
+            return
+        self._result_received = True
+        
+        from android import mActivity
+        RESULT_OK = -1
+        
+        if result_code != RESULT_OK:
             self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
+            self._result_received = False
             return
         
-        file_path = selection[0]
-        print(f"📂 فایل انتخاب شد: {file_path}")
-        
-        if not file_path:
-            self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
+        if not data:
+            self._update_label('⚠️ داده‌ای دریافت نشد', (200, 50, 50, 255))
+            self._result_received = False
             return
         
-        # ✅ اعتبارسنجی پسوند
-        if not self._validate_extension(file_path):
-            ext_text = 'اکسل (.xlsx, .xls)' if self.file_type == 'excel' else 'زیپ (.zip)'
-            self._update_label(f'⚠️ فقط فایل‌های {ext_text} مجازند', (200, 50, 50, 255))
-            self._show_error(f'لطفاً یک فایل {ext_text} انتخاب کنید')
-            return
-        
-        # ✅ در اندروید، مسیر با content:// شروع میشه
-        if platform == 'android' and file_path.startswith('content://'):
-            # ✅ کپی فایل با SAF (بدون نیاز به Permission)
-            self._copy_from_saf(file_path)
-        else:
-            # ✅ دسکتاپ - مسیر مستقیم
-            self._process_selection([file_path])
+        try:
+            from android.net import Uri
+            
+            uri = data.getData()
+            if not uri:
+                self._update_label('⚠️ URI نامعتبر', (200, 50, 50, 255))
+                self._result_received = False
+                return
+            
+            print(f"📂 URI دریافت شد: {uri}")
+            
+            # کپی فایل از URI
+            self._copy_from_saf(str(uri))
+            
+        except Exception as e:
+            print(f"❌ خطا در پردازش نتیجه: {e}")
+            import traceback
+            traceback.print_exc()
+            self._show_error(f"خطا: {str(e)}")
+            self._result_received = False
     
     # ============================================================
     # ✅ کپی از SAF (بدون Permission)
@@ -143,34 +203,33 @@ class FilePicker(BoxLayout):
             from android import mActivity
             from android.net import Uri
             from android.provider import OpenableColumns
-            from utils.storage import get_import_path
+            from utils.storage import get_app_import_path
             
-            # ✅ دریافت پوشه import
-            import_path = get_import_path()
-            os.makedirs(import_path, exist_ok=True)
-            
-            # ✅ تبدیل رشته به Uri
             uri = Uri.parse(uri_str)
             content_resolver = mActivity.getContentResolver()
             
-            # ✅ دریافت نام واقعی فایل از SAF
+            # ✅ دریافت نام واقعی فایل
             filename = self._get_display_name(content_resolver, uri)
             if not filename:
-                # اگر نام پیدا نشد، از URI استخراج کن
-                filename = uri_str.split('/')[-1]
-                if ':' in filename:
-                    filename = filename.split(':')[-1]
+                # استخراج از URI
+                import urllib.parse
+                raw = urllib.parse.unquote(str(uri))
+                filename = raw.split('/')[-1]
+                if '?' in filename:
+                    filename = filename.split('?')[0]
                 if not filename or '.' not in filename:
                     ext = '.xlsx' if self.file_type == 'excel' else '.zip'
                     filename = f'file_{hash(uri_str)}{ext}'
             
+            # مسیر مقصد
+            import_path = get_app_import_path()
+            os.makedirs(import_path, exist_ok=True)
             dest_path = os.path.join(import_path, filename)
             
             print(f"📂 کپی فایل از SAF به: {dest_path}")
             
-            # ✅ کپی با InputStream (SAF خودش اجازه خواندن داره)
+            # کپی با InputStream
             input_stream = content_resolver.openInputStream(uri)
-            
             if not input_stream:
                 raise Exception("نمی‌توان InputStream دریافت کرد")
             
@@ -183,13 +242,15 @@ class FilePicker(BoxLayout):
                             break
                         output_file.write(buffer[:bytes_read])
             
-            print(f"✅ فایل با موفقیت کپی شد: {dest_path}")
+            print(f"✅ فایل کپی شد: {dest_path}")
+            self._result_received = False
             self._process_selection([dest_path])
             
         except Exception as e:
-            print(f"❌ خطا در کپی از SAF: {e}")
+            print(f"❌ خطا در کپی: {e}")
             import traceback
             traceback.print_exc()
+            self._result_received = False
             self._show_error(f"خطا در کپی فایل: {str(e)}")
     
     def _get_display_name(self, content_resolver, uri):
@@ -270,7 +331,7 @@ class FilePicker(BoxLayout):
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
                 return
             
-            # ✅ فقط برای دسکتاپ بررسی وجود فایل (در اندروید مسیر کپی شده)
+            # ✅ فقط برای دسکتاپ بررسی وجود فایل
             if not file_path.startswith('content://') and not os.path.exists(file_path):
                 self.selected_file = None
                 self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
@@ -356,4 +417,5 @@ class FilePicker(BoxLayout):
     def reset(self):
         """بازنشانی ویجت"""
         self.selected_file = None
+        self._result_received = False
         self._update_label('📄 هیچ فایلی انتخاب نشده', (150, 150, 150, 255))
