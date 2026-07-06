@@ -18,7 +18,7 @@ from kivy.logger import Logger as logger
 from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel
 from utils.user_manager import login
 from utils.backup_manager import create_backup, restore_backup, validate_backup_file
-from utils.file_picker import FilePicker
+from utils.file_picker_backup import BackupFilePicker  # ✅ تغییر
 from error_handler import ErrorPopup
 
 
@@ -286,9 +286,9 @@ class LoginScreen(Screen):
                 color=(0.6, 0.6, 0.6, 1)
             ))
             
-            self.restore_file_picker = FilePicker(
+            # ✅ استفاده از BackupFilePicker
+            self.restore_file_picker = BackupFilePicker(
                 on_select=self._on_backup_file_selected,
-                file_type='backup',
                 size_hint_y=None,
                 height=dp(120)
             )

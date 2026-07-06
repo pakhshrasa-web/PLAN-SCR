@@ -26,7 +26,7 @@ from utils.file_manager import (
 )
 from utils.jalali_date import get_today_jalali
 from utils.excel_importer import import_routes_from_excel, import_customers_from_excel
-from utils.file_picker import FilePicker
+from utils.file_picker_import import ImportFilePicker  # ✅ تغییر
 from error_handler import ErrorPopup
 from constants import ROLES
 
@@ -97,18 +97,14 @@ class AdminScreen(Screen):
         """اعتبارسنجی شماره موبایل"""
         if not mobile:
             return True, ""
-        # حذف فاصله و خط تیره
         mobile = mobile.replace(' ', '').replace('-', '').replace('_', '')
-        # فقط عدد
         if not mobile.isdigit():
             return False, "شماره موبایل باید فقط شامل عدد باشد"
-        # طول ۱۱ رقمی (09xxxxxxxxx)
         if len(mobile) != 11 or not mobile.startswith('09'):
             return False, "شماره موبایل باید ۱۱ رقم و با 09 شروع شود"
         return True, ""
     
     def _validate_email(self, email):
-        """اعتبارسنجی ایمیل با Regex ساده"""
         if not email:
             return True, ""
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -117,7 +113,6 @@ class AdminScreen(Screen):
         return False, "ایمیل معتبر نیست"
     
     def _validate_time(self, time_str):
-        """اعتبارسنجی زمان با فرمت HH:MM"""
         if not time_str:
             return False, "زمان نمی‌تواند خالی باشد"
         try:
@@ -200,7 +195,6 @@ class AdminScreen(Screen):
         try:
             main_layout = BoxLayout(orientation='vertical', padding=[dp(5), dp(5), dp(5), dp(5)])
             
-            # تب‌های اصلی
             tabs_layout = BoxLayout(
                 size_hint_y=None,
                 height=dp(38),
@@ -474,7 +468,6 @@ class AdminScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش مسیرها: {e}", error_details)
     
     def _update_sub_tab_colors(self, tab_type, active):
-        """به‌روزرسانی رنگ تب‌های داخلی"""
         if tab_type not in self.sub_tab_buttons:
             return
         for btn in self.sub_tab_buttons[tab_type]:
@@ -608,6 +601,7 @@ class AdminScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در حذف مسیر: {e}", error_details)
     
+    # ✅ تب ورود مسیرها از اکسل - تغییر یافته
     def show_excel_routes(self):
         try:
             self.current_sub_tab['routes'] = 'ورود از اکسل'
@@ -644,9 +638,9 @@ class AdminScreen(Screen):
                 height=dp(40),
             ))
             
-            self.routes_file_picker = FilePicker(
+            # ✅ استفاده از ImportFilePicker
+            self.routes_file_picker = ImportFilePicker(
                 on_select=self.import_routes_from_excel_file,
-                file_type='excel',
                 size_hint_y=None,
                 height=dp(120)
             )
@@ -944,6 +938,7 @@ class AdminScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در حذف مشتری: {e}", error_details)
     
+    # ✅ تب ورود مشتریان از اکسل - تغییر یافته
     def show_excel_customers(self):
         try:
             self.current_sub_tab['customers'] = 'ورود از اکسل'
@@ -980,9 +975,9 @@ class AdminScreen(Screen):
                 height=dp(50),
             ))
             
-            self.customers_file_picker = FilePicker(
+            # ✅ استفاده از ImportFilePicker
+            self.customers_file_picker = ImportFilePicker(
                 on_select=self.import_customers_from_excel_file,
-                file_type='excel',
                 size_hint_y=None,
                 height=dp(120)
             )
@@ -1152,7 +1147,6 @@ class AdminScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ✅ RTLMessageLabel خودش اسکرول داره
             msg_label = RTLMessageLabel(
                 text=message,
                 font_size=sp(20) if len(message) < 100 else sp(16),

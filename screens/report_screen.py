@@ -3,6 +3,7 @@
 
 import traceback
 import os
+import threading  # ✅ اضافه شده
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -11,6 +12,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
+from kivy.clock import Clock  # ✅ اضافه شده
 
 from utils.rtl_widgets import PersianButton, RTLLabel
 from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path
@@ -22,7 +24,6 @@ class ReportScreen(Screen):
     def __init__(self, **kwargs):
         try:
             super().__init__(**kwargs)
-            # پس‌زمینه تیره
             with self.canvas.before:
                 Color(0.08, 0.08, 0.08, 1)
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
@@ -42,7 +43,6 @@ class ReportScreen(Screen):
         try:
             layout = BoxLayout(orientation='vertical', padding=[dp(5), dp(5), dp(5), dp(5)])
             
-            # ========== تب‌ها ==========
             tabs_layout = BoxLayout(
                 size_hint_y=None,
                 height=dp(40),
@@ -73,11 +73,9 @@ class ReportScreen(Screen):
             
             layout.add_widget(tabs_layout)
             
-            # ========== محتوای تب‌ها ==========
             self.content_area = BoxLayout(orientation='vertical')
             layout.add_widget(self.content_area)
             
-            # ========== دکمه‌ها ==========
             btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8), padding=dp(5))
             
             refresh_btn = PersianButton(
@@ -123,7 +121,6 @@ class ReportScreen(Screen):
             raise
     
     def switch_tab(self, tab_id):
-        """تغییر تب"""
         self.current_tab = tab_id
         self.content_area.clear_widgets()
         
@@ -133,9 +130,7 @@ class ReportScreen(Screen):
             self.show_detail_tab()
     
     def show_performance_tab(self):
-        """نمایش تب عملکرد کلی (از daily_summary.json)"""
         try:
-            # خواندن داده‌های خلاصه
             summary_file = 'daily_summary.json'
             summary_path = os.path.join(get_data_path(), summary_file)
             
@@ -160,7 +155,6 @@ class ReportScreen(Screen):
                 self.content_area.add_widget(layout)
                 return
             
-            # محاسبه آمار کل
             total_days = len(all_summaries)
             total_visits = 0
             total_invoices = 0
@@ -176,7 +170,6 @@ class ReportScreen(Screen):
                 except:
                     pass
             
-            # نمایش خلاصه
             content.add_widget(RTLLabel(
                 text='📊 خلاصه عملکرد کلی',
                 size_hint_y=None,
@@ -186,7 +179,6 @@ class ReportScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
-            # کارت‌های آماری
             row1 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
             row1.add_widget(self._make_card('📅 روزهای کاری', str(total_days), (0.3, 0.6, 0.6, 1)))
             row1.add_widget(self._make_card('👥 کل ویزیت‌ها', str(total_visits), (0.6, 0.4, 0.8, 1)))
@@ -204,7 +196,6 @@ class ReportScreen(Screen):
             row3.add_widget(self._make_card('📈 میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
             content.add_widget(row3)
             
-            # لیست خلاصه روزانه
             content.add_widget(RTLLabel(
                 text='📋 خلاصه روزانه',
                 size_hint_y=None,
@@ -214,7 +205,6 @@ class ReportScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
-            # هدر
             header_box = BoxLayout(size_hint_y=None, height=dp(37), spacing=dp(2))
             headers = ['تاریخ', 'ویزیت', 'فاکتور', 'واحد', 'فروش']
             for i, text in enumerate(headers):
@@ -230,7 +220,6 @@ class ReportScreen(Screen):
                 header_box.add_widget(btn)
             content.add_widget(header_box)
             
-            # داده‌ها
             for date, summary in sorted(all_summaries.items(), reverse=True):
                 row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(2))
                 
@@ -275,7 +264,6 @@ class ReportScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش عملکرد کلی: {e}", error_details)
     
     def show_detail_tab(self):
-        """نمایش تب ریز عملکرد (از daily_log.json)"""
         try:
             all_logs = get_daily_logs()
             
@@ -295,7 +283,6 @@ class ReportScreen(Screen):
                 self.content_area.add_widget(layout)
                 return
             
-            # جمع‌آوری همه ویزیت‌ها
             visit_list = []
             for date, logs in all_logs.items():
                 if not isinstance(logs, list):
@@ -317,7 +304,6 @@ class ReportScreen(Screen):
                         'fail_sales_reason': log.get('fail_sales_reason', '')
                     })
             
-            # عنوان
             content.add_widget(RTLLabel(
                 text='📋 ریز عملکرد (همه ویزیت‌ها)',
                 size_hint_y=None,
@@ -339,7 +325,6 @@ class ReportScreen(Screen):
                 self.content_area.add_widget(layout)
                 return
             
-            # هدر
             header_box = BoxLayout(size_hint_y=None, height=dp(37), spacing=dp(2))
             headers = ['تاریخ', 'مسیر', 'مشتری', 'ویزیت', 'فروش', 'ساعت']
             for i, text in enumerate(headers):
@@ -355,7 +340,6 @@ class ReportScreen(Screen):
                 header_box.add_widget(btn)
             content.add_widget(header_box)
             
-            # داده‌ها
             for item in sorted(visit_list, key=lambda x: (x['date'], x['time']), reverse=True):
                 row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(2))
                 
@@ -419,11 +403,9 @@ class ReportScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش ریز عملکرد: {e}", error_details)
     
     def refresh_stats(self, instance):
-        """تازه‌سازی تب فعلی"""
         self.switch_tab(self.current_tab)
     
     def _make_card(self, title, value, color):
-        """ساخت کارت آماری"""
         card = BoxLayout(
             orientation='vertical',
             size_hint_x=0.5,
@@ -461,25 +443,33 @@ class ReportScreen(Screen):
             instance.bg_rect.pos = instance.pos
             instance.bg_rect.size = instance.size
     
+    # ✅ تابع اصلاح شده با اجرا در ترد جداگانه
     def export_excel(self, instance):
-        """خروجی اکسل با نمایش مسیر"""
+        """خروجی اکسل با اجرا در ترد جداگانه"""
         try:
-            # ✅ نمایش دیالوگ در حال ساخت
             self.show_message('⏳ در حال ساخت', 'لطفاً صبر کنید...')
             
-            success, result = export_to_excel()
+            def do_export():
+                success, result = export_to_excel()
+                
+                def show_result(dt):
+                    if success:
+                        self.show_message(
+                            '✅ موفق', 
+                            f'فایل اکسل با موفقیت ساخته شد\n\n'
+                            f'📍 مسیر: {result}\n\n'
+                            f'📁 پوشه: {os.path.dirname(result)}\n\n'
+                            f'💡 برای دسترسی به فایل، به پوشه Downloads مراجعه کنید.'
+                        )
+                    else:
+                        self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
+                
+                Clock.schedule_once(show_result, 0)
             
-            if success:
-                # ✅ نمایش مسیر کامل به کاربر
-                self.show_message(
-                    '✅ موفق', 
-                    f'فایل اکسل با موفقیت ساخته شد\n\n'
-                    f'📍 مسیر: {result}\n\n'
-                    f'📁 پوشه: {os.path.dirname(result)}\n\n'
-                    f'💡 برای دسترسی به فایل، به پوشه Downloads مراجعه کنید.'
-                )
-            else:
-                self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
+            # ✅ اجرا در ترد جداگانه
+            thread = threading.Thread(target=do_export, daemon=True)
+            thread.start()
+            
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در خروجی اکسل: {e}", error_details)
@@ -488,7 +478,6 @@ class ReportScreen(Screen):
         self.manager.current = 'user'
     
     def show_message(self, title, message):
-        """نمایش پیام با فونت مناسب و خوانا"""
         try:
             from utils.rtl_widgets import RTLMessageLabel
             
