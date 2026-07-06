@@ -15,6 +15,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock  
 
 from utils.rtl_widgets import PersianButton, RTLLabel
+from utils.persian_text import PersianLabel  
 from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path
 from utils.excel_exporter import export_to_excel
 from error_handler import ErrorPopup
@@ -494,7 +495,7 @@ class ReportScreen(Screen):
                 size_hint_y=0.8
             )
             
-            # ✅ استفاده از PersianLabel معمولی (نه RTLMessageLabel)
+            # ✅ استفاده از PersianLabel (که الان import شده)
             msg_label = PersianLabel(
                 text=message,
                 font_size=sp(20),
@@ -502,7 +503,7 @@ class ReportScreen(Screen):
                 size_hint_y=None,
                 halign='right',
                 valign='top',
-                width=dp(450)  # محدود کردن عرض
+                width=dp(450)
             )
             msg_label.bind(texture_size=msg_label.setter('size'))
             msg_label.bind(width=lambda i, v: setattr(i, 'text_size', (v, None)))
