@@ -3,7 +3,7 @@
 
 import traceback
 import os
-import threading  # ✅ اضافه شده
+import threading 
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -12,7 +12,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
-from kivy.clock import Clock  # ✅ اضافه شده
+from kivy.clock import Clock  
 
 from utils.rtl_widgets import PersianButton, RTLLabel
 from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path
@@ -50,7 +50,7 @@ class ReportScreen(Screen):
             )
             
             btn_performance = PersianButton(
-                text='📊 عملکرد کلی',
+                text=' عملکرد کلی',
                 background_color=(0.3, 0.5, 0.8, 1),
                 size_hint_y=None,
                 height=dp(36),
@@ -61,7 +61,7 @@ class ReportScreen(Screen):
             tabs_layout.add_widget(btn_performance)
             
             btn_detail = PersianButton(
-                text='📋 ریز عملکرد',
+                text=' ریز عملکرد',
                 background_color=(0.3, 0.5, 0.8, 0.6),
                 size_hint_y=None,
                 height=dp(36),
@@ -79,7 +79,7 @@ class ReportScreen(Screen):
             btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8), padding=dp(5))
             
             refresh_btn = PersianButton(
-                text='🔄 تازه سازی',
+                text='تازه سازی',
                 background_color=(0.4, 0.4, 0.8, 1),
                 size_hint_y=None,
                 height=dp(40),
@@ -90,7 +90,7 @@ class ReportScreen(Screen):
             btn_layout.add_widget(refresh_btn)
             
             excel_btn = PersianButton(
-                text='📎 Excel',
+                text='Excel',
                 background_color=(0.2, 0.6, 0.2, 1),
                 size_hint_y=None,
                 height=dp(40),
@@ -101,7 +101,7 @@ class ReportScreen(Screen):
             btn_layout.add_widget(excel_btn)
             
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(40),
@@ -145,7 +145,7 @@ class ReportScreen(Screen):
             
             if not all_summaries:
                 content.add_widget(RTLLabel(
-                    text='📭 هیچ خلاصه عملکردی ثبت نشده است',
+                    text=' هیچ خلاصه عملکردی ثبت نشده است',
                     size_hint_y=None,
                     height=dp(45),
                     font_size=sp(18),
@@ -171,7 +171,7 @@ class ReportScreen(Screen):
                     pass
             
             content.add_widget(RTLLabel(
-                text='📊 خلاصه عملکرد کلی',
+                text='خلاصه عملکرد کلی',
                 size_hint_y=None,
                 height=dp(45),
                 font_size=sp(24),
@@ -180,24 +180,24 @@ class ReportScreen(Screen):
             ))
             
             row1 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
-            row1.add_widget(self._make_card('📅 روزهای کاری', str(total_days), (0.3, 0.6, 0.6, 1)))
-            row1.add_widget(self._make_card('👥 کل ویزیت‌ها', str(total_visits), (0.6, 0.4, 0.8, 1)))
+            row1.add_widget(self._make_card('روزهای کاری', str(total_days), (0.3, 0.6, 0.6, 1)))
+            row1.add_widget(self._make_card('کل ویزیت‌ها', str(total_visits), (0.6, 0.4, 0.8, 1)))
             content.add_widget(row1)
             
             row2 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
-            row2.add_widget(self._make_card('🧾 فاکتورها', str(total_invoices), (0.3, 0.5, 0.7, 1)))
-            row2.add_widget(self._make_card('📦 واحد فروش', str(total_units), (0.5, 0.3, 0.7, 1)))
+            row2.add_widget(self._make_card('فاکتورها', str(total_invoices), (0.3, 0.5, 0.7, 1)))
+            row2.add_widget(self._make_card('واحد فروش', str(total_units), (0.5, 0.3, 0.7, 1)))
             content.add_widget(row2)
             
             row3 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
-            row3.add_widget(self._make_card('💰 کل مبلغ فروش', f"{total_sales:,}", (0.2, 0.6, 0.3, 1)))
+            row3.add_widget(self._make_card('کل مبلغ فروش', f"{total_sales:,}", (0.2, 0.6, 0.3, 1)))
             
             avg_sale = total_sales // total_visits if total_visits > 0 else 0
-            row3.add_widget(self._make_card('📈 میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
+            row3.add_widget(self._make_card('میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
             content.add_widget(row3)
             
             content.add_widget(RTLLabel(
-                text='📋 خلاصه روزانه',
+                text='خلاصه روزانه',
                 size_hint_y=None,
                 height=dp(40),
                 font_size=sp(20),
@@ -273,7 +273,7 @@ class ReportScreen(Screen):
             
             if not all_logs:
                 content.add_widget(RTLLabel(
-                    text='📭 هیچ ریز عملکردی ثبت نشده است',
+                    text=' هیچ ریز عملکردی ثبت نشده است',
                     size_hint_y=None,
                     height=dp(45),
                     font_size=sp(18),
@@ -305,7 +305,7 @@ class ReportScreen(Screen):
                     })
             
             content.add_widget(RTLLabel(
-                text='📋 ریز عملکرد (همه ویزیت‌ها)',
+                text=' ریز عملکرد (همه ویزیت‌ها)',
                 size_hint_y=None,
                 height=dp(40),
                 font_size=sp(22),
@@ -424,14 +424,14 @@ class ReportScreen(Screen):
             text=title,
             size_hint_y=None,
             height=dp(22),
-            font_size=sp(15),
+            font_size=sp(12),
             color=(1, 1, 1, 1)
         ))
         card.add_widget(RTLLabel(
             text=str(value),
             size_hint_y=None,
             height=dp(30),
-            font_size=sp(22),
+            font_size=sp(18),
             bold=True,
             color=(1, 1, 1, 1)
         ))
@@ -455,14 +455,14 @@ class ReportScreen(Screen):
                 def show_result(dt):
                     if success:
                         self.show_message(
-                            '✅ موفق', 
+                            ' موفق', 
                             f'فایل اکسل با موفقیت ساخته شد\n\n'
-                            f'📍 مسیر: {result}\n\n'
-                            f'📁 پوشه: {os.path.dirname(result)}\n\n'
-                            f'💡 برای دسترسی به فایل، به پوشه Downloads مراجعه کنید.'
+                            f' مسیر: {result}\n\n'
+                            f' پوشه: {os.path.dirname(result)}\n\n'
+                            f' برای دسترسی به فایل، به پوشه Downloads مراجعه کنید.'
                         )
                     else:
-                        self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
+                        self.show_message(' خطا', f'خطا در ساخت اکسل:\n{result}')
                 
                 Clock.schedule_once(show_result, 0)
             
@@ -478,55 +478,65 @@ class ReportScreen(Screen):
         self.manager.current = 'user'
     
     def show_message(self, title, message):
-        """نمایش پیام با محدودیت اندازه"""
+        """نمایش پیام - نسخه ساده و بدون خطا"""
         try:
-            from utils.rtl_widgets import RTLMessageLabel
-            
-            # ✅ محدود کردن طول پیام برای جلوگیری از Texture بزرگ
+            # ✅ محدود کردن طول پیام
             if len(message) > 500:
                 message = message[:500] + "...\n\n(متن کامل در فایل لاگ موجود است)"
             
-            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
+            # ✅ ساخت محتوای پاپ‌آپ ساده
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
             
             # ✅ استفاده از ScrollView برای پیام‌های طولانی
-            scroll = ScrollView(size_hint_y=0.8)
-            msg_label = RTLMessageLabel(
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=0.8
+            )
+            
+            # ✅ استفاده از PersianLabel معمولی (نه RTLMessageLabel)
+            msg_label = PersianLabel(
                 text=message,
                 font_size=sp(20),
-                color=(1, 1, 1, 1),
+                color=(255, 255, 255, 255),
                 size_hint_y=None,
-                text_size=(dp(500), None)  # ✅ محدود کردن عرض
+                halign='right',
+                valign='top',
+                width=dp(450)  # محدود کردن عرض
             )
             msg_label.bind(texture_size=msg_label.setter('size'))
+            msg_label.bind(width=lambda i, v: setattr(i, 'text_size', (v, None)))
+            
             scroll.add_widget(msg_label)
             content.add_widget(scroll)
             
+            # ✅ دکمه باشه
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(22),
+                height=dp(50),
+                font_size=sp(20),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
             
+            # ✅ پاپ‌آپ
             popup = Popup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.7),
-                background_color=(0.08, 0.08, 0.08, 1)
+                size_hint=(0.9, 0.6),
+                auto_dismiss=True
             )
             popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(24)
+            popup.title_size = sp(22)
             btn.bind(on_press=popup.dismiss)
-            popup.open()
+            
+            # ✅ نمایش با تاخیر
+            Clock.schedule_once(lambda dt: popup.open(), 0.1)
             
         except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
+            # ✅ اگر خطا بود، فقط چاپ کن
+            print(f"❌ خطا در نمایش پیام: {e}")
+            import traceback
+            traceback.print_exc()
