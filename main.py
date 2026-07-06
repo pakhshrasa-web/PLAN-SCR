@@ -130,7 +130,7 @@ try:
     from utils.auth import get_admin_password, set_admin_password, verify_password
     from utils.excel_importer import import_routes_from_excel, import_customers_from_excel
     from utils.excel_exporter import export_to_excel
-    from utils.file_picker import FilePicker
+    # ✅ حذف: from utils.file_picker import FilePicker
 
     RTLLabel = PersianLabel
     
