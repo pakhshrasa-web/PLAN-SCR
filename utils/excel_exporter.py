@@ -9,7 +9,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 from utils.file_manager import get_daily_logs
-from utils.storage import get_export_path as get_public_export
+from utils.storage import get_backup_path  # ✅ تغییر: استفاده از مسیر عمومی
 
 
 def safe_int(value, default=0):
@@ -30,8 +30,12 @@ def safe_str(value, default=''):
 
 
 def get_export_filename():
-    """دریافت مسیر کامل فایل خروجی"""
-    export_dir = get_public_export()
+    """
+    دریافت مسیر کامل فایل خروجی
+    ✅ تغییر: در اندروید به مسیر Download میرود
+    """
+    # ✅ استفاده از get_backup_path که در اندروید به Download اشاره میکنه
+    export_dir = get_backup_path()  # ← تغییر مهم!
     os.makedirs(export_dir, exist_ok=True)
     
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -226,25 +230,16 @@ def export_to_excel():
         filepath = get_export_filename()
         wb.save(filepath)
         
-        return True, filepath
+        # ✅ بررسی وجود فایل
+        if os.path.exists(filepath):
+            size = os.path.getsize(filepath)
+            print(f"✅ فایل اکسل با موفقیت ساخته شد: {filepath} ({size} bytes)")
+            return True, filepath
+        else:
+            return False, "فایل ساخته نشد"
         
     except Exception as e:
         print(f"❌ خطا در خروجی Excel: {e}")
         import traceback
         traceback.print_exc()
-        return False, str(e)
-
-
-def export_test():
-    """تست ساده خروجی اکسل"""
-    try:
-        filepath = get_export_filename()
-        wb = Workbook()
-        ws = wb.active
-        ws['A1'] = "گزارش فروش"
-        ws['A1'].font = Font(bold=True, size=14)
-        ws['A2'] = f"تاریخ ایجاد: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        wb.save(filepath)
-        return True, filepath
-    except Exception as e:
         return False, str(e)
