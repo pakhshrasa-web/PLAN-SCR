@@ -1,4 +1,4 @@
-﻿"""
+"""
 مدیریت ذخیره‌سازی داده‌ها - نسخه نهایی با Python IO
 """
 
@@ -37,7 +37,6 @@ def init_data_path():
             from android.storage import app_storage_path
             path = app_storage_path()
             if path:
-                # ✅ فقط از مسیر app_storage_path استفاده کن (بدون اضافه کردن planandroid)
                 _cache['data_path'] = path
                 logger.info(f"✅ مسیر اندروید: {_cache['data_path']}")
             else:
@@ -138,9 +137,10 @@ def get_public_export_path():
         logger.info(f"✅ مسیر عمومی export: {path}")
     return _cache['public_export']
 
+# ✅ تغییر اصلی: مسیر بکاپ به Download میرود
 def get_public_backup_path():
     if _cache['public_backup'] is None:
-        path = os.path.join(_get_public_base_path(), 'plan_android_data', 'backup')
+        path = os.path.join(_get_public_base_path(), 'PlanAndroid_Backup')
         try:
             os.makedirs(path, exist_ok=True)
         except Exception as e:
@@ -150,7 +150,7 @@ def get_public_backup_path():
     return _cache['public_backup']
 
 # ============================================================
-# ✅ توابع اصلی
+# ✅ توابع اصلی (با تغییر در backup)
 # ============================================================
 
 def get_import_path():
@@ -165,11 +165,12 @@ def get_export_path():
     else:
         return get_public_export_path()
 
+# ✅ تغییر: در اندروید به مسیر عمومی میرود
 def get_backup_path():
     if platform == 'android':
-        return get_app_backup_path()
-    else:
         return get_public_backup_path()
+    else:
+        return get_app_backup_path()
 
 # ============================================================
 # ✅ تابع کپی با Python IO (ساده و مطمئن)
@@ -190,7 +191,6 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type
     """
     try:
         from android import mActivity
-        from android.net import Uri
         from jnius import autoclass
         
         # ✅ تبدیل به Uri
