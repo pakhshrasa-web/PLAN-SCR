@@ -478,8 +478,13 @@ class ReportScreen(Screen):
         self.manager.current = 'user'
     
     def show_message(self, title, message):
+        """نمایش پیام با محدودیت اندازه"""
         try:
             from utils.rtl_widgets import RTLMessageLabel
+            
+            # ✅ محدود کردن طول پیام برای جلوگیری از Texture بزرگ
+            if len(message) > 500:
+                message = message[:500] + "...\n\n(متن کامل در فایل لاگ موجود است)"
             
             content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
             with content.canvas.before:
@@ -488,13 +493,18 @@ class ReportScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
             
+            # ✅ استفاده از ScrollView برای پیام‌های طولانی
+            scroll = ScrollView(size_hint_y=0.8)
             msg_label = RTLMessageLabel(
                 text=message,
-                font_size=sp(24),
+                font_size=sp(20),
                 color=(1, 1, 1, 1),
-                height=dp(300)
+                size_hint_y=None,
+                text_size=(dp(500), None)  # ✅ محدود کردن عرض
             )
-            content.add_widget(msg_label)
+            msg_label.bind(texture_size=msg_label.setter('size'))
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
             
             btn = PersianButton(
                 text='باشه',
