@@ -88,7 +88,7 @@ jobs:
         android.presplash_color = #FFFFFF
         android.ignore_manifest = False
         android.enable_on_back_invoked_callback = True
-        android.version_code = 2
+        android.version_code = 1
 
         android.debug = 0
         android.release = 1
@@ -168,6 +168,15 @@ jobs:
         
         echo "📁 بررسی داده‌های کپی شده:"
         ls -la .buildozer/android/app/data/ || echo "⚠️ پوشه data خالی است"
+
+    # ✅ مرحله جدید: افزایش خودکار version_code
+    - name: Update version_code
+      run: |
+        echo "📌 قبل از تغییر:"
+        grep "android.version_code" buildozer.spec
+        sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
+        echo "📌 بعد از تغییر:"
+        grep "android.version_code" buildozer.spec
 
     - name: Build with Buildozer
       run: |
