@@ -479,34 +479,35 @@ class ReportScreen(Screen):
         self.manager.current = 'user'
     
     def show_message(self, title, message):
-        """نمایش پیام - نسخه ساده و بدون خطا"""
+        """نمایش پیام - نسخه نهایی با محدودیت عرض"""
         try:
             # ✅ محدود کردن طول پیام
-            if len(message) > 500:
-                message = message[:500] + "...\n\n(متن کامل در فایل لاگ موجود است)"
+            if len(message) > 400:
+                message = message[:400] + "...\n\n(متن کامل در فایل لاگ موجود است)"
             
-            # ✅ ساخت محتوای پاپ‌آپ ساده
+            # ✅ ساخت محتوای پاپ‌آپ
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
             
-            # ✅ استفاده از ScrollView برای پیام‌های طولانی
+            # ✅ ScrollView برای پیام‌های طولانی
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
                 size_hint_y=0.8
             )
             
-            # ✅ استفاده از PersianLabel (که الان import شده)
+            # ✅ PersianLabel با محدودیت عرض
             msg_label = PersianLabel(
                 text=message,
-                font_size=sp(20),
+                font_size=sp(18),  # ✅ کاهش font size
                 color=(255, 255, 255, 255),
                 size_hint_y=None,
                 halign='right',
                 valign='top',
-                width=dp(450)
+                width=dp(380)  # ✅ محدود کردن عرض به 380dp
             )
+            # ✅ تنظیم text_size با عرض محدود
+            msg_label.text_size = (dp(380), None)
             msg_label.bind(texture_size=msg_label.setter('size'))
-            msg_label.bind(width=lambda i, v: setattr(i, 'text_size', (v, None)))
             
             scroll.add_widget(msg_label)
             content.add_widget(scroll)
@@ -533,11 +534,9 @@ class ReportScreen(Screen):
             popup.title_size = sp(22)
             btn.bind(on_press=popup.dismiss)
             
-            # ✅ نمایش با تاخیر
             Clock.schedule_once(lambda dt: popup.open(), 0.1)
             
         except Exception as e:
-            # ✅ اگر خطا بود، فقط چاپ کن
             print(f"❌ خطا در نمایش پیام: {e}")
             import traceback
             traceback.print_exc()
