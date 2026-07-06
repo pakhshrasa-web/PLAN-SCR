@@ -75,6 +75,7 @@ def get_data_path():
 # ============================================================
 
 def get_app_import_path():
+    """دریافت مسیر پوشه import در داده‌های برنامه"""
     if _cache['app_import'] is None:
         path = os.path.join(get_data_path(), 'import')
         os.makedirs(path, exist_ok=True)
@@ -83,6 +84,7 @@ def get_app_import_path():
     return _cache['app_import']
 
 def get_app_export_path():
+    """دریافت مسیر پوشه export در داده‌های برنامه"""
     if _cache['app_export'] is None:
         path = os.path.join(get_data_path(), 'export')
         os.makedirs(path, exist_ok=True)
@@ -91,6 +93,7 @@ def get_app_export_path():
     return _cache['app_export']
 
 def get_app_backup_path():
+    """دریافت مسیر پوشه backup در داده‌های برنامه"""
     if _cache['app_backup'] is None:
         path = os.path.join(get_data_path(), 'backup')
         os.makedirs(path, exist_ok=True)
@@ -103,6 +106,7 @@ def get_app_backup_path():
 # ============================================================
 
 def _get_public_base_path():
+    """دریافت مسیر پایه عمومی (Download)"""
     if platform == 'android':
         try:
             from android.storage import primary_external_storage_path
@@ -116,6 +120,7 @@ def _get_public_base_path():
         return os.path.join(os.path.expanduser('~'), 'Downloads')
 
 def get_public_import_path():
+    """دریافت مسیر عمومی import"""
     if _cache['public_import'] is None:
         path = os.path.join(_get_public_base_path(), 'plan_android_data', 'import')
         try:
@@ -127,6 +132,7 @@ def get_public_import_path():
     return _cache['public_import']
 
 def get_public_export_path():
+    """دریافت مسیر عمومی export"""
     if _cache['public_export'] is None:
         path = os.path.join(_get_public_base_path(), 'plan_android_data', 'export')
         try:
@@ -137,8 +143,8 @@ def get_public_export_path():
         logger.info(f"✅ مسیر عمومی export: {path}")
     return _cache['public_export']
 
-# ✅ تغییر اصلی: مسیر بکاپ به Download میرود
 def get_public_backup_path():
+    """دریافت مسیر عمومی backup (در Download/PlanAndroid_Backup)"""
     if _cache['public_backup'] is None:
         path = os.path.join(_get_public_base_path(), 'PlanAndroid_Backup')
         try:
@@ -154,19 +160,21 @@ def get_public_backup_path():
 # ============================================================
 
 def get_import_path():
+    """دریافت مسیر import (در اندروید: شخصی، در دسکتاپ: عمومی)"""
     if platform == 'android':
         return get_app_import_path()
     else:
         return get_public_import_path()
 
 def get_export_path():
+    """دریافت مسیر export (در اندروید: شخصی، در دسکتاپ: عمومی)"""
     if platform == 'android':
         return get_app_export_path()
     else:
         return get_public_export_path()
 
-# ✅ تغییر: در اندروید به مسیر عمومی میرود
 def get_backup_path():
+    """دریافت مسیر backup (در اندروید: عمومی، در دسکتاپ: شخصی)"""
     if platform == 'android':
         return get_public_backup_path()
     else:
@@ -206,15 +214,18 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type
             logger.error("❌ نام فایل نامعتبر")
             return None
         
-        # ✅ مسیر مقصد
+        # ✅ انتخاب پوشه مقصد
         if target_folder == 'import':
-            dest_folder = get_app_import_path()
+            dest_folder = get_app_import_path()  # ← اصلاح شده
         elif target_folder == 'export':
             dest_folder = get_app_export_path()
         elif target_folder == 'backup':
             dest_folder = get_app_backup_path()
         else:
-            dest_folder = get_app_import_path()
+            dest_folder = get_app_import_path()  # ← اصلاح شده
+        
+        # اطمینان از وجود پوشه مقصد
+        os.makedirs(dest_folder, exist_ok=True)
         
         dest_path = os.path.join(dest_folder, filename)
         
@@ -228,33 +239,39 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type
             logger.error("❌ نمی‌توان InputStream دریافت کرد")
             return None
         
-        # ✅ با بافر 8192 برای سرعت مناسب
-        with open(dest_path, 'wb') as output_file:
-            buffer = bytearray(8192)
-            while True:
-                try:
-                    # ✅ روش ۱: خواندن با بافر (سریع‌تر)
-                    count = input_stream.read(buffer)
-                    if count <= 0:
-                        break
-                    output_file.write(buffer[:count])
-                except TypeError:
-                    # ✅ روش ۲: تک‌بایتی (کندتر ولی سازگار)
-                    while True:
-                        data = input_stream.read()
-                        if data == -1:
-                            break
-                        output_file.write(bytes([data]))
-                    break
-        
-        # ✅ بستن InputStream
+        # ✅ کپی با بافر 8192
         try:
-            input_stream.close()
-        except:
-            pass
+            with open(dest_path, 'wb') as output_file:
+                buffer = bytearray(8192)
+                while True:
+                    try:
+                        count = input_stream.read(buffer)
+                        if count <= 0:
+                            break
+                        output_file.write(buffer[:count])
+                    except TypeError:
+                        # روش جایگزین برای برخی دستگاه‌ها
+                        while True:
+                            data = input_stream.read()
+                            if data == -1:
+                                break
+                            output_file.write(bytes([data]))
+                        break
+        finally:
+            # بستن InputStream
+            try:
+                input_stream.close()
+            except:
+                pass
         
-        logger.info(f"✅ فایل با موفقیت کپی شد: {dest_path}")
-        return dest_path
+        # ✅ بررسی نتیجه
+        if os.path.exists(dest_path):
+            size = os.path.getsize(dest_path)
+            logger.info(f"✅ فایل با موفقیت کپی شد: {dest_path} ({size} bytes)")
+            return dest_path
+        else:
+            logger.error("❌ فایل کپی نشد")
+            return None
         
     except Exception as e:
         logger.error(f"❌ خطا در کپی URI: {e}")
@@ -263,7 +280,16 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type
         return None
 
 def _extract_filename_from_uri(uri, file_type='excel'):
-    """استخراج نام فایل از URI با OpenableColumns"""
+    """
+    استخراج نام فایل از URI با OpenableColumns
+    
+    Args:
+        uri: content:// URI
+        file_type: 'excel' یا 'backup' (برای پسوند پیش‌فرض)
+    
+    Returns:
+        نام فایل یا None
+    """
     try:
         from android import mActivity
         from android.provider import OpenableColumns
@@ -291,6 +317,7 @@ def _extract_filename_from_uri(uri, file_type='excel'):
                     filename = cursor.getString(name_index)
                     cursor.close()
                     if filename:
+                        logger.info(f"✅ نام فایل از cursor: {filename}")
                         return filename
             if cursor:
                 cursor.close()
@@ -308,6 +335,7 @@ def _extract_filename_from_uri(uri, file_type='excel'):
             filename = filename.split('?')[0]
         
         if filename and '.' in filename:
+            logger.info(f"✅ نام فایل از Uri: {filename}")
             return filename
         
         # ✅ روش ۳: نام پیش‌فرض با پسوند مناسب
@@ -315,11 +343,14 @@ def _extract_filename_from_uri(uri, file_type='excel'):
         hash_val = hashlib.md5(str(uri).encode()).hexdigest()[:8]
         
         if file_type == 'excel':
-            return f"file_{hash_val}.xlsx"
+            filename = f"file_{hash_val}.xlsx"
         elif file_type == 'backup':
-            return f"file_{hash_val}.zip"
+            filename = f"file_{hash_val}.zip"
         else:
-            return f"file_{hash_val}.dat"
+            filename = f"file_{hash_val}.dat"
+        
+        logger.info(f"✅ نام فایل پیش‌فرض: {filename}")
+        return filename
         
     except Exception as e:
         logger.warning(f"⚠️ خطا در استخراج نام فایل: {e}")
@@ -330,6 +361,7 @@ def _extract_filename_from_uri(uri, file_type='excel'):
 # ============================================================
 
 def load_json(filename):
+    """بارگذاری فایل JSON از پوشه داده"""
     try:
         path = os.path.join(get_data_path(), filename)
         if os.path.exists(path):
@@ -340,6 +372,7 @@ def load_json(filename):
     return {}
 
 def save_json(filename, data):
+    """ذخیره فایل JSON در پوشه داده"""
     try:
         path = os.path.join(get_data_path(), filename)
         with open(path, 'w', encoding='utf-8') as f:
@@ -354,11 +387,25 @@ def save_json(filename, data):
 # ============================================================
 
 def test_paths():
+    """تست تمام مسیرها"""
     print("\n" + "="*50)
     print("🧪 تست مسیرها:")
     print("="*50)
     print(f"Data path: {get_data_path()}")
-    print(f"Import path: {get_import_path()}")
-    print(f"Export path: {get_export_path()}")
-    print(f"Backup path: {get_backup_path()}")
+    print(f"App Import: {get_app_import_path()}")
+    print(f"App Export: {get_app_export_path()}")
+    print(f"App Backup: {get_app_backup_path()}")
+    print(f"Public Import: {get_public_import_path()}")
+    print(f"Public Export: {get_public_export_path()}")
+    print(f"Public Backup: {get_public_backup_path()}")
+    print(f"Import (main): {get_import_path()}")
+    print(f"Export (main): {get_export_path()}")
+    print(f"Backup (main): {get_backup_path()}")
     print("="*50)
+
+# ============================================================
+# ✅ اجرای تست در صورت اجرای مستقیم
+# ============================================================
+
+if __name__ == '__main__':
+    test_paths()
