@@ -32,7 +32,7 @@ class RTLTextInput(BoxLayout):
         self._password = kwargs.pop('password', False)
         self._multiline = kwargs.pop('multiline', False)
         self._text = kwargs.pop('text', '')
-        self._font_size = kwargs.pop('font_size', sp(36))
+        self._font_size = kwargs.pop('font_size', sp(32))
         self._input_filter = kwargs.pop('input_filter', None)
         
         # ✅ تغییر height به 60 (حدود 2.2 سانت)
@@ -113,7 +113,7 @@ class RTLTextInput(BoxLayout):
         self.bg_rect = RoundedRectangle(
             pos=self.pos,
             size=self.size,
-            radius=[dp(6)]
+            radius=[dp(5)]
         )
         Color(*self.border_color_focus if value else self.border_color)
         self.border_rect = RoundedRectangle(
@@ -454,7 +454,7 @@ class RTLLabel(PersianLabel):
         kwargs.pop('size_hint_y', None)
         
         text = kwargs.pop('text', '')
-        font_size = kwargs.pop('font_size', 24)
+        font_size = kwargs.pop('font_size', 20)
         color = kwargs.pop('color', (0, 0, 0, 1))
         
         if isinstance(color, (tuple, list)):
@@ -475,7 +475,7 @@ class PersianButton(Button):
     """دکمه با پشتیبانی از متن فارسی"""
     def __init__(self, **kwargs):
         text = kwargs.pop('text', '')
-        font_size = kwargs.pop('font_size', sp(20))
+        font_size = kwargs.pop('font_size', sp(16))
         
         kwargs.pop('font_name', None)
         kwargs.pop('halign', None)
