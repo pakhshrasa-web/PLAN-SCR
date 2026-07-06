@@ -167,9 +167,10 @@ def get_import_path():
         return get_public_import_path()
 
 def get_export_path():
-    """دریافت مسیر export (در اندروید: شخصی، در دسکتاپ: عمومی)"""
+    """دریافت مسیر export (در اندروید: عمومی، در دسکتاپ: عمومی)"""
+    # ✅ تغییر: در اندروید هم به مسیر عمومی برود
     if platform == 'android':
-        return get_app_export_path()
+        return get_public_export_path()  # ← تغییر مهم!
     else:
         return get_public_export_path()
 
