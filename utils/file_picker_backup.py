@@ -72,23 +72,94 @@ class BackupFilePicker(BoxLayout):
             self._pick_file_desktop()
     
     def _pick_file_intent(self):
+        """انتخاب فایل بکاپ با FileChooserListView"""
         try:
-            from android import mActivity
-            from jnius import autoclass
+            from kivy.uix.filechooser import FileChooserListView
+            from kivy.uix.popup import Popup
+            from utils.storage import get_public_backup_path, get_app_backup_path
             
-            mActivity._backup_file_picker_callback = self._on_intent_result
-            self._pending_result = True
+            content = BoxLayout(orientation='vertical', spacing=dp(5))
             
-            Intent = autoclass('android.content.Intent')
-            intent = Intent(Intent.ACTION_GET_CONTENT)
-            intent.addCategory(Intent.CATEGORY_OPENABLE)
-            intent.setType("application/zip")
+            # ✅ مسیر پوشه بکاپ
+            if platform == 'android':
+                start_path = get_public_backup_path()
+            else:
+                start_path = get_app_backup_path()
             
-            print("📂 باز کردن انتخابگر بکاپ")
-            mActivity.startActivityForResult(intent, 2001)
+            if not os.path.exists(start_path):
+                os.makedirs(start_path, exist_ok=True)
+            
+            filechooser = FileChooserListView(
+                path=start_path,
+                filters=['*.zip'],
+                size_hint_y=0.8,
+                show_hidden=False
+            )
+            content.add_widget(filechooser)
+            
+            help_label = PersianLabel(
+                text='📌 لطفاً یک فایل بکاپ (.zip) انتخاب کنید',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(14),
+                color=(0.6, 0.8, 0.6, 1)
+            )
+            content.add_widget(help_label)
+            
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(5), padding=dp(5))
+            
+            select_btn = PersianButton(
+                text='✅ انتخاب',
+                size_hint_x=0.4,
+                background_color=(0.2, 0.7, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+            cancel_btn = PersianButton(
+                text='❌ انصراف',
+                size_hint_x=0.4,
+                background_color=(0.8, 0.2, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+            
+            btn_layout.add_widget(select_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = Popup(
+                title='📂 انتخاب فایل بکاپ',
+                content=content,
+                size_hint=(0.92, 0.8),
+                auto_dismiss=False
+            )
+            popup.title_color = (1, 1, 1, 1)
+            popup.title_size = sp(22)
+            
+            def on_select(instance):
+                if filechooser.selection:
+                    file_path = filechooser.selection[0]
+                    if file_path.lower().endswith('.zip'):
+                        popup.dismiss()
+                        self._process_file(file_path)
+                    else:
+                        self._update_label('⚠️ فقط فایل‌های .zip مجازند', (200, 50, 50, 255))
+                else:
+                    popup.dismiss()
+                    self._update_label('⚠️ هیچ فایلی انتخاب نشد', (200, 150, 50, 255))
+            
+            def on_cancel(instance):
+                popup.dismiss()
+                self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
+            
+            select_btn.bind(on_press=on_select)
+            cancel_btn.bind(on_press=on_cancel)
+            popup.open()
             
         except Exception as e:
-            print(f"❌ خطا: {e}")
+            print(f"❌ خطا در FileChooserListView: {e}")
+            import traceback
+            traceback.print_exc()
             self._show_error(f"خطا: {str(e)}")
     
     def _on_intent_result(self, request_code, result_code, data):
