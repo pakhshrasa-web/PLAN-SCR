@@ -28,7 +28,6 @@ class FilePicker(BoxLayout):
         self.file_type = file_type
         self.size_hint_y = None
         self.height = dp(120)
-        self._pending_callback = None
         self._result_received = False
         
         if file_type == 'excel':
@@ -65,29 +64,28 @@ class FilePicker(BoxLayout):
         
         # ✅ ثبت هندلر برای اندروید
         if platform == 'android':
-            self._register_result_handler()
+            self._setup_activity_result()
     
-    def _register_result_handler(self):
-        """ثبت هندلر برای نتیجه Intent در اندروید"""
+    def _setup_activity_result(self):
+        """تنظیم هندلر برای onActivityResult در اندروید"""
         try:
             from android import mActivity
-            from jnius import autoclass
-            from android.activity import on_activity_result
+            from android.activity import bind
             
-            # تنظیم callback برای این نمونه
-            mActivity._file_picker_callback = self._on_intent_result
+            # تنظیم callback
+            mActivity._file_picker_callback = self._on_activity_result
             
-            # ثبت هندلر یکبار
-            if not hasattr(mActivity, '_file_picker_registered'):
-                @on_activity_result
-                def on_activity_result(request_code, result_code, data):
-                    callback = getattr(mActivity, '_file_picker_callback', None)
-                    if callback:
-                        callback(request_code, result_code, data)
-                
-                mActivity._file_picker_registered = True
-                print("✅ FilePicker: هندلر Activity Result ثبت شد")
-                
+            # ثبت هندلر با bind (روش صحیح)
+            def activity_result_handler(request_code, result_code, data):
+                callback = getattr(mActivity, '_file_picker_callback', None)
+                if callback:
+                    callback(request_code, result_code, data)
+            
+            # bind کردن هندلر
+            bind(on_activity_result=activity_result_handler)
+            mActivity._file_picker_registered = True
+            print("✅ FilePicker: هندلر Activity Result ثبت شد")
+            
         except Exception as e:
             print(f"⚠️ خطا در ثبت هندلر: {e}")
     
@@ -101,18 +99,20 @@ class FilePicker(BoxLayout):
             self._pick_file_desktop()
     
     # ============================================================
-    # ✅ اندروید - با Intent.ACTION_GET_CONTENT (بدون Permission)
+    # ✅ اندروید - با Intent.ACTION_GET_CONTENT
     # ============================================================
     
     def _pick_file_android_intent(self):
         """انتخاب فایل در اندروید با Intent.ACTION_GET_CONTENT"""
         try:
             from android import mActivity
-            from jnius import autoclass, cast
+            from jnius import autoclass
+            
+            # تنظیم callback
+            mActivity._file_picker_callback = self._on_activity_result
             
             # ✅ استفاده از autoclass به جای import مستقیم
             Intent = autoclass('android.content.Intent')
-            Activity = autoclass('android.app.Activity')
             
             # ایجاد Intent
             intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -128,13 +128,11 @@ class FilePicker(BoxLayout):
             else:  # backup
                 mime_types = ["application/zip"]
             
+            # EXTRA_MIME_TYPES با autoclass
             intent.putExtra(Intent.EXTRA_MIME_TYPES, mime_types)
             
             print("📂 باز کردن انتخابگر با Intent.ACTION_GET_CONTENT")
             mActivity.startActivityForResult(intent, 1001)
-            
-            # ذخیره callback برای نتیجه
-            mActivity._file_picker_callback = self._on_intent_result
             
         except Exception as e:
             print(f"❌ خطا در باز کردن انتخابگر: {e}")
@@ -142,9 +140,9 @@ class FilePicker(BoxLayout):
             traceback.print_exc()
             self._show_error(f"خطا: {str(e)}")
     
-    def _on_intent_result(self, request_code, result_code, data):
-        """پردازش نتیجه Intent - در onActivityResult صدا زده می‌شود"""
-        print(f"🔍 _on_intent_result: request={request_code}, result={result_code}")
+    def _on_activity_result(self, request_code, result_code, data):
+        """پردازش نتیجه onActivityResult"""
+        print(f"🔍 _on_activity_result: request={request_code}, result={result_code}")
         
         if request_code != 1001:
             return
@@ -153,7 +151,6 @@ class FilePicker(BoxLayout):
             return
         self._result_received = True
         
-        from android import mActivity
         RESULT_OK = -1
         
         if result_code != RESULT_OK:
@@ -205,7 +202,6 @@ class FilePicker(BoxLayout):
             # ✅ دریافت نام واقعی فایل
             filename = self._get_display_name(content_resolver, uri)
             if not filename:
-                # استخراج از URI
                 import urllib.parse
                 raw = urllib.parse.unquote(str(uri))
                 filename = raw.split('/')[-1]
@@ -323,13 +319,6 @@ class FilePicker(BoxLayout):
             if not file_path:
                 self.selected_file = None
                 self._update_label('⚠️ مسیر نامعتبر', (200, 50, 50, 255))
-                return
-            
-            # ✅ فقط برای دسکتاپ بررسی وجود فایل
-            if not file_path.startswith('content://') and not os.path.exists(file_path):
-                self.selected_file = None
-                self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
-                self._show_error(f'فایل وجود ندارد: {os.path.basename(file_path)}')
                 return
             
             # ✅ اعتبارسنجی پسوند
