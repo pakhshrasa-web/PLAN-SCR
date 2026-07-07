@@ -446,14 +446,23 @@ class ReportScreen(Screen):
     def export_excel(self, instance):
         """خروجی اکسل با اجرا در ترد جداگانه"""
         try:
-            self.show_message('⏳ در حال ساخت', 'لطفاً صبر کنید...')
+            # ✅ نمایش پیام در حال ساخت
+            self.loading_popup = self.show_message('⏳ در حال ساخت', 'لطفاً صبر کنید...')
             
             def do_export():
                 success, result = export_to_excel()
                 
                 def show_result(dt):
+                    # ✅ بستن پیام اول
+                    if hasattr(self, 'loading_popup') and self.loading_popup:
+                        try:
+                            self.loading_popup.dismiss()
+                        except:
+                            pass
+                        self.loading_popup = None
+                    
+                    # ✅ نمایش نتیجه
                     if success:
-                        # ✅ پیام موفقیت ساده بدون مسیر
                         self.show_message(
                             '✅ موفق', 
                             'فایل اکسل با موفقیت ساخته شد!\n\n'
@@ -462,7 +471,7 @@ class ReportScreen(Screen):
                     else:
                         self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
                 
-                Clock.schedule_once(show_result, 0)
+                Clock.schedule_once(show_result, 0.5)
             
             thread = threading.Thread(target=do_export, daemon=True)
             thread.start()
