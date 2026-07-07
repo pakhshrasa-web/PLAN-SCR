@@ -12,7 +12,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
 
-from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel
+from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup
 from utils.user_manager import register_user
 from error_handler import ErrorPopup
 
@@ -27,15 +27,15 @@ class RegisterScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ تغییر به resize برای اسکرول دقیق
+            # تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
             
-            # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
+            # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
             self.build_ui()
             
-            # ✅ اتصال رویدادهای کیبورد
+            # اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
         except Exception as e:
@@ -51,7 +51,7 @@ class RegisterScreen(Screen):
         try:
             main_layout = BoxLayout(orientation='vertical')
             
-            # ✅ ScrollView با قابلیت اسکرول دستی
+            # ScrollView با قابلیت اسکرول دستی
             self.scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -86,7 +86,7 @@ class RegisterScreen(Screen):
                 hint_text='کد ثبت نام',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(70),
+                height=dp(85),
                 font_size=sp(32)
             )
             self.code_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -94,7 +94,7 @@ class RegisterScreen(Screen):
             self.code_input.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.code_input._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.code_input._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.code_input._hidden_input)
             
@@ -107,7 +107,7 @@ class RegisterScreen(Screen):
                 hint_text='نام کاربری',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(70),
+                height=dp(85),
                 font_size=sp(32)
             )
             self.username.bg_color = (0.15, 0.15, 0.15, 1)
@@ -115,7 +115,7 @@ class RegisterScreen(Screen):
             self.username.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.username._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.username._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.username._hidden_input)
             
@@ -129,7 +129,7 @@ class RegisterScreen(Screen):
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(70),
+                height=dp(85),
                 font_size=sp(32)
             )
             self.password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -137,11 +137,11 @@ class RegisterScreen(Screen):
             self.password.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.password._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.password._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.password._hidden_input)
             
-            # ✅ تنظیم با Clock برای اطمینان
+            # تنظیم با Clock برای اطمینان
             Clock.schedule_once(lambda dt: self._fix_password_color(self.password), 0.1)
             content.add_widget(self.password)
             
@@ -153,7 +153,7 @@ class RegisterScreen(Screen):
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(70),
+                height=dp(85),
                 font_size=sp(32)
             )
             self.confirm_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -161,11 +161,11 @@ class RegisterScreen(Screen):
             self.confirm_password.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.confirm_password._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.confirm_password._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.confirm_password._hidden_input)
             
-            # ✅ تنظیم با Clock برای اطمینان
+            # تنظیم با Clock برای اطمینان
             Clock.schedule_once(lambda dt: self._fix_password_color(self.confirm_password), 0.1)
             content.add_widget(self.confirm_password)
             
@@ -176,7 +176,7 @@ class RegisterScreen(Screen):
                 hint_text='شماره تلفن',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(70),
+                height=dp(85),
                 font_size=sp(32)
             )
             self.phone.bg_color = (0.15, 0.15, 0.15, 1)
@@ -184,7 +184,7 @@ class RegisterScreen(Screen):
             self.phone.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.phone._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.phone._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.phone._hidden_input)
             
@@ -197,7 +197,7 @@ class RegisterScreen(Screen):
                 hint_text='ایمیل',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(70),
+                height=dp(85),
                 font_size=sp(32)
             )
             self.email.bg_color = (0.15, 0.15, 0.15, 1)
@@ -205,7 +205,7 @@ class RegisterScreen(Screen):
             self.email.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.email._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.email._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.email._hidden_input)
             
@@ -222,9 +222,7 @@ class RegisterScreen(Screen):
                 size_hint_y=None,
                 height=dp(55),
                 color=(1, 1, 1, 1),
-                font_size=sp(20),
-                halign='center',
-                valign='middle'
+                font_size=sp(20)
             )
             register_btn.bind(on_press=self.do_register)
             btn_layout.add_widget(register_btn)
@@ -235,9 +233,7 @@ class RegisterScreen(Screen):
                 size_hint_y=None,
                 height=dp(55),
                 color=(1, 1, 1, 1),
-                font_size=sp(20),
-                halign='center',
-                valign='middle'
+                font_size=sp(20)
             )
             back_btn.bind(on_press=self.go_back)
             btn_layout.add_widget(back_btn)
@@ -250,7 +246,7 @@ class RegisterScreen(Screen):
             
             self.add_widget(main_layout)
             
-            # ✅ تنظیم اسکرول به بالا
+            # تنظیم اسکرول به بالا
             Clock.schedule_once(self._adjust_scroll, 0.1)
             
         except Exception as e:
@@ -264,16 +260,16 @@ class RegisterScreen(Screen):
             self.scroll.scroll_y = 1
     
     # ============================================================
-    # ✅ مدیریت فوکوس و انتخاب خودکار متن
+    # مدیریت فوکوس و انتخاب خودکار متن
     # ============================================================
     
     def _on_field_focus(self, instance, value):
         """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
-            # ✅ وقتی فیلد فوکوس میشه، کل متن رو انتخاب کن
+            # وقتی فیلد فوکوس میشه، کل متن رو انتخاب کن
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
             
-            # ✅ اسکرول به فیلد با تأخیر برای اطمینان از نمایش کیبورد
+            # اسکرول به فیلد با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
@@ -319,10 +315,10 @@ class RegisterScreen(Screen):
                     pass
                     
         except Exception as e:
-            print(f"⚠️ خطا در اسکرول به فیلد: {e}")
+            print(f"خطا در اسکرول به فیلد: {e}")
     
     # ============================================================
-    # ✅ مدیریت کلیدهای کیبورد
+    # مدیریت کلیدهای کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
@@ -346,7 +342,7 @@ class RegisterScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ توابع کاربردی
+    # توابع کاربردی
     # ============================================================
     
     def _fix_password_color(self, field):
@@ -359,7 +355,7 @@ class RegisterScreen(Screen):
                 field._hidden_input.background_active = (0.15, 0.15, 0.15, 1)
                 field._hidden_input.background_normal = (0.15, 0.15, 0.15, 1)
         except Exception as e:
-            print(f"⚠️ خطا در تنظیم رنگ فیلد رمز: {e}")
+            print(f"خطا در تنظیم رنگ فیلد رمز: {e}")
     
     def do_register(self, instance):
         try:
@@ -400,7 +396,7 @@ class RegisterScreen(Screen):
                 text=message,
                 size_hint_y=None,
                 height=dp(100),
-                font_size=sp(24),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             btn = PersianButton(
@@ -412,14 +408,13 @@ class RegisterScreen(Screen):
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
-            popup = Popup(
+            
+            popup = PersianPopup(
                 title=title,
                 content=content,
                 size_hint=(0.9, 0.5),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
         except Exception as e:

@@ -15,10 +15,10 @@ from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.logger import Logger as logger
 
-from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel
+from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup
 from utils.user_manager import login
 from utils.backup_manager import create_backup, restore_backup, validate_backup_file
-from utils.file_picker_backup import BackupFilePicker  # ✅ تغییر
+from utils.file_picker_backup import BackupFilePicker
 from error_handler import ErrorPopup
 
 
@@ -83,7 +83,7 @@ class LoginScreen(Screen):
             header_layout.add_widget(settings_btn)
             
             backup_btn = PersianButton(
-                text='💾 بکاپ',
+                text='بکاپ',
                 size_hint_x=0.2,
                 background_color=(0.2, 0.5, 0.8, 1),
                 size_hint_y=None,
@@ -95,7 +95,7 @@ class LoginScreen(Screen):
             header_layout.add_widget(backup_btn)
             
             restore_btn = PersianButton(
-                text='📂 بازیابی',
+                text='بازیابی',
                 size_hint_x=0.2,
                 background_color=(0.8, 0.5, 0.2, 1),
                 size_hint_y=None,
@@ -126,8 +126,8 @@ class LoginScreen(Screen):
             self.username = RTLTextInput(
                 hint_text='نام کاربری',
                 size_hint_y=None,
-                height=dp(90),
-                font_size=sp(36)
+                height=dp(100),
+                font_size=sp(32)
             )
             self.username.bg_color = (0.15, 0.15, 0.15, 1)
             self.username.border_color = (0.3, 0.3, 0.3, 1)
@@ -143,7 +143,7 @@ class LoginScreen(Screen):
                 hint_text='رمز عبور',
                 password=True,
                 size_hint_y=None,
-                height=dp(90),
+                height=dp(100),
                 font_size=sp(32)
             )
             self.password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -193,7 +193,7 @@ class LoginScreen(Screen):
             self.scroll.scroll_y = 1
     
     # ============================================================
-    # ✅ مدیریت فوکوس
+    # مدیریت فوکوس
     # ============================================================
     
     def _on_field_focus(self, instance, value):
@@ -227,10 +227,10 @@ class LoginScreen(Screen):
                 elif field_y < dp(50):
                     self.scroll.scroll_y = 0.9
         except Exception as e:
-            logger.warning(f"⚠️ خطا در اسکرول: {e}")
+            logger.warning(f"خطا در اسکرول: {e}")
     
     # ============================================================
-    # ✅ مدیریت کیبورد
+    # مدیریت کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
@@ -252,13 +252,13 @@ class LoginScreen(Screen):
                 break
     
     # ============================================================
-    # ✅ بکاپ و بازیابی (فقط رابط کاربری)
+    # بکاپ و بازیابی (فقط رابط کاربری)
     # ============================================================
     
     def do_backup(self, instance):
         """ایجاد بکاپ"""
         success, message, backup_path = create_backup()
-        self.show_message('✅ موفق' if success else '❌ خطا', message)
+        self.show_message('موفق' if success else 'خطا', message)
     
     def do_restore(self, instance):
         """باز کردن دیالوگ انتخاب فایل بکاپ"""
@@ -271,7 +271,7 @@ class LoginScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text='📂 لطفاً فایل بکاپ را انتخاب کنید:',
+                text='لطفاً فایل بکاپ را انتخاب کنید:',
                 size_hint_y=None,
                 height=dp(40),
                 font_size=sp(18),
@@ -286,7 +286,6 @@ class LoginScreen(Screen):
                 color=(0.6, 0.6, 0.6, 1)
             ))
             
-            # ✅ استفاده از BackupFilePicker
             self.restore_file_picker = BackupFilePicker(
                 on_select=self._on_backup_file_selected,
                 size_hint_y=None,
@@ -296,7 +295,7 @@ class LoginScreen(Screen):
             
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(55))
             cancel_btn = PersianButton(
-                text='❌ انصراف',
+                text='انصراف',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(50),
@@ -307,15 +306,13 @@ class LoginScreen(Screen):
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            self.restore_popup = Popup(
-                title='📂 بازیابی اطلاعات',
+            self.restore_popup = PersianPopup(
+                title='بازیابی اطلاعات',
                 content=content,
                 size_hint=(0.9, 0.6),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            self.restore_popup.title_color = (1, 1, 1, 1)
-            self.restore_popup.title_size = sp(20)
             self.restore_popup.open()
             
         except Exception as e:
@@ -325,15 +322,14 @@ class LoginScreen(Screen):
     def _on_backup_file_selected(self, file_path):
         """پس از انتخاب فایل بکاپ"""
         try:
-            logger.info(f"📂 فایل بکاپ انتخاب شد: {file_path}")
+            logger.info(f"فایل بکاپ انتخاب شد: {file_path}")
             
             if hasattr(self, 'restore_popup') and self.restore_popup:
                 self.restore_popup.dismiss()
             
-            # ✅ اعتبارسنجی فایل
             is_valid, msg, _ = validate_backup_file(file_path)
             if not is_valid:
-                self.show_message('❌ خطا', msg)
+                self.show_message('خطا', msg)
                 return
             
             self._confirm_restore(file_path)
@@ -353,7 +349,7 @@ class LoginScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text=f'⚠️ آیا از بازیابی اطلاعات از فایل زیر مطمئن هستید؟\n\n📄 {os.path.basename(backup_path)}\n\n🔴 تمام داده‌های فعلی با داده‌های بکاپ جایگزین خواهند شد.',
+                text=f'آیا از بازیابی اطلاعات از فایل زیر مطمئن هستید؟\n\n{os.path.basename(backup_path)}\n\nتمام داده‌های فعلی با داده‌های بکاپ جایگزین خواهند شد.',
                 size_hint_y=None,
                 height=dp(100),
                 font_size=sp(16),
@@ -363,7 +359,7 @@ class LoginScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(55))
             
             restore_btn = PersianButton(
-                text='✅ بازیابی',
+                text='بازیابی',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(50),
@@ -373,7 +369,7 @@ class LoginScreen(Screen):
             restore_btn.bind(on_press=lambda x: self._perform_restore(backup_path))
             
             cancel_btn = PersianButton(
-                text='❌ انصراف',
+                text='انصراف',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(50),
@@ -386,15 +382,13 @@ class LoginScreen(Screen):
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            self.confirm_popup = Popup(
-                title='⚠️ تأیید بازیابی',
+            self.confirm_popup = PersianPopup(
+                title='تأیید بازیابی',
                 content=content,
                 size_hint=(0.85, 0.45),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            self.confirm_popup.title_color = (1, 1, 1, 1)
-            self.confirm_popup.title_size = sp(20)
             self.confirm_popup.open()
             
         except Exception as e:
@@ -413,7 +407,7 @@ class LoginScreen(Screen):
         """اجرای بازیابی"""
         self._dismiss_confirm_popup()
         success, message = restore_backup(backup_path)
-        self.show_message('✅ موفق' if success else '❌ خطا', message)
+        self.show_message('موفق' if success else 'خطا', message)
         
         if success:
             Clock.schedule_once(lambda dt: self._restart_app(), 2.5)
@@ -423,7 +417,7 @@ class LoginScreen(Screen):
         App.get_running_app().stop()
     
     # ============================================================
-    # ✅ توابع اصلی
+    # توابع اصلی
     # ============================================================
     
     def open_settings(self, instance):
@@ -447,7 +441,7 @@ class LoginScreen(Screen):
             ErrorPopup.show_error(f"خطا در ورود: {e}", error_details)
     
     # ============================================================
-    # ✅ نمایش پیام
+    # نمایش پیام
     # ============================================================
     
     def show_message(self, title, message):
@@ -461,7 +455,6 @@ class LoginScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ✅ RTLMessageLabel خودش اسکرول داره
             msg_label = RTLMessageLabel(
                 text=message,
                 font_size=sp(20) if len(message) < 100 else sp(16),
@@ -480,14 +473,12 @@ class LoginScreen(Screen):
             )
             content.add_widget(btn)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title=title,
                 content=content,
                 size_hint=(0.9, 0.6),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
         except Exception as e:

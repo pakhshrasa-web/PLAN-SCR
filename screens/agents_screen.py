@@ -13,7 +13,7 @@ from kivy.clock import Clock
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 
-from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel
+from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
 from utils.file_manager import get_routes, get_customers, get_settings, save_daily_log, get_daily_logs
 from utils.jalali_date import get_today_jalali, get_current_time
 from error_handler import ErrorPopup
@@ -29,10 +29,10 @@ class AgentsScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ تغییر به resize برای اسکرول دقیق
+            # تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
             
-            # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
+            # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
             self.settings = get_settings()
@@ -45,10 +45,10 @@ class AgentsScreen(Screen):
             
             self.build_ui()
             
-            # ✅ اتصال رویدادهای کیبورد
+            # اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
-            # ✅ بررسی اینکه آیا امروز ویزیتی ثبت شده یا نه
+            # بررسی اینکه آیا امروز ویزیتی ثبت شده یا نه
             Clock.schedule_once(self._check_today_visits, 0.5)
             
         except Exception as e:
@@ -61,14 +61,14 @@ class AgentsScreen(Screen):
         self.bg_rect.size = instance.size
     
     # ============================================================
-    # ✅ مدیریت فوکوس و انتخاب خودکار متن
+    # مدیریت فوکوس و انتخاب خودکار متن
     # ============================================================
     
     def _on_field_focus(self, instance, value):
         """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            # ✅ اسکرول با تأخیر برای اطمینان از نمایش کیبورد
+            # اسکرول با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
@@ -129,10 +129,10 @@ class AgentsScreen(Screen):
                     pass
                     
         except Exception as e:
-            print(f"⚠️ خطا در اسکرول به فیلد: {e}")
+            print(f"خطا در اسکرول به فیلد: {e}")
     
     # ============================================================
-    # ✅ مدیریت کلیدهای کیبورد
+    # مدیریت کلیدهای کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
@@ -167,9 +167,9 @@ class AgentsScreen(Screen):
                     self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
                 
                 # نمایش پیام به کاربر
-                self.show_message('📋 اطلاع', 'امروز قبلاً ویزیت ثبت شده است.\nمسیر قفل شد.')
+                self.show_message('اطلاع', 'امروز قبلاً ویزیت ثبت شده است.\nمسیر قفل شد.')
         except Exception as e:
-            print(f"⚠️ خطا در بررسی ویزیت‌های امروز: {e}")
+            print(f"خطا در بررسی ویزیت‌های امروز: {e}")
     
     def build_ui(self):
         try:
@@ -194,7 +194,7 @@ class AgentsScreen(Screen):
             
             # ========== عنوان صفحه ==========
             content.add_widget(RTLLabel(
-                text='📋 ثبت ویزیت بازاریابان',
+                text='ثبت ویزیت بازاریابان',
                 font_size=sp(22),
                 size_hint_y=None,
                 height=dp(50),
@@ -206,7 +206,7 @@ class AgentsScreen(Screen):
             
             # ========== 1️⃣ تاریخ (غیر قابل تغییر) ==========
             content.add_widget(RTLLabel(
-                text='📅 تاریخ:',
+                text='تاریخ:',
                 size_hint_y=None,
                 height=dp(30),
                 font_size=sp(16),
@@ -226,7 +226,7 @@ class AgentsScreen(Screen):
             
             # ========== 2️⃣ ساعت (غیر قابل تغییر) ==========
             content.add_widget(RTLLabel(
-                text='🕐 ساعت:',
+                text='ساعت:',
                 size_hint_y=None,
                 height=dp(30),
                 font_size=sp(16),
@@ -246,7 +246,7 @@ class AgentsScreen(Screen):
             
             # ========== 3️⃣ مسیر (کمبوباکس) ==========
             content.add_widget(RTLLabel(
-                text='🗺️ انتخاب مسیر:',
+                text='انتخاب مسیر:',
                 size_hint_y=None,
                 height=dp(30),
                 font_size=sp(16),
@@ -260,7 +260,7 @@ class AgentsScreen(Screen):
             self.route_spinner = PersianComboBox(
                 text=route_names[0] if route_names else '',
                 values=route_names,
-                height=dp(55)
+                height=dp(70)
             )
             self.route_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             self.route_spinner.main_btn.color = (1, 1, 1, 1)
@@ -273,7 +273,7 @@ class AgentsScreen(Screen):
             
             # ========== 4️⃣ مشتری (کمبوباکس) ==========
             content.add_widget(RTLLabel(
-                text='👤 انتخاب مشتری:',
+                text='انتخاب مشتری:',
                 size_hint_y=None,
                 height=dp(30),
                 font_size=sp(16),
@@ -284,7 +284,7 @@ class AgentsScreen(Screen):
             self.customer_spinner = PersianComboBox(
                 text='',
                 values=[''],
-                height=dp(55)
+                height=dp(70)
             )
             self.customer_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             self.customer_spinner.main_btn.color = (1, 1, 1, 1)
@@ -297,7 +297,7 @@ class AgentsScreen(Screen):
 
             # ========== جستجوی مشتری ==========
             content.add_widget(RTLLabel(
-                text='🔍 جستجوی مشتری:',
+                text='جستجوی مشتری:',
                 size_hint_y=None,
                 height=dp(28),
                 font_size=sp(14),
@@ -309,7 +309,7 @@ class AgentsScreen(Screen):
                 hint_text='نام مشتری را وارد کنید...',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(75),
                 font_size=sp(32)
             )
             self.search_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -320,17 +320,18 @@ class AgentsScreen(Screen):
             self.focusable_fields.append(self.search_input._hidden_input)
             content.add_widget(self.search_input)
             
-            # ✅ بررسی تغییرات جستجو با Clock
+            # بررسی تغییرات جستجو با Clock
             self._last_search_text = ''
             Clock.schedule_interval(self._check_search_change, 0.3)
             
             # ========== دکمه بازگشت ==========
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             back_btn.bind(on_press=self.go_back)
             content.add_widget(back_btn)
@@ -380,8 +381,8 @@ class AgentsScreen(Screen):
                 self.customer_spinner.values = filtered
                 self.customer_spinner.text = filtered[0] if filtered else ''
             else:
-                self.customer_spinner.values = ['⚠️ مشتری‌ای یافت نشد']
-                self.customer_spinner.text = '⚠️ مشتری‌ای یافت نشد'
+                self.customer_spinner.values = ['مشتری‌ای یافت نشد']
+                self.customer_spinner.text = 'مشتری‌ای یافت نشد'
                 
         except Exception as e:
             error_details = traceback.format_exc()
@@ -401,7 +402,7 @@ class AgentsScreen(Screen):
             current_text = self.customer_spinner.text
             if current_text != self._last_customer_text:
                 self._last_customer_text = current_text
-                if current_text and current_text not in ['', '⚠️ مشتری‌ای یافت نشد']:
+                if current_text and current_text not in ['', 'مشتری‌ای یافت نشد']:
                     self.on_customer_selected(current_text)
     
     def update_time(self, dt):
@@ -412,7 +413,7 @@ class AgentsScreen(Screen):
         """زمانی که مسیر انتخاب می‌شود"""
         self.selected_route = value
         
-        # ✅ قفل کردن مسیر بعد از انتخاب (فقط اگر قبلاً قفل نشده باشه)
+        # قفل کردن مسیر بعد از انتخاب (فقط اگر قبلاً قفل نشده باشه)
         # و اگر امروز ویزیتی ثبت شده باشه، مسیر قفل بمونه
         if not self.route_spinner.main_btn.disabled:
             self.route_spinner.main_btn.disabled = True
@@ -439,15 +440,15 @@ class AgentsScreen(Screen):
                 self.customer_spinner.values = filtered
                 self.customer_spinner.text = filtered[0] if filtered else ''
             else:
-                self.customer_spinner.values = ['⚠️ مشتری‌ای یافت نشد']
-                self.customer_spinner.text = '⚠️ مشتری‌ای یافت نشد'
+                self.customer_spinner.values = ['مشتری‌ای یافت نشد']
+                self.customer_spinner.text = 'مشتری‌ای یافت نشد'
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در بروزرسانی لیست مشتریان: {e}", error_details)
     
     def on_customer_selected(self, value):
         """زمانی که مشتری انتخاب می‌شود - نمایش دیالوگ تأیید"""
-        if value and value not in ['', '⚠️ مشتری‌ای یافت نشد']:
+        if value and value not in ['', 'مشتری‌ای یافت نشد']:
             self.selected_customer = value
             self.show_confirm_dialog(value)
     
@@ -476,28 +477,29 @@ class AgentsScreen(Screen):
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             no_btn = PersianButton(
                 text='خیر',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(yes_btn)
             btn_layout.add_widget(no_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='تأیید ویزیت',
                 content=content,
                 size_hint=(0.85, 0.35),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_yes(instance):
                 popup.dismiss()
@@ -537,18 +539,20 @@ class AgentsScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
             
             success_btn = PersianButton(
-                text='✅ ویزیت موفق',
+                text='ویزیت موفق',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             fail_btn = PersianButton(
-                text='❌ ویزیت ناموفق',
+                text='ویزیت ناموفق',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(success_btn)
@@ -556,22 +560,22 @@ class AgentsScreen(Screen):
             content.add_widget(btn_layout)
             
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(40),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             content.add_widget(back_btn)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='نتیجه ویزیت',
                 content=content,
                 size_hint=(0.85, 0.5),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_success(instance):
                 popup.dismiss()
@@ -604,7 +608,7 @@ class AgentsScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text='📝 علت ویزیت ناموفق را وارد کنید:',
+                text='علت ویزیت ناموفق را وارد کنید:',
                 size_hint_y=None,
                 height=dp(35),
                 font_size=sp(16),
@@ -615,7 +619,7 @@ class AgentsScreen(Screen):
                 hint_text='متن علت...',
                 size_hint_y=None,
                 height=dp(100),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             reason_input.bg_color = (0.15, 0.15, 0.15, 1)
             reason_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -628,32 +632,33 @@ class AgentsScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
             
             submit_btn = PersianButton(
-                text='✅ ثبت عملیات',
+                text='ثبت عملیات',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(submit_btn)
             btn_layout.add_widget(back_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='علت ویزیت ناموفق',
                 content=content,
                 size_hint=(0.85, 0.5),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_submit(instance):
                 reason = reason_input.text.strip()
@@ -703,18 +708,20 @@ class AgentsScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
             
             success_btn = PersianButton(
-                text='💰 فروش موفق',
+                text='فروش موفق',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             fail_btn = PersianButton(
-                text='❌ فروش ناموفق',
+                text='فروش ناموفق',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(success_btn)
@@ -722,22 +729,22 @@ class AgentsScreen(Screen):
             content.add_widget(btn_layout)
             
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(40),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             content.add_widget(back_btn)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='نتیجه فروش',
                 content=content,
                 size_hint=(0.85, 0.45),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_success(instance):
                 popup.dismiss()
@@ -790,7 +797,7 @@ class AgentsScreen(Screen):
             reason_spinner = PersianComboBox(
                 text=fail_reasons[0],
                 values=fail_reasons,
-                height=dp(50)
+                height=dp(65)
             )
             reason_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             reason_spinner.main_btn.color = (1, 1, 1, 1)
@@ -802,8 +809,8 @@ class AgentsScreen(Screen):
                 hint_text='توضیحات (در صورت انتخاب سایر علل)',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(75),
+                font_size=sp(32)
             )
             description_input.bg_color = (0.15, 0.15, 0.15, 1)
             description_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -830,32 +837,33 @@ class AgentsScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
             
             submit_btn = PersianButton(
-                text='✅ ثبت عملیات',
+                text='ثبت عملیات',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(submit_btn)
             btn_layout.add_widget(back_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='علت فروش ناموفق',
                 content=content,
                 size_hint=(0.85, 0.6),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_submit(instance):
                 reason = reason_spinner.text
@@ -888,6 +896,42 @@ class AgentsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ علت فروش ناموفق: {e}", error_details)
     
+    # ============================================================
+    # توابع مربوط به فرمت کردن مبلغ با جداکننده هزارگان
+    # ============================================================
+    
+    def _on_amount_text_change(self, instance, value):
+        """فرمت کردن مبلغ با جداکننده هزارگان"""
+        if not value:
+            return
+        
+        # اگر کاربر در حال پاک کردن است، اجازه بده
+        if value == '':
+            return
+        
+        # فقط اعداد را نگه دار (حذف همه چیز به جز اعداد)
+        cleaned = ''.join(filter(str.isdigit, value))
+        
+        if cleaned:
+            try:
+                # تبدیل به عدد و فرمت با جداکننده
+                number = int(cleaned)
+                formatted = f"{number:,}"
+                
+                # جلوگیری از حلقه بی‌نهایت
+                if instance.text != formatted:
+                    # ذخیره موقعیت مکان‌نما
+                    cursor_pos = len(formatted)
+                    instance.text = formatted
+                    # حرکت مکان‌نما به انتها
+                    instance.cursor = (cursor_pos, 0)
+            except ValueError:
+                pass
+        else:
+            # اگر عددی وجود نداشت، 0 نمایش بده
+            if instance.text != '0':
+                instance.text = '0'
+    
     def show_success_sales_dialog(self, customer_name):
         """دیالوگ فروش موفق با فیلدهای تعداد، مبلغ و نحوه تسویه"""
         try:
@@ -898,10 +942,10 @@ class AgentsScreen(Screen):
                 Color(0.15, 0.15, 0.15, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                        size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text=f'💰 فروش موفق برای "{customer_name}"',
+                text=f'فروش موفق برای "{customer_name}"',
                 size_hint_y=None,
                 height=dp(35),
                 font_size=sp(18),
@@ -921,9 +965,9 @@ class AgentsScreen(Screen):
                 text='0',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(50),
+                height=dp(70),
                 input_filter='int',
-                font_size=sp(36)
+                font_size=sp(32)
             )
             units_input.bg_color = (0.15, 0.15, 0.15, 1)
             units_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -933,7 +977,7 @@ class AgentsScreen(Screen):
             self.focusable_fields.append(units_input._hidden_input)
             content.add_widget(units_input)
             
-            # مبلغ فاکتور
+            # مبلغ فاکتور (با جداکننده هزارگان - بدون input_filter)
             content.add_widget(RTLLabel(
                 text='مبلغ فاکتور (ریال):',
                 size_hint_y=None,
@@ -941,21 +985,24 @@ class AgentsScreen(Screen):
                 font_size=sp(14),
                 color=(1, 1, 1, 1)
             ))
-            amount_input = RTLTextInput(
+            
+            self.amount_input = RTLTextInput(
                 text='0',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(50),
-                input_filter='int',
-                font_size=sp(36)
+                height=dp(70),
+                # input_filter='int',  # ✅ حذف شده
+                font_size=sp(32)
             )
-            amount_input.bg_color = (0.15, 0.15, 0.15, 1)
-            amount_input.border_color = (0.3, 0.3, 0.3, 1)
-            amount_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            amount_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            amount_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(amount_input._hidden_input)
-            content.add_widget(amount_input)
+            self.amount_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.amount_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.amount_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.amount_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.amount_input._hidden_input.bind(focus=self._on_field_focus)
+            # ✅ اتصال رویداد تغییر متن برای فرمت کردن
+            self.amount_input._hidden_input.bind(text=self._on_amount_text_change)
+            self.focusable_fields.append(self.amount_input._hidden_input)
+            content.add_widget(self.amount_input)
             
             # نحوه تسویه
             content.add_widget(RTLLabel(
@@ -968,7 +1015,7 @@ class AgentsScreen(Screen):
             payment_spinner = PersianComboBox(
                 text=payment_methods[0],
                 values=payment_methods,
-                height=dp(50)
+                height=dp(65)
             )
             payment_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             payment_spinner.main_btn.color = (1, 1, 1, 1)
@@ -978,36 +1025,38 @@ class AgentsScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
             
             submit_btn = PersianButton(
-                text='✅ ثبت عملیات',
+                text='ثبت عملیات',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             back_btn = PersianButton(
-                text='🔙 بازگشت',
+                text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(submit_btn)
             btn_layout.add_widget(back_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='ثبت فروش موفق',
                 content=content,
                 size_hint=(0.85, 0.7),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_submit(instance):
                 units = units_input.text.strip()
-                amount = amount_input.text.strip()
+                # ✅ حذف جداکننده‌ها برای تبدیل به عدد
+                amount_raw = self.amount_input.text.replace(',', '').strip()
                 payment = payment_spinner.text
                 
                 # اعتبارسنجی
@@ -1015,13 +1064,13 @@ class AgentsScreen(Screen):
                     ErrorPopup.show_error('لطفاً تعداد واحد فروش را وارد کنید')
                     return
                 
-                if not amount or amount == '0':
+                if not amount_raw or amount_raw == '0':
                     ErrorPopup.show_error('لطفاً مبلغ فاکتور را وارد کنید')
                     return
                 
                 try:
                     units_int = int(units)
-                    amount_int = int(amount)
+                    amount_int = int(amount_raw)  # ✅ استفاده از مقدار بدون جداکننده
                     
                     if units_int <= 0:
                         ErrorPopup.show_error('تعداد واحد فروش باید بیشتر از صفر باشد')
@@ -1039,7 +1088,7 @@ class AgentsScreen(Screen):
                     visit_status='موفق',
                     sales_status='موفق',
                     units_sold=units_int,
-                    sales_amount=amount_int,
+                    sales_amount=amount_int,  # ✅ مقدار عددی بدون جداکننده
                     payment_method=payment
                 )
                 popup.dismiss()
@@ -1130,19 +1179,18 @@ class AgentsScreen(Screen):
                 text='باشه',
                 size_hint_y=None,
                 height=dp(50),
-                font_size=sp(20),
+                font_size=sp(18),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
-            popup = Popup(
+            
+            popup = PersianPopup(
                 title=title,
                 content=content,
                 size_hint=(0.85, 0.4),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(22)
             btn.bind(on_press=popup.dismiss)
             popup.open()
         except Exception as e:

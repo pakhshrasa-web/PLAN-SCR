@@ -14,7 +14,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
 
-from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel
+from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
 from utils.user_manager import get_users, delete_user_by_id, get_codes, create_code
 from utils.auth import get_admin_password, set_admin_password, verify_password
 from utils.file_manager import load_json, save_json, get_daily_logs, get_data_path
@@ -32,15 +32,15 @@ class AdminSettingsScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ تغییر به resize برای اسکرول دقیق
+            # تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
             
-            # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
+            # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
             self.build_ui()
             
-            # ✅ اتصال رویدادهای کیبورد
+            # اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
         except Exception as e:
@@ -68,7 +68,8 @@ class AdminSettingsScreen(Screen):
                 background_color=(0.3, 0.5, 0.8, 0.6),
                 size_hint_y=None,
                 height=dp(34),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
             btn_password.bind(on_press=lambda x: self.switch_tab(3))
             tabs_layout.add_widget(btn_password)
@@ -78,7 +79,8 @@ class AdminSettingsScreen(Screen):
                 background_color=(0.3, 0.5, 0.8, 0.6),
                 size_hint_y=None,
                 height=dp(34),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
             btn_codes.bind(on_press=lambda x: self.switch_tab(1))
             tabs_layout.add_widget(btn_codes)
@@ -88,18 +90,20 @@ class AdminSettingsScreen(Screen):
                 background_color=(0.3, 0.5, 0.8, 1),
                 size_hint_y=None,
                 height=dp(34),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
             btn_users.bind(on_press=lambda x: self.switch_tab(0))
             tabs_layout.add_widget(btn_users)
             
-            # ✅ تب خام سازی
+            # تب خام سازی
             btn_clean = PersianButton(
-                text='🧹 خام سازی',
+                text='خام سازی',
                 background_color=(0.8, 0.2, 0.2, 0.8),
                 size_hint_y=None,
                 height=dp(34),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
             btn_clean.bind(on_press=lambda x: self.switch_tab(4))
             tabs_layout.add_widget(btn_clean)
@@ -116,7 +120,8 @@ class AdminSettingsScreen(Screen):
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(36),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
             back_btn.bind(on_press=self.go_back)
             layout.add_widget(back_btn)
@@ -131,7 +136,7 @@ class AdminSettingsScreen(Screen):
     def switch_tab(self, tab_id):
         try:
             self.content_area.clear_widgets()
-            # ✅ ریست کردن لیست فیلدها برای هر تب جدید
+            # ریست کردن لیست فیلدها برای هر تب جدید
             self.focusable_fields = []
             
             if tab_id == 0:
@@ -149,14 +154,14 @@ class AdminSettingsScreen(Screen):
             ErrorPopup.show_error(f"خطا در تغییر تب: {e}", error_details)
     
     # ============================================================
-    # ✅ مدیریت فوکوس و انتخاب خودکار متن
+    # مدیریت فوکوس و انتخاب خودکار متن
     # ============================================================
     
     def _on_field_focus(self, instance, value):
         """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            # ✅ اسکرول با تأخیر برای اطمینان از نمایش کیبورد
+            # اسکرول با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
@@ -209,10 +214,10 @@ class AdminSettingsScreen(Screen):
                     pass
                     
         except Exception as e:
-            print(f"⚠️ خطا در اسکرول به فیلد: {e}")
+            print(f"خطا در اسکرول به فیلد: {e}")
     
     # ============================================================
-    # ✅ مدیریت کلیدهای کیبورد
+    # مدیریت کلیدهای کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
@@ -237,10 +242,24 @@ class AdminSettingsScreen(Screen):
     def show_clean_tab(self):
         """نمایش تب خام سازی داده‌ها"""
         try:
-            layout = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(15))
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint=(1, 1),
+                scroll_type=['bars', 'content'],
+                bar_width=dp(8)
+            )
+            
+            layout = BoxLayout(
+                orientation='vertical',
+                padding=dp(15),
+                spacing=dp(15),
+                size_hint_y=None
+            )
+            layout.bind(minimum_height=layout.setter('height'))
             
             layout.add_widget(RTLLabel(
-                text='🧹 خام سازی داده‌های کاربران',
+                text='خام سازی داده‌های کاربران',
                 size_hint_y=None,
                 height=dp(45),
                 font_size=sp(20),
@@ -249,7 +268,7 @@ class AdminSettingsScreen(Screen):
             ))
             
             layout.add_widget(RTLLabel(
-                text='⚠️ توجه: این عملیات تمام داده‌های ثبت شده توسط کاربران عادی را حذف می‌کند.\nداده‌های مدیریتی (کاربران، تنظیمات، مسیرها، مشتریان و کدها) حفظ می‌شوند.',
+                text='توجه: این عملیات تمام داده‌های ثبت شده توسط کاربران عادی را حذف می‌کند.\nداده‌های مدیریتی (کاربران، تنظیمات، مسیرها، مشتریان و کدها) حفظ می‌شوند.',
                 size_hint_y=None,
                 height=dp(60),
                 font_size=sp(14),
@@ -266,14 +285,14 @@ class AdminSettingsScreen(Screen):
                     total_visits += len(logs)
             
             stats_box.add_widget(RTLLabel(
-                text=f'📊 تعداد روزهای دارای داده: {len(daily_logs)}',
+                text=f'تعداد روزهای دارای داده: {len(daily_logs)}',
                 size_hint_y=None,
                 height=dp(25),
                 font_size=sp(16),
                 color=(1, 1, 1, 1)
             ))
             stats_box.add_widget(RTLLabel(
-                text=f'📊 تعداد کل ویزیت‌ها: {total_visits}',
+                text=f'تعداد کل ویزیت‌ها: {total_visits}',
                 size_hint_y=None,
                 height=dp(25),
                 font_size=sp(16),
@@ -284,7 +303,7 @@ class AdminSettingsScreen(Screen):
             summary_path = os.path.join(get_data_path(), 'daily_summary.json')
             if os.path.exists(summary_path):
                 stats_box.add_widget(RTLLabel(
-                    text='📊 فایل خلاصه روزانه: موجود',
+                    text='فایل خلاصه روزانه: موجود',
                     size_hint_y=None,
                     height=dp(25),
                     font_size=sp(16),
@@ -292,7 +311,7 @@ class AdminSettingsScreen(Screen):
                 ))
             else:
                 stats_box.add_widget(RTLLabel(
-                    text='📊 فایل خلاصه روزانه: وجود ندارد',
+                    text='فایل خلاصه روزانه: وجود ندارد',
                     size_hint_y=None,
                     height=dp(25),
                     font_size=sp(16),
@@ -303,7 +322,7 @@ class AdminSettingsScreen(Screen):
             
             # دکمه خام سازی
             clean_btn = PersianButton(
-                text='🗑️ حذف همه داده‌های کاربران',
+                text='حذف همه داده‌های کاربران',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(50),
@@ -313,7 +332,8 @@ class AdminSettingsScreen(Screen):
             clean_btn.bind(on_press=self.show_clean_confirm)
             layout.add_widget(clean_btn)
             
-            self.content_area.add_widget(layout)
+            scroll.add_widget(layout)
+            self.content_area.add_widget(scroll)
             
         except Exception as e:
             error_details = traceback.format_exc()
@@ -330,7 +350,7 @@ class AdminSettingsScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text='⚠️ هشدار: این عملیات غیرقابل بازگشت است!\nآیا از حذف تمام داده‌های کاربران اطمینان دارید؟',
+                text='هشدار: این عملیات غیرقابل بازگشت است!\nآیا از حذف تمام داده‌های کاربران اطمینان دارید؟',
                 size_hint_y=None,
                 height=dp(60),
                 font_size=sp(18),
@@ -350,15 +370,15 @@ class AdminSettingsScreen(Screen):
                 hint_text='عبارت تأیید',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(80),
+                font_size=sp(32)
             )
             self.confirm_clean_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.confirm_clean_input.border_color = (0.3, 0.3, 0.3, 1)
             self.confirm_clean_input.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.confirm_clean_input._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.confirm_clean_input._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.confirm_clean_input._hidden_input)
             
@@ -367,32 +387,33 @@ class AdminSettingsScreen(Screen):
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
             
             clean_btn = PersianButton(
-                text='🗑️ حذف همه',
+                text='حذف همه',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             cancel_btn = PersianButton(
-                text='❌ انصراف',
+                text='انصراف',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             
             btn_layout.add_widget(clean_btn)
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
-                title='🧹 تأیید خام سازی',
+            popup = PersianPopup(
+                title='تأیید خام سازی',
                 content=content,
                 size_hint=(0.85, 0.55),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def do_clean(instance):
                 if self.confirm_clean_input.text.strip() != 'حذف':
@@ -427,9 +448,9 @@ class AdminSettingsScreen(Screen):
                         save_json(filename, {})
                     elif filename == 'daily_summary.json':
                         save_json(filename, {})
-                    print(f"✅ {filename} خام سازی شد")
+                    print(f"{filename} خام سازی شد")
             
-            self.show_message('✅ موفق', 'تمامی داده‌های کاربران با موفقیت حذف شدند')
+            self.show_message('موفق', 'تمامی داده‌های کاربران با موفقیت حذف شدند')
             self.switch_tab(4)  # رفرش تب
             
         except Exception as e:
@@ -440,7 +461,7 @@ class AdminSettingsScreen(Screen):
     
     def show_change_password_tab(self):
         try:
-            # ✅ استفاده از ScrollView برای نمایش کامل محتوا
+            # استفاده از ScrollView برای نمایش کامل محتوا
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -479,8 +500,8 @@ class AdminSettingsScreen(Screen):
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36),
+                height=dp(80),
+                font_size=sp(32),
                 hint_text='رمز عبور فعلی را وارد کنید'
             )
             self.old_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -488,7 +509,7 @@ class AdminSettingsScreen(Screen):
             self.old_password.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.old_password._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.old_password._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.old_password._hidden_input)
             
@@ -507,8 +528,8 @@ class AdminSettingsScreen(Screen):
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36),
+                height=dp(80),
+                font_size=sp(32),
                 hint_text='رمز عبور جدید را وارد کنید'
             )
             self.new_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -516,7 +537,7 @@ class AdminSettingsScreen(Screen):
             self.new_password.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.new_password._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.new_password._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.new_password._hidden_input)
             
@@ -535,8 +556,8 @@ class AdminSettingsScreen(Screen):
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36),
+                height=dp(80),
+                font_size=sp(32),
                 hint_text='تکرار رمز عبور جدید'
             )
             self.confirm_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -544,7 +565,7 @@ class AdminSettingsScreen(Screen):
             self.confirm_password.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.confirm_password._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.confirm_password._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.confirm_password._hidden_input)
             
@@ -564,7 +585,8 @@ class AdminSettingsScreen(Screen):
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(42),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             save_btn.bind(on_press=self.change_password)
             btn_layout.add_widget(save_btn)
@@ -574,7 +596,8 @@ class AdminSettingsScreen(Screen):
                 background_color=(0.8, 0.5, 0.2, 1),
                 size_hint_y=None,
                 height=dp(42),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             clear_btn.bind(on_press=self.clear_password_fields)
             btn_layout.add_widget(clear_btn)
@@ -624,7 +647,7 @@ class AdminSettingsScreen(Screen):
         try:
             users = get_users()
             
-            # ✅ ScrollView با تنظیمات بهتر
+            # ScrollView با تنظیمات بهتر
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -644,7 +667,7 @@ class AdminSettingsScreen(Screen):
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
             content.add_widget(RTLLabel(
-                text='📋 لیست کاربران',
+                text='لیست کاربران',
                 size_hint_y=None,
                 height=dp(32),
                 font_size=sp(16),
@@ -664,7 +687,7 @@ class AdminSettingsScreen(Screen):
             for user in users:
                 user_box = BoxLayout(
                     size_hint_y=None,
-                    height=dp(50),
+                    height=dp(55),
                     spacing=dp(5)
                 )
                 
@@ -682,8 +705,9 @@ class AdminSettingsScreen(Screen):
                     size_hint_x=0.3,
                     background_color=(0.8, 0.2, 0.2, 1),
                     size_hint_y=None,
-                    height=dp(32),
-                    color=(1, 1, 1, 1)
+                    height=dp(38),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(14)
                 )
                 del_btn.bind(on_press=lambda x, uid=user.get('id'): self.delete_user(uid))
                 user_box.add_widget(del_btn)
@@ -725,26 +749,27 @@ class AdminSettingsScreen(Screen):
                 size_hint_y=None,
                 height=dp(40),
                 color=(1, 1, 1, 1),
-                background_color=(0.8, 0.2, 0.2, 1)
+                background_color=(0.8, 0.2, 0.2, 1),
+                font_size=sp(14)
             )
             no_btn = PersianButton(
                 text='خیر، انصراف',
                 size_hint_y=None,
                 height=dp(40),
                 color=(1, 1, 1, 1),
-                background_color=(0.3, 0.3, 0.3, 1)
+                background_color=(0.3, 0.3, 0.3, 1),
+                font_size=sp(14)
             )
             btn_layout.add_widget(yes_btn)
             btn_layout.add_widget(no_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='تایید حذف',
                 content=content,
                 size_hint=(0.8, 0.35),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def do_delete(instance):
                 delete_user_by_id(user_id)
@@ -768,7 +793,7 @@ class AdminSettingsScreen(Screen):
         try:
             roles = ['مدیر', 'ادمین', 'سوپروایزر', 'بازاریاب', 'حسابدار', 'موزع', 'راننده', 'انباردار', 'سایر']
             
-            # ✅ ScrollView با تنظیمات بهتر
+            # ScrollView با تنظیمات بهتر
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -799,7 +824,7 @@ class AdminSettingsScreen(Screen):
             self.role_spinner = PersianComboBox(
                 text='مدیر',
                 values=roles,
-                height=dp(45)
+                height=dp(65)
             )
             self.role_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             self.role_spinner.main_btn.color = (1, 1, 1, 1)
@@ -813,14 +838,14 @@ class AdminSettingsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(36)
+                font_size=sp(32)
             )
             self.code_name_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.code_name_input.border_color = (0.3, 0.3, 0.3, 1)
             self.code_name_input.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.code_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
             
-            # ✅ اتصال رویداد فوکوس
+            # اتصال رویداد فوکوس
             self.code_name_input._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.code_name_input._hidden_input)
             
@@ -831,7 +856,8 @@ class AdminSettingsScreen(Screen):
                 size_hint_y=None,
                 height=dp(45),
                 background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             content.add_widget(create_btn)
             
@@ -857,7 +883,7 @@ class AdminSettingsScreen(Screen):
             content.add_widget(Label(size_hint_y=None, height=dp(8)))
             
             content.add_widget(RTLLabel(
-                text='📋 کدهای فعال',
+                text='کدهای فعال',
                 size_hint_y=None,
                 height=dp(35),
                 font_size=sp(16),
@@ -872,7 +898,7 @@ class AdminSettingsScreen(Screen):
                     has_codes = True
                     code_box = BoxLayout(
                         size_hint_y=None,
-                        height=dp(35),
+                        height=dp(40),
                         spacing=dp(5)
                     )
                     code_text = f"{code_info['code']} - {code_info['role']} - {code_info['name']}"
@@ -916,26 +942,24 @@ class AdminSettingsScreen(Screen):
                 text=message,
                 size_hint_y=None,
                 height=dp(100),
-                font_size=sp(24),
+                font_size=sp(20),
                 color=(1, 1, 1, 1)
             ))
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(22),
+                font_size=sp(20),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
-            popup = Popup(
+            popup = PersianPopup(
                 title=title,
                 content=content,
                 size_hint=(0.9, 0.5),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
         except Exception as e:

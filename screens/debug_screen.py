@@ -34,7 +34,25 @@ class DebugScreen(Screen):
     
     def build_ui(self):
         try:
-            layout = BoxLayout(orientation='vertical', padding=dp(20))
+            layout = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(8))
+            
+            # عنوان
+            layout.add_widget(RTLLabel(
+                text='بررسی فونت‌ها',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(22),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='مسیرهای فونت سیستمی:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
             
             font_paths = [
                 '/system/fonts/NotoNaskhArabic-Regular.ttf',
@@ -44,10 +62,23 @@ class DebugScreen(Screen):
             
             for path in font_paths:
                 exists = os.path.exists(path)
+                status = 'موجود' if exists else 'وجود ندارد'
+                color = (0.2, 0.7, 0.2, 1) if exists else (0.8, 0.2, 0.2, 1)
                 layout.add_widget(RTLLabel(
-                    text=f"{path}: {'✅' if exists else '❌'}",
-                    color=(1, 1, 1, 1)
+                    text=f"{os.path.basename(path)}: {status}",
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    color=color
                 ))
+            
+            layout.add_widget(RTLLabel(
+                text='مسیرهای فونت داخلی:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
             
             internal_paths = [
                 os.path.join(os.path.dirname(__file__), '..', 'fonts', 'Vazirmatn-Regular.ttf'),
@@ -56,30 +87,74 @@ class DebugScreen(Screen):
             
             for path in internal_paths:
                 exists = os.path.exists(path)
+                status = 'موجود' if exists else 'وجود ندارد'
+                color = (0.2, 0.7, 0.2, 1) if exists else (0.8, 0.2, 0.2, 1)
                 layout.add_widget(RTLLabel(
-                    text=f"{path}: {'✅' if exists else '❌'}",
-                    color=(1, 1, 1, 1)
+                    text=f"{os.path.basename(path) if exists else path}: {status}",
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    color=color
                 ))
             
             layout.add_widget(RTLLabel(
-                text="📋 فونت‌های ثبت شده:",
+                text='فونت‌های ثبت شده:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
                 color=(1, 1, 1, 1)
             ))
-            for name in LabelBase._fonts.keys():
+            
+            font_names = list(LabelBase._fonts.keys())
+            if font_names:
+                for name in font_names:
+                    layout.add_widget(RTLLabel(
+                        text=f"- {name}",
+                        size_hint_y=None,
+                        height=dp(25),
+                        font_size=sp(14),
+                        color=(0.8, 0.8, 0.8, 1)
+                    ))
+            else:
                 layout.add_widget(RTLLabel(
-                    text=f"  - {name}",
-                    color=(1, 1, 1, 1)
+                    text='هیچ فونتی ثبت نشده است',
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    color=(0.5, 0.5, 0.5, 1)
                 ))
             
             layout.add_widget(RTLLabel(
-                text="تست فارسی با Roboto",
+                text='نمایش متن با فونت‌های مختلف:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='تست فارسی با Roboto (فونت پیش‌فرض)',
                 font_name='Roboto',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
                 color=(1, 1, 1, 1)
             ))
+            
             layout.add_widget(RTLLabel(
-                text="تست فارسی با PersianFont",
+                text='تست فارسی با PersianFont (فونت اختصاصی)',
                 font_name='PersianFont',
-                color=(1, 1, 1, 1)
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # فضای خالی
+            layout.add_widget(RTLLabel(
+                text='',
+                size_hint_y=None,
+                height=dp(10)
             ))
             
             back_btn = PersianButton(
@@ -87,7 +162,8 @@ class DebugScreen(Screen):
                 size_hint_y=None,
                 height=dp(50),
                 color=(1, 1, 1, 1),
-                background_color=(0.3, 0.3, 0.3, 1)
+                background_color=(0.3, 0.3, 0.3, 1),
+                font_size=sp(18)
             )
             back_btn.bind(on_press=lambda x: setattr(self.manager, 'current', 'login'))
             layout.add_widget(back_btn)

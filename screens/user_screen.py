@@ -15,7 +15,7 @@ from kivy.properties import StringProperty
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 
-from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel
+from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
 from utils.file_manager import (
     get_routes, get_customers, get_settings, 
     get_daily_logs, save_daily_log,
@@ -37,10 +37,10 @@ class UserScreen(Screen):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # ✅ تغییر به resize برای اسکرول دقیق
+            # تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
             
-            # ✅ متغیر برای ذخیره فیلدهای قابل فوکوس
+            # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
             self.settings = get_settings()
@@ -48,7 +48,7 @@ class UserScreen(Screen):
             self.is_locked = False
             self.build_ui()
             
-            # ✅ اتصال رویدادهای کیبورد
+            # اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
         except Exception as e:
@@ -59,7 +59,7 @@ class UserScreen(Screen):
     def on_enter(self):
         """هر بار که صفحه UserScreen نمایش داده میشه، اجرا میشه"""
         try:
-            print("🔄 ورود به UserScreen - به‌روزرسانی اطلاعات")
+            print("ورود به UserScreen - به‌روزرسانی اطلاعات")
             
             # دریافت مجدد تنظیمات
             self.settings = get_settings()
@@ -82,14 +82,14 @@ class UserScreen(Screen):
         self.bg_rect.size = instance.size
     
     # ============================================================
-    # ✅ مدیریت فوکوس و انتخاب خودکار متن
+    # مدیریت فوکوس و انتخاب خودکار متن
     # ============================================================
     
     def _on_field_focus(self, instance, value):
         """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            # ✅ اسکرول با تأخیر برای اطمینان از نمایش کیبورد
+            # اسکرول با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
@@ -150,10 +150,10 @@ class UserScreen(Screen):
                     pass
                     
         except Exception as e:
-            print(f"⚠️ خطا در اسکرول به فیلد: {e}")
+            print(f"خطا در اسکرول به فیلد: {e}")
     
     # ============================================================
-    # ✅ مدیریت کلیدهای کیبورد
+    # مدیریت کلیدهای کیبورد
     # ============================================================
     
     def _on_keyboard(self, window, key, *args):
@@ -243,8 +243,8 @@ class UserScreen(Screen):
                 text=get_today_jalali(),
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(75),
+                font_size=sp(32)
             )
             visit_date.bg_color = (0.15, 0.15, 0.15, 1)
             visit_date.border_color = (0.3, 0.3, 0.3, 1)
@@ -310,8 +310,8 @@ class UserScreen(Screen):
                 text='',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(75),
+                font_size=sp(32)
             )
             clock_in.bg_color = (0.15, 0.15, 0.15, 1)
             clock_in.border_color = (0.3, 0.3, 0.3, 1)
@@ -346,8 +346,8 @@ class UserScreen(Screen):
                 text='',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(75),
+                font_size=sp(32)
             )
             first_visit_time.bg_color = (0.15, 0.15, 0.15, 1)
             first_visit_time.border_color = (0.3, 0.3, 0.3, 1)
@@ -382,9 +382,9 @@ class UserScreen(Screen):
                 text='0',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(75),
                 input_filter='int',
-                font_size=sp(36)
+                font_size=sp(32)
             )
             visited_count.bg_color = (0.15, 0.15, 0.15, 1)
             visited_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -419,9 +419,9 @@ class UserScreen(Screen):
                 text='0',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(75),
                 input_filter='int',
-                font_size=sp(36)
+                font_size=sp(32)
             )
             invoices_count.bg_color = (0.15, 0.15, 0.15, 1)
             invoices_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -456,9 +456,9 @@ class UserScreen(Screen):
                 text='0',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(75),
                 input_filter='int',
-                font_size=sp(36)
+                font_size=sp(32)
             )
             units_count.bg_color = (0.15, 0.15, 0.15, 1)
             units_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -493,9 +493,9 @@ class UserScreen(Screen):
                 text='0',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(75),
                 input_filter='int',
-                font_size=sp(36)
+                font_size=sp(32)
             )
             sales_amount.bg_color = (0.15, 0.15, 0.15, 1)
             sales_amount.border_color = (0.3, 0.3, 0.3, 1)
@@ -535,8 +535,8 @@ class UserScreen(Screen):
                 text='',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(75),
+                font_size=sp(32)
             )
             last_visit_time.bg_color = (0.15, 0.15, 0.15, 1)
             last_visit_time.border_color = (0.3, 0.3, 0.3, 1)
@@ -571,8 +571,8 @@ class UserScreen(Screen):
                 text='',
                 multiline=False,
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(36)
+                height=dp(75),
+                font_size=sp(32)
             )
             clock_out.bg_color = (0.15, 0.15, 0.15, 1)
             clock_out.border_color = (0.3, 0.3, 0.3, 1)
@@ -607,7 +607,7 @@ class UserScreen(Screen):
             )
             
             self.visit_btn = PersianButton(
-                text='📋 ویزیت',
+                text='ویزیت',
                 background_color=(0.8, 0.5, 0.2, 1),
                 size_hint_y=None,
                 height=dp(42),
@@ -618,7 +618,7 @@ class UserScreen(Screen):
             btn_layout.add_widget(self.visit_btn)
             
             self.save_btn = PersianButton(
-                text='💾 ذخیره',
+                text='ذخیره',
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(42),
@@ -629,7 +629,7 @@ class UserScreen(Screen):
             btn_layout.add_widget(self.save_btn)
             
             report_btn = PersianButton(
-                text='📊 گزارش',
+                text='گزارش',
                 background_color=(0.2, 0.6, 1, 1),
                 size_hint_y=None,
                 height=dp(42),
@@ -640,7 +640,7 @@ class UserScreen(Screen):
             btn_layout.add_widget(report_btn)
             
             logout_btn = PersianButton(
-                text='🚪 خروج',
+                text='خروج',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(42),
@@ -684,7 +684,7 @@ class UserScreen(Screen):
                 self.unlock_page()
                 
         except Exception as e:
-            print(f"⚠️ خطا در بررسی قفل: {e}")
+            print(f"خطا در بررسی قفل: {e}")
     
     def lock_page(self):
         """قفل کردن صفحه (غیرفعال کردن دکمه‌ها و فیلدها)"""
@@ -707,7 +707,7 @@ class UserScreen(Screen):
                     input_field._hidden_input.disabled = True
             
         except Exception as e:
-            print(f"⚠️ خطا در قفل کردن صفحه: {e}")
+            print(f"خطا در قفل کردن صفحه: {e}")
     
     def unlock_page(self):
         """باز کردن صفحه (فعال کردن دکمه‌ها و فیلدها)"""
@@ -732,7 +732,7 @@ class UserScreen(Screen):
                         input_field._hidden_input.disabled = False
             
         except Exception as e:
-            print(f"⚠️ خطا در باز کردن صفحه: {e}")
+            print(f"خطا در باز کردن صفحه: {e}")
     
     def load_data_from_agents(self):
         """بارگذاری داده‌های ویزیت از AgentsScreen"""
@@ -803,7 +803,7 @@ class UserScreen(Screen):
                 self.route_display.set_text(selected_route)
             else:
                 self.current_route = ''
-                self.route_display.set_text('⚠️ مسیری ثبت نشده است')
+                self.route_display.set_text('مسیری ثبت نشده است')
             
             # ========== به‌روزرسانی فیلدهای مقدار ==========
             
@@ -869,7 +869,7 @@ class UserScreen(Screen):
         try:
             current_route = self.current_route
             
-            if current_route and current_route not in ['', '⚠️ مسیری ثبت نشده است']:
+            if current_route and current_route not in ['', 'مسیری ثبت نشده است']:
                 customers = get_customers()
                 
                 total_customers = 0
@@ -891,7 +891,7 @@ class UserScreen(Screen):
                 target_visits = int(total_customers * supervision_rate)
                 self.visited_customers_target.text = str(target_visits)
                 
-                print(f"✅ هدف ویزیت: {total_customers} × {supervision_rate} = {target_visits}")
+                print(f"هدف ویزیت: {total_customers} × {supervision_rate} = {target_visits}")
                 
             else:
                 self.route_count = '0'
@@ -913,7 +913,7 @@ class UserScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text='انجام عملیات ذخیره‌سازی به منزلهٔ پایان کار می‌باشد.\nآیا از انجام این کار اطمینان دارید؟',
+                text='عملیات ذخیره‌سازی به منزلهٔ پایان کار می‌باشد.\nآیا ادامه می دهید؟',
                 size_hint_y=None,
                 height=dp(70),
                 font_size=sp(16),
@@ -926,27 +926,28 @@ class UserScreen(Screen):
                 background_color=(0.2, 0.7, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             no_btn = PersianButton(
                 text='خیر، انصراف',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_y=None,
                 height=dp(45),
-                color=(1, 1, 1, 1)
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
             btn_layout.add_widget(yes_btn)
             btn_layout.add_widget(no_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
+            popup = PersianPopup(
                 title='تأیید پایان کار',
                 content=content,
                 size_hint=(0.85, 0.4),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
-            popup.title_color = (1, 1, 1, 1)
             
             def on_yes(instance):
                 popup.dismiss()
@@ -1041,19 +1042,18 @@ class UserScreen(Screen):
                 text='باشه',
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(22),
+                font_size=sp(20),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
-            popup = Popup(
+            
+            popup = PersianPopup(
                 title=title,
                 content=content,
                 size_hint=(0.85, 0.4),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(24)
             btn.bind(on_press=popup.dismiss)
             popup.open()
         except Exception as e:

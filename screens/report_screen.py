@@ -13,7 +13,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock  
 
-from utils.rtl_widgets import PersianButton, RTLLabel
+from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup
 from utils.persian_text import PersianLabel  
 from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path
 from utils.excel_exporter import export_to_excel
@@ -174,24 +174,23 @@ class ReportScreen(Screen):
                 text='خلاصه عملکرد کلی',
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(24),
+                font_size=sp(20),
                 bold=True,
                 color=(0.4, 0.7, 1, 1)
             ))
             
-            row1 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(6))
+            row1 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row1.add_widget(self._make_card('روزهای کاری', f"{total_days:,}", (0.3, 0.6, 0.6, 1)))
             row1.add_widget(self._make_card('کل ویزیت‌ها', f"{total_visits:,}", (0.6, 0.4, 0.8, 1)))
             content.add_widget(row1)
             
-            row2 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(6))
+            row2 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row2.add_widget(self._make_card('فاکتورها', f"{total_invoices:,}", (0.3, 0.5, 0.7, 1)))
             row2.add_widget(self._make_card('واحد فروش', f"{total_units:,}", (0.5, 0.3, 0.7, 1)))
             content.add_widget(row2)
             
             row3 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(6))
             row3.add_widget(self._make_card('کل مبلغ فروش', f"{total_sales:,}", (0.2, 0.6, 0.3, 1)))
-            
             avg_sale = total_sales // total_visits if total_visits > 0 else 0
             row3.add_widget(self._make_card('میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
             content.add_widget(row3)
@@ -446,14 +445,14 @@ class ReportScreen(Screen):
     def export_excel(self, instance):
         """خروجی اکسل با اجرا در ترد جداگانه"""
         try:
-            # ✅ نمایش پیام در حال ساخت
+            # نمایش پیام در حال ساخت
             self.loading_popup = self.show_message('⏳ در حال ساخت', 'لطفاً صبر کنید...')
             
             def do_export():
                 success, result = export_to_excel()
                 
                 def show_result(dt):
-                    # ✅ بستن پیام اول
+                    # بستن پیام اول
                     if hasattr(self, 'loading_popup') and self.loading_popup:
                         try:
                             self.loading_popup.dismiss()
@@ -461,7 +460,7 @@ class ReportScreen(Screen):
                             pass
                         self.loading_popup = None
                     
-                    # ✅ نمایش نتیجه
+                    # نمایش نتیجه
                     if success:
                         self.show_message(
                             '✅ موفق', 
@@ -471,7 +470,7 @@ class ReportScreen(Screen):
                     else:
                         self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
                 
-                Clock.schedule_once(show_result, 0.5)
+                Clock.schedule_once(show_result, 1)
             
             thread = threading.Thread(target=do_export, daemon=True)
             thread.start()
@@ -486,14 +485,14 @@ class ReportScreen(Screen):
     def show_message(self, title, message):
         """نمایش پیام - نسخه ساده و کوتاه"""
         try:
-            # ✅ محدود کردن طول پیام
+            # محدود کردن طول پیام
             if len(message) > 200:
                 message = message[:200] + "..."
             
-            # ✅ ساخت محتوای پاپ‌آپ
+            # ساخت محتوای پاپ‌آپ
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
-            # ✅ پیام کوتاه و ساده
+            # پیام کوتاه و ساده
             msg_label = PersianLabel(
                 text=message,
                 font_size=sp(20),
@@ -507,7 +506,7 @@ class ReportScreen(Screen):
             msg_label.bind(texture_size=msg_label.setter('size'))
             content.add_widget(msg_label)
             
-            # ✅ دکمه باشه
+            # دکمه باشه
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
@@ -518,20 +517,22 @@ class ReportScreen(Screen):
             )
             content.add_widget(btn)
             
-            # ✅ پاپ‌آپ
-            popup = Popup(
+            # پاپ‌آپ با عنوان فارسی
+            popup = PersianPopup(
                 title=title,
                 content=content,
                 size_hint=(0.8, 0.35),
                 auto_dismiss=True
             )
-            popup.title_color = (1, 1, 1, 1)
-            popup.title_size = sp(22)
             btn.bind(on_press=popup.dismiss)
             
             Clock.schedule_once(lambda dt: popup.open(), 0.1)
+            
+            # برگرداندن popup برای بستن خودکار
+            return popup
             
         except Exception as e:
             print(f"❌ خطا در نمایش پیام: {e}")
             import traceback
             traceback.print_exc()
+            return None
