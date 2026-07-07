@@ -79,7 +79,7 @@ def setup_font():
             break
 
     if font_path:
-        print("\n✅ فونت انتخاب شد:")
+        print("\nفونت انتخاب شد:")
         print(font_path)
 
         try:
@@ -87,21 +87,21 @@ def setup_font():
                 name="PersianFont",
                 fn_regular=font_path
             )
-            print("✅ فونت با نام 'PersianFont' ثبت شد.")
+            print("فونت با نام 'PersianFont' ثبت شد.")
 
             Config.set('kivy', 'default_font', ['PersianFont', 'Roboto'])
-            print("✅ فونت پیش‌فرض تنظیم شد.")
+            print("فونت پیش‌فرض تنظیم شد.")
 
             return True
 
         except Exception as e:
-            print("❌ خطا در ثبت فونت:")
+            print("خطا در ثبت فونت:")
             print(e)
             Config.set('kivy', 'default_font', ['Roboto'])
             return False
 
     else:
-        print("\n❌ هیچ فونتی پیدا نشد.")
+        print("\nهیچ فونتی پیدا نشد.")
         Config.set('kivy', 'default_font', ['Roboto'])
         return False
 
@@ -130,7 +130,6 @@ try:
     from utils.auth import get_admin_password, set_admin_password, verify_password
     from utils.excel_importer import import_routes_from_excel, import_customers_from_excel
     from utils.excel_exporter import export_to_excel
-    # ✅ حذف: from utils.file_picker import FilePicker
 
     RTLLabel = PersianLabel
     
@@ -244,7 +243,7 @@ class MainApp(App):
                 if not os.path.exists(filepath):
                     with open(filepath, 'w', encoding='utf-8') as f:
                         json.dump(default_content, f, ensure_ascii=False, indent=2)
-                    print(f"✅ فایل {filename} ایجاد شد")
+                    print(f"فایل {filename} ایجاد شد")
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ایجاد فایل‌های اولیه: {e}", error_details)
@@ -268,7 +267,7 @@ if __name__ == '__main__':
                     content.add_widget(Label(text=f"خطای بحرانی:\n{str(e)}", size_hint_y=None, height=200))
                     btn = Button(text='بستن', size_hint_y=None, height=50)
                     content.add_widget(btn)
-                    popup = Popup(title='⚠️ خطا', content=content, size_hint=(0.9, 0.6), auto_dismiss=False)
+                    popup = Popup(title='خطا', content=content, size_hint=(0.9, 0.6), auto_dismiss=False)
                     btn.bind(on_press=popup.dismiss)
                     popup.open()
                     return BoxLayout()
@@ -276,6 +275,6 @@ if __name__ == '__main__':
             EmergencyApp().run()
         except:
             print("="*60)
-            print(f"❌ خطای بحرانی: {e}")
+            print(f"خطای بحرانی: {e}")
             print(error_details)
             print("="*60)

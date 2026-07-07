@@ -19,7 +19,7 @@ class ErrorPopup:
     @staticmethod
     def show_error(error_message, error_details=""):
         try:
-            # ✅ بستن پاپ‌آپ قبلی اگر باز باشه
+            # بستن پاپ‌آپ قبلی اگر باز باشه
             if ErrorPopup._current_popup:
                 try:
                     ErrorPopup._current_popup.dismiss()
@@ -27,12 +27,12 @@ class ErrorPopup:
                     pass
                 ErrorPopup._current_popup = None
             
-            from utils.rtl_widgets import RTLLabel, PersianButton
+            from utils.rtl_widgets import RTLLabel, PersianButton, PersianPopup
             
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
             title_label = RTLLabel(
-                text="[b][color=ff3333]⚠️ خطا در برنامه[/color][/b]",
+                text="[b][color=ff3333]خطا در برنامه[/color][/b]",
                 markup=True,
                 size_hint_y=None,
                 height=dp(50),
@@ -71,21 +71,31 @@ class ErrorPopup:
                 ))
             
             btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
-            copy_btn = PersianButton(text='📋 کپی متن خطا', background_color=(0.2, 0.4, 0.8, 1), size_hint_y=None, height=dp(45))
-            close_btn = PersianButton(text='✖ بستن', background_color=(0.8, 0.2, 0.2, 1), size_hint_y=None, height=dp(45))
+            copy_btn = PersianButton(
+                text='کپی متن خطا',
+                background_color=(0.2, 0.4, 0.8, 1),
+                size_hint_y=None,
+                height=dp(45)
+            )
+            close_btn = PersianButton(
+                text='بستن',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45)
+            )
             
             btn_layout.add_widget(copy_btn)
             btn_layout.add_widget(close_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
-                title='⚠️ گزارش خطا', 
+            popup = PersianPopup(
+                title='گزارش خطا', 
                 content=content, 
                 size_hint=(0.92, 0.75),
-                auto_dismiss=True  # ✅ با کلیک خارج بسته میشه
+                auto_dismiss=True
             )
             
-            # ✅ ذخیره پاپ‌آپ فعلی
+            # ذخیره پاپ‌آپ فعلی
             ErrorPopup._current_popup = popup
             
             def copy_error(instance):
@@ -93,10 +103,10 @@ class ErrorPopup:
                 try:
                     from kivy.core.clipboard import Clipboard
                     Clipboard.copy(full_text)
-                    copy_btn.text = '✅ کپی شد!'
-                    Clock.schedule_once(lambda dt: setattr(copy_btn, 'text', '📋 کپی متن خطا'), 2)
+                    copy_btn.text = 'کپی شد!'
+                    Clock.schedule_once(lambda dt: setattr(copy_btn, 'text', 'کپی متن خطا'), 2)
                 except:
-                    copy_btn.text = '⚠️ دستی کپی کن'
+                    copy_btn.text = 'دستی کپی کن'
             
             def close_popup(instance):
                 popup.dismiss()
@@ -105,14 +115,14 @@ class ErrorPopup:
             copy_btn.bind(on_press=copy_error)
             close_btn.bind(on_press=close_popup)
             
-            # ✅ بستن پاپ‌آپ بعد از 30 ثانیه (امنیت)
+            # بستن پاپ‌آپ بعد از 30 ثانیه (امنیت)
             Clock.schedule_once(lambda dt: ErrorPopup._close_popup_safe(popup), 30)
             
             popup.open()
             
             print("="*60)
-            print(f"❌ خطا: {error_message}")
-            print(f"📋 جزئیات:\n{error_details}")
+            print(f"خطا: {error_message}")
+            print(f"جزئیات:\n{error_details}")
             print("="*60)
             
             try:
@@ -134,7 +144,7 @@ class ErrorPopup:
                     pass
                     
         except Exception as e:
-            print(f"❌ خطا در نمایش پاپ‌آپ: {e}")
+            print(f"خطا در نمایش پاپ‌آپ: {e}")
     
     @staticmethod
     def _close_popup_safe(popup):
@@ -173,17 +183,17 @@ def exception_handler(exc_type, exc_value, exc_tb):
             
             with open(path, 'w', encoding='utf-8') as f:
                 f.write("="*60 + "\n")
-                f.write("❌ CRASH ERROR:\n")
+                f.write("CRASH ERROR:\n")
                 f.write("="*60 + "\n")
                 f.write(error_msg)
                 f.write("="*60 + "\n")
-            print(f"✅ Crash log saved to: {path}")
+            print(f"Crash log saved to: {path}")
             break
         except Exception as e:
             print(f"Could not write to {path}: {e}")
             continue
     
     print("="*60)
-    print("❌ CRASH ERROR:")
+    print("CRASH ERROR:")
     print(error_msg)
     print("="*60)
