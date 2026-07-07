@@ -58,22 +58,16 @@ jobs:
         title = Plan Android
         package.name = planandroid
         package.domain = org.pakhshrasa
-
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.2
-
         requirements = python3,kivy,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
-
         orientation = portrait
         fullscreen = 1
-
         android.add_src = fonts/
-
         [buildozer]
         log_level = 2
         warn_on_root = 1
-
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
         android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
@@ -89,7 +83,6 @@ jobs:
         android.ignore_manifest = False
         android.enable_on_back_invoked_callback = True
         android.version_code = 1
-
         android.debug = 0
         android.release = 1
         EOF
@@ -169,7 +162,6 @@ jobs:
         echo "📁 بررسی داده‌های کپی شده:"
         ls -la .buildozer/android/app/data/ || echo "⚠️ پوشه data خالی است"
 
-    # ✅ مرحله جدید: افزایش خودکار version_code
     - name: Update version_code
       run: |
         echo "📌 قبل از تغییر:"
@@ -178,6 +170,35 @@ jobs:
         echo "📌 بعد از تغییر:"
         grep "android.version_code" buildozer.spec
 
+    # ✅ مرحله 1: ایجاد Keystore (قبل از Build)
+    - name: Generate Keystore
+      run: |
+        keytool -genkey -v -keystore keystore.jks \
+          -alias planandroid -keyalg RSA -keysize 2048 -validity 10000 \
+          -storepass 123456 -keypass 123456 \
+          -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=Tehran, ST=Tehran, C=IR"
+        echo "✅ Keystore created successfully"
+        ls -la keystore.jks
+
+    # ✅ مرحله 2: کپی Keystore به مسیر Buildozer
+    - name: Copy keystore to buildozer location
+      run: |
+        mkdir -p .buildozer/android/platform/
+        cp keystore.jks .buildozer/android/platform/planandroid.keystore
+        echo "✅ Keystore copied to buildozer location"
+
+    # ✅ مرحله 3: تنظیم buildozer.spec برای استفاده از Keystore
+    - name: Update buildozer.spec with keystore paths
+      run: |
+        echo "" >> buildozer.spec
+        echo "# Keystore configuration" >> buildozer.spec
+        echo "android.keystore = planandroid.keystore" >> buildozer.spec
+        echo "android.keystore_password = 123456" >> buildozer.spec
+        echo "android.keystore_alias = planandroid" >> buildozer.spec
+        echo "android.keystore_alias_password = 123456" >> buildozer.spec
+        echo "✅ buildozer.spec updated with keystore info"
+        cat buildozer.spec | grep "android.keystore"
+
     - name: Build with Buildozer
       run: |
         echo "y" | buildozer -v android release
@@ -185,13 +206,6 @@ jobs:
         CC: gcc
         CXX: g++
         LD: g++
-
-    - name: Generate Keystore
-      run: |
-        keytool -genkey -v -keystore keystore.jks \
-          -alias myalias -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass password -keypass password \
-          -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=City, S=State, C=IR"
 
     - name: Convert AAB to Signed APK
       run: |
@@ -205,9 +219,9 @@ jobs:
           --output=app.apks \
           --mode=universal \
           --ks=keystore.jks \
-          --ks-pass=pass:password \
-          --ks-key-alias=myalias \
-          --key-pass=pass:password \
+          --ks-pass=pass:123456 \
+          --ks-key-alias=planandroid \
+          --key-pass=pass:123456 \
           --overwrite
         
         unzip -o app.apks -d apk_output
