@@ -6,7 +6,6 @@ import os
 import threading 
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
@@ -180,17 +179,17 @@ class ReportScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
-            row1 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
-            row1.add_widget(self._make_card('روزهای کاری', str(total_days), (0.3, 0.6, 0.6, 1)))
-            row1.add_widget(self._make_card('کل ویزیت‌ها', str(total_visits), (0.6, 0.4, 0.8, 1)))
+            row1 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(6))
+            row1.add_widget(self._make_card('روزهای کاری', f"{total_days:,}", (0.3, 0.6, 0.6, 1)))
+            row1.add_widget(self._make_card('کل ویزیت‌ها', f"{total_visits:,}", (0.6, 0.4, 0.8, 1)))
             content.add_widget(row1)
             
-            row2 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
-            row2.add_widget(self._make_card('فاکتورها', str(total_invoices), (0.3, 0.5, 0.7, 1)))
-            row2.add_widget(self._make_card('واحد فروش', str(total_units), (0.5, 0.3, 0.7, 1)))
+            row2 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(6))
+            row2.add_widget(self._make_card('فاکتورها', f"{total_invoices:,}", (0.3, 0.5, 0.7, 1)))
+            row2.add_widget(self._make_card('واحد فروش', f"{total_units:,}", (0.5, 0.3, 0.7, 1)))
             content.add_widget(row2)
             
-            row3 = BoxLayout(size_hint_y=None, height=dp(65), spacing=dp(6))
+            row3 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(6))
             row3.add_widget(self._make_card('کل مبلغ فروش', f"{total_sales:,}", (0.2, 0.6, 0.3, 1)))
             
             avg_sale = total_sales // total_visits if total_visits > 0 else 0
@@ -231,19 +230,19 @@ class ReportScreen(Screen):
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text=str(summary.get('visited_customers_count', '0')),
+                    text=f"{int(summary.get('visited_customers_count', 0)):,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text=str(summary.get('successful_invoices_count', '0')),
+                    text=f"{int(summary.get('successful_invoices_count', 0)):,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text=str(summary.get('successful_units_count', '0')),
+                    text=f"{int(summary.get('successful_units_count', 0)):,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
@@ -411,9 +410,9 @@ class ReportScreen(Screen):
             orientation='vertical',
             size_hint_x=0.5,
             size_hint_y=None,
-            height=dp(62),
-            padding=dp(6),
-            spacing=dp(2)
+            height=dp(75),
+            padding=dp(8),
+            spacing=dp(4)
         )
         
         with card.canvas.before:
@@ -424,15 +423,15 @@ class ReportScreen(Screen):
         card.add_widget(RTLLabel(
             text=title,
             size_hint_y=None,
-            height=dp(22),
-            font_size=sp(12),
+            height=dp(25),
+            font_size=sp(14),
             color=(1, 1, 1, 1)
         ))
         card.add_widget(RTLLabel(
             text=str(value),
             size_hint_y=None,
-            height=dp(30),
-            font_size=sp(18),
+            height=dp(35),
+            font_size=sp(22),
             bold=True,
             color=(1, 1, 1, 1)
         ))
@@ -444,7 +443,6 @@ class ReportScreen(Screen):
             instance.bg_rect.pos = instance.pos
             instance.bg_rect.size = instance.size
     
-    # ✅ تابع اصلاح شده با اجرا در ترد جداگانه
     def export_excel(self, instance):
         """خروجی اکسل با اجرا در ترد جداگانه"""
         try:
@@ -455,19 +453,17 @@ class ReportScreen(Screen):
                 
                 def show_result(dt):
                     if success:
+                        # ✅ پیام موفقیت ساده بدون مسیر
                         self.show_message(
-                            ' موفق', 
-                            f'فایل اکسل با موفقیت ساخته شد\n\n'
-                            f' مسیر: {result}\n\n'
-                            f' پوشه: {os.path.dirname(result)}\n\n'
-                            f' برای دسترسی به فایل، به پوشه Downloads مراجعه کنید.'
+                            '✅ موفق', 
+                            'فایل اکسل با موفقیت ساخته شد!\n\n'
+                            '📁 فایل در پوشه Downloads ذخیره شد.'
                         )
                     else:
-                        self.show_message(' خطا', f'خطا در ساخت اکسل:\n{result}')
+                        self.show_message('❌ خطا', f'خطا در ساخت اکسل:\n{result}')
                 
                 Clock.schedule_once(show_result, 0)
             
-            # ✅ اجرا در ترد جداگانه
             thread = threading.Thread(target=do_export, daemon=True)
             thread.start()
             
@@ -479,37 +475,28 @@ class ReportScreen(Screen):
         self.manager.current = 'user'
     
     def show_message(self, title, message):
-        """نمایش پیام - نسخه نهایی با محدودیت عرض"""
+        """نمایش پیام - نسخه ساده و کوتاه"""
         try:
             # ✅ محدود کردن طول پیام
-            if len(message) > 300:
-                message = message[:300] + "...\n\n(متن کامل در فایل لاگ موجود است)"
+            if len(message) > 200:
+                message = message[:200] + "..."
             
             # ✅ ساخت محتوای پاپ‌آپ
-            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
-            # ✅ ScrollView برای پیام‌های طولانی
-            scroll = ScrollView(
-                do_scroll_x=False,
-                do_scroll_y=True,
-                size_hint_y=0.8
-            )
-            
-            # ✅ PersianLabel با محدودیت عرض
+            # ✅ پیام کوتاه و ساده
             msg_label = PersianLabel(
                 text=message,
-                font_size=sp(18),
+                font_size=sp(20),
                 color=(255, 255, 255, 255),
                 size_hint_y=None,
-                halign='right',
-                valign='top',
-                width=dp(360),  # ✅ محدود کردن عرض
-                text_size=(dp(360), None)  # ✅ مهم: برای شکستن خطوط
+                halign='center',
+                valign='middle',
+                width=dp(280),
+                text_size=(dp(280), None)
             )
             msg_label.bind(texture_size=msg_label.setter('size'))
-            
-            scroll.add_widget(msg_label)
-            content.add_widget(scroll)
+            content.add_widget(msg_label)
             
             # ✅ دکمه باشه
             btn = PersianButton(
@@ -526,7 +513,7 @@ class ReportScreen(Screen):
             popup = Popup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.5),  # ✅ کاهش ارتفاع
+                size_hint=(0.8, 0.35),
                 auto_dismiss=True
             )
             popup.title_color = (1, 1, 1, 1)
