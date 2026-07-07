@@ -482,8 +482,8 @@ class ReportScreen(Screen):
         """نمایش پیام - نسخه نهایی با محدودیت عرض"""
         try:
             # ✅ محدود کردن طول پیام
-            if len(message) > 400:
-                message = message[:400] + "...\n\n(متن کامل در فایل لاگ موجود است)"
+            if len(message) > 300:
+                message = message[:300] + "...\n\n(متن کامل در فایل لاگ موجود است)"
             
             # ✅ ساخت محتوای پاپ‌آپ
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
@@ -498,15 +498,14 @@ class ReportScreen(Screen):
             # ✅ PersianLabel با محدودیت عرض
             msg_label = PersianLabel(
                 text=message,
-                font_size=sp(18),  # ✅ کاهش font size
+                font_size=sp(18),
                 color=(255, 255, 255, 255),
                 size_hint_y=None,
                 halign='right',
                 valign='top',
-                width=dp(380)  # ✅ محدود کردن عرض به 380dp
+                width=dp(360),  # ✅ محدود کردن عرض
+                text_size=(dp(360), None)  # ✅ مهم: برای شکستن خطوط
             )
-            # ✅ تنظیم text_size با عرض محدود
-            msg_label.text_size = (dp(380), None)
             msg_label.bind(texture_size=msg_label.setter('size'))
             
             scroll.add_widget(msg_label)
@@ -527,7 +526,7 @@ class ReportScreen(Screen):
             popup = Popup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.6),
+                size_hint=(0.9, 0.5),  # ✅ کاهش ارتفاع
                 auto_dismiss=True
             )
             popup.title_color = (1, 1, 1, 1)
