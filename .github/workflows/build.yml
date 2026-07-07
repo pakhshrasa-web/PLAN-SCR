@@ -60,7 +60,7 @@ jobs:
         package.domain = org.pakhshrasa
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
-        version = 0.1.2
+        version = 0.1.3
         requirements = python3,kivy,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
         orientation = portrait
         fullscreen = 1
@@ -142,61 +142,55 @@ jobs:
 
     - name: Copy fonts and data to build directory
       run: |
-        echo "📁 بررسی فایل‌ها قبل از کپی:"
-        ls -la fonts/ || echo "⚠️ پوشه fonts وجود ندارد"
-        ls -la screens/ || echo "⚠️ پوشه screens وجود ندارد"
-        ls -la utils/ || echo "⚠️ پوشه utils وجود ندارد"
+        echo "بررسی فایل‌ها قبل از کپی:"
+        ls -la fonts/ || echo "پوشه fonts وجود ندارد"
+        ls -la screens/ || echo "پوشه screens وجود ندارد"
+        ls -la utils/ || echo "پوشه utils وجود ندارد"
         
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
         
-        echo "📁 کپی فونت‌ها..."
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "⚠️ خطا در کپی فونت‌ها"
+        echo "کپی فونت‌ها..."
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "خطا در کپی فونت‌ها"
         
-        echo "📁 کپی فایل‌های داده..."
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "⚠️ خطا در کپی داده‌ها"
+        echo "کپی فایل‌های داده..."
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "خطا در کپی داده‌ها"
         
-        echo "📁 بررسی فونت‌های کپی شده:"
-        ls -la .buildozer/android/app/fonts/ || echo "⚠️ پوشه fonts خالی است"
+        echo "بررسی فونت‌های کپی شده:"
+        ls -la .buildozer/android/app/fonts/ || echo "پوشه fonts خالی است"
         
-        echo "📁 بررسی داده‌های کپی شده:"
-        ls -la .buildozer/android/app/data/ || echo "⚠️ پوشه data خالی است"
+        echo "بررسی داده‌های کپی شده:"
+        ls -la .buildozer/android/app/data/ || echo "پوشه data خالی است"
 
     - name: Update version_code
       run: |
-        echo "📌 قبل از تغییر:"
+        echo "قبل از تغییر:"
         grep "android.version_code" buildozer.spec
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
-        echo "📌 بعد از تغییر:"
+        echo "بعد از تغییر:"
         grep "android.version_code" buildozer.spec
 
-    # ✅ مرحله 1: ایجاد Keystore (قبل از Build)
-    - name: Generate Keystore
+    - name: Restore Keystore from Secrets
       run: |
-        keytool -genkey -v -keystore keystore.jks \
-          -alias planandroid -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass 123456 -keypass 123456 \
-          -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=Tehran, ST=Tehran, C=IR"
-        echo "✅ Keystore created successfully"
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+        echo "Keystore restored successfully"
         ls -la keystore.jks
 
-    # ✅ مرحله 2: کپی Keystore به مسیر Buildozer
     - name: Copy keystore to buildozer location
       run: |
         mkdir -p .buildozer/android/platform/
         cp keystore.jks .buildozer/android/platform/planandroid.keystore
-        echo "✅ Keystore copied to buildozer location"
+        echo "Keystore copied to buildozer location"
 
-    # ✅ مرحله 3: تنظیم buildozer.spec برای استفاده از Keystore
     - name: Update buildozer.spec with keystore paths
       run: |
         echo "" >> buildozer.spec
         echo "# Keystore configuration" >> buildozer.spec
         echo "android.keystore = planandroid.keystore" >> buildozer.spec
-        echo "android.keystore_password = 123456" >> buildozer.spec
-        echo "android.keystore_alias = planandroid" >> buildozer.spec
-        echo "android.keystore_alias_password = 123456" >> buildozer.spec
-        echo "✅ buildozer.spec updated with keystore info"
+        echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
+        echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
+        echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+        echo "buildozer.spec updated with keystore info"
         cat buildozer.spec | grep "android.keystore"
 
     - name: Build with Buildozer
@@ -219,9 +213,9 @@ jobs:
           --output=app.apks \
           --mode=universal \
           --ks=keystore.jks \
-          --ks-pass=pass:123456 \
-          --ks-key-alias=planandroid \
-          --key-pass=pass:123456 \
+          --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+          --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+          --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
           --overwrite
         
         unzip -o app.apks -d apk_output
