@@ -10,6 +10,7 @@ import os
 
 from utils.persian_text import PersianLabel
 from utils.rtl_widgets import PersianButton
+from utils.storage import get_public_backup_path, get_app_backup_path
 
 
 class BackupFilePicker(BoxLayout):
@@ -76,18 +77,31 @@ class BackupFilePicker(BoxLayout):
         try:
             from kivy.uix.filechooser import FileChooserListView
             from kivy.uix.popup import Popup
-            from utils.storage import get_public_backup_path, get_app_backup_path
             
-            content = BoxLayout(orientation='vertical', spacing=dp(5))
-            
-            # ✅ مسیر پوشه بکاپ
+            # ✅ دریافت مسیر پوشه بکاپ
             if platform == 'android':
                 start_path = get_public_backup_path()
             else:
                 start_path = get_app_backup_path()
             
+            # ✅ ایجاد پوشه اگر وجود نداشت
             if not os.path.exists(start_path):
                 os.makedirs(start_path, exist_ok=True)
+            
+            # ✅ بررسی وجود فایل‌های بکاپ
+            backup_files = [f for f in os.listdir(start_path) 
+                          if f.endswith('.zip') and f.startswith('backup_')]
+            
+            # ✅ اگر فایل بکاپی وجود نداشت، پیام بده
+            if not backup_files:
+                self._update_label('📂 هیچ فایل بکاپی یافت نشد', (200, 150, 50, 255))
+                self._show_message('⚠️ اطلاع', 
+                    'هیچ فایل بکاپی در پوشه یافت نشد.\n\n'
+                    '📁 مسیر: ' + start_path + '\n\n'
+                    '💡 لطفاً ابتدا یک بکاپ ایجاد کنید.')
+                return
+            
+            content = BoxLayout(orientation='vertical', spacing=dp(5))
             
             filechooser = FileChooserListView(
                 path=start_path,
@@ -97,8 +111,9 @@ class BackupFilePicker(BoxLayout):
             )
             content.add_widget(filechooser)
             
+            # ✅ نمایش تعداد فایل‌های بکاپ
             help_label = PersianLabel(
-                text='📌 لطفاً یک فایل بکاپ (.zip) انتخاب کنید',
+                text=f'📌 {len(backup_files)} فایل بکاپ یافت شد',
                 size_hint_y=None,
                 height=dp(30),
                 font_size=sp(14),
@@ -342,6 +357,37 @@ class BackupFilePicker(BoxLayout):
             btn = PersianButton(text='باشه', size_hint_y=None, height=dp(50), background_color=(0.3,0.3,0.3,1), color=(1,1,1,1))
             content.add_widget(btn)
             popup = Popup(title='⚠️ خطا', content=content, size_hint=(0.85, 0.35), auto_dismiss=True)
+            btn.bind(on_press=popup.dismiss)
+            popup.open()
+        Clock.schedule_once(lambda dt: show(), 0)
+    
+    def _show_message(self, title, message):
+        """نمایش پیام اطلاع"""
+        from kivy.uix.popup import Popup
+        def show():
+            content = BoxLayout(orientation='vertical', padding=20, spacing=10)
+            content.add_widget(PersianLabel(
+                text=message, 
+                font_size=sp(16), 
+                color=(255,255,255,255), 
+                size_hint_y=None, 
+                height=dp(120)
+            ))
+            btn = PersianButton(
+                text='باشه', 
+                size_hint_y=None, 
+                height=dp(50), 
+                background_color=(0.2, 0.6, 1, 1), 
+                color=(1,1,1,1)
+            )
+            content.add_widget(btn)
+            popup = Popup(
+                title=title, 
+                content=content, 
+                size_hint=(0.85, 0.4), 
+                auto_dismiss=True
+            )
+            popup.title_color = (1, 1, 1, 1)
             btn.bind(on_press=popup.dismiss)
             popup.open()
         Clock.schedule_once(lambda dt: show(), 0)
