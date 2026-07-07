@@ -9,7 +9,7 @@ from kivy.clock import Clock
 import os
 
 from utils.persian_text import PersianLabel
-from utils.rtl_widgets import PersianButton
+from utils.rtl_widgets import PersianButton, PersianPopup
 
 
 class ImportFilePicker(BoxLayout):
@@ -24,7 +24,7 @@ class ImportFilePicker(BoxLayout):
         self._pending_result = False
         
         self.select_btn = PersianButton(
-            text='📁 انتخاب فایل اکسل',
+            text='انتخاب فایل اکسل',
             size_hint_y=None,
             height=dp(50),
             background_color=(0.2, 0.6, 0.8, 1),
@@ -35,7 +35,7 @@ class ImportFilePicker(BoxLayout):
         self.add_widget(self.select_btn)
         
         self.file_label = PersianLabel(
-            text='📄 هیچ فایلی انتخاب نشده',
+            text='هیچ فایلی انتخاب نشده',
             font_size=sp(16),
             color=(150, 150, 150, 255),
             size_hint_y=None,
@@ -63,9 +63,9 @@ class ImportFilePicker(BoxLayout):
             
             bind(on_activity_result=intent_handler)
             mActivity._import_file_picker_registered = True
-            print("✅ ImportFilePicker: هندلر ثبت شد")
+            print("ImportFilePicker: هندلر ثبت شد")
         except Exception as e:
-            print(f"⚠️ خطا در ثبت هندلر: {e}")
+            print(f"خطا در ثبت هندلر: {e}")
     
     def pick_file(self, instance):
         """باز کردن دیالوگ انتخاب فایل"""
@@ -97,34 +97,34 @@ class ImportFilePicker(BoxLayout):
             ]
             intent.putExtra(Intent.EXTRA_MIME_TYPES, mime_types)
             
-            print("📂 باز کردن انتخابگر اکسل")
+            print("باز کردن انتخابگر اکسل")
             mActivity.startActivityForResult(intent, 3001)
             
         except Exception as e:
-            print(f"❌ خطا در باز کردن انتخابگر: {e}")
+            print(f"خطا در باز کردن انتخابگر: {e}")
             self._show_error(f"خطا: {str(e)}")
     
     def _on_intent_result(self, request_code, result_code, data):
         """دریافت نتیجه انتخاب فایل"""
-        print(f"🔍 _on_intent_result: request={request_code}, result={result_code}")
+        print(f"_on_intent_result: request={request_code}, result={result_code}")
         
         if request_code != 3001 or not self._pending_result:
             return
         self._pending_result = False
         
         if result_code != -1:  # RESULT_OK = -1
-            self._update_label('⚠️ انتخاب لغو شد', (200, 150, 50, 255))
+            self._update_label('انتخاب لغو شد', (200, 150, 50, 255))
             return
         
         if not data:
-            self._update_label('⚠️ داده‌ای دریافت نشد', (200, 50, 50, 255))
+            self._update_label('داده‌ای دریافت نشد', (200, 50, 50, 255))
             return
         
         try:
             # دریافت Uri
             uri = data.getData()
             if not uri:
-                self._update_label('⚠️ URI نامعتبر', (200, 50, 50, 255))
+                self._update_label('URI نامعتبر', (200, 50, 50, 255))
                 return
             
             # دریافت نام فایل
@@ -138,10 +138,10 @@ class ImportFilePicker(BoxLayout):
             if file_path:
                 self._process_file(file_path)
             else:
-                self._update_label('⚠️ خطا در کپی فایل', (200, 50, 50, 255))
+                self._update_label('خطا در کپی فایل', (200, 50, 50, 255))
                 
         except Exception as e:
-            print(f"❌ خطا در پردازش نتیجه: {e}")
+            print(f"خطا در پردازش نتیجه: {e}")
             import traceback
             traceback.print_exc()
             self._show_error(f"خطا: {str(e)}")
@@ -174,7 +174,7 @@ class ImportFilePicker(BoxLayout):
             # باز کردن InputStream از Uri
             input_stream = content_resolver.openInputStream(uri)
             if not input_stream:
-                print("❌ InputStream null")
+                print("InputStream null")
                 return None
             
             # کپی فایل
@@ -190,14 +190,14 @@ class ImportFilePicker(BoxLayout):
             
             # بررسی وجود فایل
             if os.path.exists(dest_path):
-                print(f"✅ فایل کپی شد: {dest_path} ({os.path.getsize(dest_path)} bytes)")
+                print(f"فایل کپی شد: {dest_path} ({os.path.getsize(dest_path)} bytes)")
                 return dest_path
             else:
-                print("❌ فایل کپی نشد")
+                print("فایل کپی نشد")
                 return None
             
         except Exception as e:
-            print(f"❌ خطا در کپی از Uri: {e}")
+            print(f"خطا در کپی از Uri: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -224,7 +224,7 @@ class ImportFilePicker(BoxLayout):
                     filename = cursor.getString(name_index)
                     cursor.close()
                     if filename:
-                        print(f"✅ نام فایل از cursor: {filename}")
+                        print(f"نام فایل از cursor: {filename}")
                         return filename
                 cursor.close()
             
@@ -246,14 +246,14 @@ class ImportFilePicker(BoxLayout):
             # بررسی پسوند
             ext = '.xlsx' if '.xlsx' in filename.lower() else '.xls' if '.xls' in filename.lower() else None
             if ext:
-                print(f"✅ نام فایل از Uri: {filename}")
+                print(f"نام فایل از Uri: {filename}")
                 return filename
             
-            print(f"⚠️ نام فایل معتبر پیدا نشد: {filename}")
+            print(f"نام فایل معتبر پیدا نشد: {filename}")
             return None
             
         except Exception as e:
-            print(f"⚠️ خطا در دریافت نام فایل: {e}")
+            print(f"خطا در دریافت نام فایل: {e}")
             return None
     
     def _pick_file_desktop(self):
@@ -279,13 +279,13 @@ class ImportFilePicker(BoxLayout):
             
             btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(5))
             select_btn = PersianButton(
-                text='✅ انتخاب',
+                text='انتخاب',
                 size_hint_x=0.4,
                 background_color=(0.2, 0.7, 0.2, 1),
                 color=(1,1,1,1)
             )
             cancel_btn = PersianButton(
-                text='❌ انصراف',
+                text='انصراف',
                 size_hint_x=0.4,
                 background_color=(0.8, 0.2, 0.2, 1),
                 color=(1,1,1,1)
@@ -294,8 +294,8 @@ class ImportFilePicker(BoxLayout):
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            popup = Popup(
-                title='📂 انتخاب اکسل',
+            popup = PersianPopup(
+                title='انتخاب اکسل',
                 content=content,
                 size_hint=(0.92, 0.8),
                 auto_dismiss=False
@@ -309,31 +309,31 @@ class ImportFilePicker(BoxLayout):
                         popup.dismiss()
                         self._process_file(file_path)
                     else:
-                        self._update_label('⚠️ فقط فایل‌های اکسل مجازند', (200, 50, 50, 255))
+                        self._update_label('فقط فایل‌های اکسل مجازند', (200, 50, 50, 255))
                 else:
-                    self._update_label('⚠️ هیچ فایلی انتخاب نشد', (200, 150, 50, 255))
+                    self._update_label('هیچ فایلی انتخاب نشد', (200, 150, 50, 255))
             
             select_btn.bind(on_press=on_select)
             cancel_btn.bind(on_press=popup.dismiss)
             popup.open()
             
         except Exception as e:
-            print(f"❌ خطا در انتخابگر دسکتاپ: {e}")
+            print(f"خطا در انتخابگر دسکتاپ: {e}")
             self._show_error(f"خطا: {str(e)}")
     
     def _process_file(self, file_path):
         """پردازش فایل انتخاب شده"""
         if not file_path or not os.path.exists(file_path):
-            self._update_label('⚠️ فایل وجود ندارد', (200, 50, 50, 255))
+            self._update_label('فایل وجود ندارد', (200, 50, 50, 255))
             return
         
         ext = os.path.splitext(file_path)[1].lower()
         if ext not in ['.xlsx', '.xls']:
-            self._update_label('❌ فقط فایل‌های اکسل مجازند', (200, 50, 50, 255))
+            self._update_label('فقط فایل‌های اکسل مجازند', (200, 50, 50, 255))
             return
         
         self.selected_file = file_path
-        self._update_label(f'📊 {os.path.basename(file_path)}', (50, 200, 50, 255))
+        self._update_label(f'{os.path.basename(file_path)}', (50, 200, 50, 255))
         
         if self.on_select:
             Clock.schedule_once(lambda dt: self.on_select(file_path), 0.1)
@@ -370,8 +370,8 @@ class ImportFilePicker(BoxLayout):
                 color=(1,1,1,1)
             )
             content.add_widget(btn)
-            popup = Popup(
-                title='⚠️ خطا',
+            popup = PersianPopup(
+                title='خطا',
                 content=content,
                 size_hint=(0.85, 0.35),
                 auto_dismiss=True
@@ -388,4 +388,4 @@ class ImportFilePicker(BoxLayout):
         """بازنشانی ویجت"""
         self.selected_file = None
         self._pending_result = False
-        self._update_label('📄 هیچ فایلی انتخاب نشده', (150, 150, 150, 255))
+        self._update_label('هیچ فایلی انتخاب نشده', (150, 150, 150, 255))

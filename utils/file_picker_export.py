@@ -23,7 +23,7 @@ class ExportFilePicker(BoxLayout):
         export_path = get_export_path()
         
         self.file_label = PersianLabel(
-            text=f'📁 مسیر خروجی:\n{export_path}',
+            text=f'مسیر خروجی:\n{export_path}',
             font_size=sp(14),
             color=(0.6, 0.8, 0.6, 255),
             size_hint_y=None,

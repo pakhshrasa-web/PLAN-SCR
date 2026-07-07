@@ -2,6 +2,8 @@
 ویجت‌های RTL برای پشتیبانی از متن فارسی
 """
 
+import arabic_reshaper
+from bidi.algorithm import get_display
 from kivy.uix.textinput import TextInput
 from kivy.uix.spinner import Spinner
 from kivy.uix.dropdown import DropDown
@@ -22,6 +24,53 @@ except ImportError:
     HAS_PILLOW = False
 
 
+# ============================================================
+# ✅ تابع کمکی برای اصلاح متن فارسی
+# ============================================================
+
+def fix_persian_text(text):
+    """تبدیل متن فارسی به فرم درست برای نمایش"""
+    if not text:
+        return text
+    try:
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except:
+        return text
+
+
+# ============================================================
+# ✅ PersianPopup - پاپ‌آپ با عنوان فارسی
+# ============================================================
+
+class PersianPopup(Popup):
+    """پاپ‌آپ با عنوان فارسی و فونت اختصاصی"""
+    
+    def __init__(self, **kwargs):
+        # دریافت عنوان
+        title_text = kwargs.pop('title', '')
+        
+        super().__init__(**kwargs)
+        
+        # ✅ اصلاح عنوان با arabic_reshaper و bidi
+        fixed_title = fix_persian_text(title_text)
+        
+        # تنظیم عنوان با فونت فارسی
+        self.title = fixed_title
+        self.title_font = 'PersianFont'
+        self.title_color = (1, 1, 1, 1)
+        self.title_size = sp(22)
+        
+        # اگر عنوان خالی بود، هدر رو مخفی کن
+        if not title_text:
+            self.title_size = 0
+            self.separator_height = 0
+
+
+# ============================================================
+# RTLTextInput
+# ============================================================
+
 class RTLTextInput(BoxLayout):
     """فیلد ورودی با پشتیبانی از RTL"""
     
@@ -35,15 +84,15 @@ class RTLTextInput(BoxLayout):
         self._font_size = kwargs.pop('font_size', sp(32))
         self._input_filter = kwargs.pop('input_filter', None)
         
-        # ✅ تغییر height به 60 (حدود 2.2 سانت)
-        height = kwargs.pop('height', dp(90))
+        # افزایش ارتفاع پیش‌فرض برای نمایش کامل متن
+        height = kwargs.pop('height', dp(100))
         
         super().__init__(**kwargs)
         
         self.orientation = 'vertical'
         self.size_hint_y = None
         self.height = height
-        self.padding = dp(3)  # ✅ افزایش padding برای جا دادن متن
+        self.padding = dp(5)
         
         self.bg_color = (1, 1, 1, 1)
         self.border_color = (0.7, 0.7, 0.7, 1)
@@ -79,7 +128,7 @@ class RTLTextInput(BoxLayout):
             cursor_color=(0.2, 0.5, 0.8, 1),
             halign='right',
             font_name='PersianFont',
-            padding=[dp(10), dp(8), dp(10), dp(8)]  # ✅ افزایش padding داخلی
+            padding=[dp(12), dp(12), dp(12), dp(12)]
         )
         self._hidden_input.bind(text=self._on_text_change)
         self._hidden_input.bind(focus=self._on_focus)
@@ -95,7 +144,7 @@ class RTLTextInput(BoxLayout):
             color=color_rgb,
             size_hint=(1, 1),
             halign='right',
-            valign='middle'  # ✅ وسط‌چین برای نمایش بهتر
+            valign='middle'
         )
         
         self.add_widget(self.label)
@@ -149,6 +198,10 @@ class RTLTextInput(BoxLayout):
         self._on_text_change(self._hidden_input, value)
 
 
+# ============================================================
+# RTLDropdown
+# ============================================================
+
 class RTLDropdown(DropDown):
     """Dropdown سفارشی با PersianLabel"""
     
@@ -175,6 +228,10 @@ class RTLDropdown(DropDown):
         
         super().add_widget(widget, index)
 
+
+# ============================================================
+# RTLSpinner
+# ============================================================
 
 class RTLSpinner(Spinner):
     """Spinner با Dropdown سفارشی"""
@@ -243,20 +300,8 @@ class RTLSpinner(Spinner):
 
 
 # ============================================================
-# ✅ PersianComboBox - با پشتیبانی از bind
+# PersianComboBox
 # ============================================================
-
-import arabic_reshaper
-from bidi.algorithm import get_display
-from kivy.clock import Clock
-
-def fix_persian_text(text):
-    """تبدیل متن فارسی به فرم درست برای نمایش در Kivy"""
-    if not text:
-        return text
-    reshaped = arabic_reshaper.reshape(text)
-    return get_display(reshaped)
-
 
 class PersianComboBox(BoxLayout):
     """کمبوباکس فارسی - نسخه نهایی با arabic_reshaper و پشتیبانی از bind"""
@@ -274,7 +319,6 @@ class PersianComboBox(BoxLayout):
         self.spacing = dp(2)
         self.padding = [dp(2), dp(2), dp(2), dp(2)]
         
-        # ✅ دکمه اصلی
         self.main_btn = Button(
             text=fix_persian_text(self._text),
             font_name='PersianFont',
@@ -289,7 +333,6 @@ class PersianComboBox(BoxLayout):
         )
         self.main_btn.bind(on_release=self._open_popup)
         
-        # کادر
         with self.main_btn.canvas.before:
             Color(1, 1, 1, 1)
             self.bg = RoundedRectangle(
@@ -306,7 +349,6 @@ class PersianComboBox(BoxLayout):
         
         self.main_btn.bind(pos=self._update_rect, size=self._update_rect)
         
-        # فلش
         self.arrow = Label(
             text='▼',
             font_size=sp(20),
@@ -319,17 +361,14 @@ class PersianComboBox(BoxLayout):
         self.add_widget(self.main_btn)
         self.add_widget(self.arrow)
         
-        # observerها
         self._text_observers = []
         self._last_text = self._text
         Clock.schedule_interval(self._check_text_change, 0.1)
         
-        # ✅ ایجاد dropdown
         self._dropdown = None
         Clock.schedule_once(self._init_dropdown, 0.1)
     
     def _init_dropdown(self, dt):
-        """ایجاد dropdown"""
         from kivy.uix.dropdown import DropDown
         self._dropdown = DropDown()
         self._dropdown.background_color = (1, 1, 1, 1)
@@ -341,7 +380,6 @@ class PersianComboBox(BoxLayout):
         self._rebuild_dropdown(0)
     
     def _rebuild_dropdown(self, dt):
-        """بازسازی dropdown با مقادیر جدید"""
         if not hasattr(self, '_dropdown') or not self._dropdown:
             return
         
@@ -374,7 +412,6 @@ class PersianComboBox(BoxLayout):
             self._dropdown.add_widget(btn)
     
     def _check_text_change(self, dt):
-        """بررسی تغییرات text"""
         current = self.main_btn.text
         if current != self._last_text:
             self._last_text = current
@@ -382,7 +419,7 @@ class PersianComboBox(BoxLayout):
                 try:
                     callback(self, current)
                 except Exception as e:
-                    print(f"⚠️ خطا در callback: {e}")
+                    print(f"خطا در callback: {e}")
     
     def _update_rect(self, *args):
         self.bg.pos = self.main_btn.pos
@@ -393,7 +430,6 @@ class PersianComboBox(BoxLayout):
     def _open_popup(self, instance):
         if not self._dropdown:
             return
-        # ✅ بازسازی dropdown قبل از باز کردن
         self._rebuild_dropdown(0)
         self._dropdown.open(self)
     
@@ -430,19 +466,17 @@ class PersianComboBox(BoxLayout):
     @values.setter
     def values(self, value):
         self._values = value
-        # ✅ بازسازی dropdown
         if hasattr(self, '_dropdown') and self._dropdown:
             Clock.schedule_once(self._rebuild_dropdown, 0.1)
 
 
 # ============================================================
-# کلاس‌های کمکی (دست نخورده)
+# RTLLabel
 # ============================================================
 
 class RTLLabel(PersianLabel):
     """RTLLabel - با تبدیل درست رنگ و پشتیبانی از text_size"""
     def __init__(self, **kwargs):
-        # ✅ برداشتن text_size برای ارسال به PersianLabel
         self._text_size = kwargs.pop('text_size', None)
         
         kwargs.pop('bold', None)
@@ -464,12 +498,15 @@ class RTLLabel(PersianLabel):
         
         super().__init__(text=text, font_size=font_size, color=color, **kwargs)
         
-        # ✅ اگر text_size داده شده، اعمال کن
         if self._text_size:
             self.text_size = self._text_size
             self.halign = 'right'
             self.valign = 'top'
 
+
+# ============================================================
+# PersianButton
+# ============================================================
 
 class PersianButton(Button):
     """دکمه با پشتیبانی از متن فارسی"""
@@ -493,7 +530,6 @@ class PersianButton(Button):
             size_hint=(1, 1),
             halign='center',
             valign='middle'
-
         )
         self.add_widget(self.label)
         self.bind(size=self._update_label, pos=self._update_label)
@@ -508,7 +544,7 @@ class PersianButton(Button):
 
 
 # ============================================================
-# ✅ RTLMessageLabel - نسخه اصلاح شده با اسکرول خودکار
+# RTLMessageLabel
 # ============================================================
 
 class RTLMessageLabel(BoxLayout):
@@ -516,7 +552,7 @@ class RTLMessageLabel(BoxLayout):
     
     def __init__(self, **kwargs):
         self._text = kwargs.pop('text', '')
-        self._font_size = kwargs.pop('font_size', sp(24))
+        self._font_size = kwargs.pop('font_size', sp(22))
         self._color = kwargs.pop('color', (1, 1, 1, 1))
         self._max_height = kwargs.pop('height', dp(300))
         
@@ -527,7 +563,6 @@ class RTLMessageLabel(BoxLayout):
         self.height = self._max_height
         self.padding = dp(10)
         
-        # ✅ ScrollView داخلی
         self.scroll = ScrollView(
             do_scroll_x=False,
             do_scroll_y=True,
@@ -536,7 +571,6 @@ class RTLMessageLabel(BoxLayout):
             scroll_type=['bars', 'content']
         )
         
-        # ✅ PersianLabel داخل ScrollView
         color_rgb = tuple(int(c * 255) if c <= 1 else int(c) for c in self._color)
         
         self.label = PersianLabel(
@@ -548,31 +582,24 @@ class RTLMessageLabel(BoxLayout):
             valign='top'
         )
         
-        # ✅ تنظیم ارتفاع بر اساس محتوا
         self.label.bind(texture_size=self._update_label_height)
         
         self.scroll.add_widget(self.label)
         self.add_widget(self.scroll)
     
     def _update_label_height(self, instance, texture_size):
-        """به‌روزرسانی ارتفاع label بر اساس محتوا"""
-        # اگر ارتفاع متن از حداکثر بیشتر بود، اسکرول فعال میشه
         content_height = texture_size[1] + dp(20)
         self.label.height = content_height
         
-        # اگر ارتفاع محتوا کمتر از حداکثر بود، ارتفاع کل رو کم کن
         if content_height < self._max_height:
             self.height = content_height + dp(20)
         else:
             self.height = self._max_height
     
     def set_text(self, text):
-        """تغییر متن"""
         self._text = text
         self.label.set_text(text)
-        # ✅ بعد از تغییر متن، ارتفاع رو دوباره محاسبه کن
         Clock.schedule_once(lambda dt: self._update_label_height(self.label, self.label.texture_size), 0.1)
     
     def get_text(self):
-        """دریافت متن"""
         return self._text
