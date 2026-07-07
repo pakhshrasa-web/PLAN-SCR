@@ -128,7 +128,7 @@ class RTLTextInput(BoxLayout):
             cursor_color=(0.2, 0.5, 0.8, 1),
             halign='right',
             font_name='PersianFont',
-            padding=[dp(12), dp(12), dp(12), dp(12)]
+            padding=[dp(14), dp(14), dp(14), dp(14)]
         )
         self._hidden_input.bind(text=self._on_text_change)
         self._hidden_input.bind(focus=self._on_focus)
