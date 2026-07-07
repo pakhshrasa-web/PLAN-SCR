@@ -60,7 +60,7 @@ jobs:
         package.domain = org.pakhshrasa
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
-        version = 0.1.3
+        version = 0.1.5
         requirements = python3,kivy,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
         orientation = portrait
         fullscreen = 1
