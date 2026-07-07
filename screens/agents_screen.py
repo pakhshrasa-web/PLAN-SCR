@@ -55,6 +55,74 @@ class AgentsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ساخت AgentsScreen: {e}", error_details)
             raise
+
+    def number_to_persian_words(self, number):
+        """تبدیل عدد به حروف فارسی + ریال"""
+        if number == 0:
+            return "صفر ریال"
+        
+        ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه']
+        tens = ['', 'ده', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود']
+        hundreds = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد']
+        groups = ['', 'هزار', 'میلیون', 'میلیارد']
+        
+        def convert_three_digits(num):
+            if num == 0:
+                return ''
+            h = num // 100
+            t = (num % 100) // 10
+            o = num % 10
+            result = []
+            if h > 0:
+                result.append(hundreds[h])
+            if t == 1:
+                if o == 0:
+                    result.append('ده')
+                elif o == 1:
+                    result.append('یازده')
+                elif o == 2:
+                    result.append('دوازده')
+                elif o == 3:
+                    result.append('سیزده')
+                elif o == 4:
+                    result.append('چهارده')
+                elif o == 5:
+                    result.append('پانزده')
+                elif o == 6:
+                    result.append('شانزده')
+                elif o == 7:
+                    result.append('هفده')
+                elif o == 8:
+                    result.append('هجده')
+                elif o == 9:
+                    result.append('نوزده')
+            else:
+                if t > 0:
+                    result.append(tens[t])
+                if o > 0:
+                    result.append(ones[o])
+            return ' و '.join(result)
+        
+        num_str = str(number)
+        group_list = []
+        for i in range(len(num_str), 0, -3):
+            start = max(0, i - 3)
+            group = int(num_str[start:i])
+            group_list.insert(0, group)
+        
+        result_parts = []
+        for i, group in enumerate(group_list):
+            if group == 0:
+                continue
+            group_words = convert_three_digits(group)
+            if group_words:
+                group_name = groups[len(group_list) - 1 - i]
+                if group_name:
+                    result_parts.append(f"{group_words} {group_name}")
+                else:
+                    result_parts.append(group_words)
+        
+        return " و ".join(result_parts) + " ریال"
     
     def _update_bg(self, instance, value):
         self.bg_rect.pos = instance.pos
@@ -896,42 +964,24 @@ class AgentsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ علت فروش ناموفق: {e}", error_details)
     
-    # ============================================================
-    # توابع مربوط به فرمت کردن مبلغ با جداکننده هزارگان
-    # ============================================================
     
-    def _on_amount_text_change(self, instance, value):
-        """فرمت کردن مبلغ با جداکننده هزارگان"""
-        if not value:
-            return
-        
-        # اگر کاربر در حال پاک کردن است، اجازه بده
-        if value == '':
-            return
-        
-        # فقط اعداد را نگه دار (حذف همه چیز به جز اعداد)
-        cleaned = ''.join(filter(str.isdigit, value))
-        
-        if cleaned:
-            try:
-                # تبدیل به عدد و فرمت با جداکننده
-                number = int(cleaned)
-                formatted = f"{number:,}"
-                
-                # جلوگیری از حلقه بی‌نهایت
-                if instance.text != formatted:
-                    # ذخیره موقعیت مکان‌نما
-                    cursor_pos = len(formatted)
-                    instance.text = formatted
-                    # حرکت مکان‌نما به انتها
-                    instance.cursor = (cursor_pos, 0)
-            except ValueError:
-                pass
-        else:
-            # اگر عددی وجود نداشت، 0 نمایش بده
-            if instance.text != '0':
-                instance.text = '0'
-    
+    def _update_amount_label(self, instance, value):
+        """به‌روزرسانی برچسب نمایش مبلغ به حروف"""
+        try:
+            amount = value.strip()
+            if not amount or amount == '0':
+                self.amount_words_label.set_text('صفر ریال')
+                return
+            
+            number = int(amount)
+            words = self.number_to_persian_words(number)
+            self.amount_words_label.set_text(words)
+        except ValueError:
+            self.amount_words_label.set_text('مبلغ نامعتبر')
+        except Exception as e:
+            print(f"خطا در تبدیل عدد به حروف: {e}")
+            self.amount_words_label.set_text('خطا در تبدیل')
+
     def show_success_sales_dialog(self, customer_name):
         """دیالوگ فروش موفق با فیلدهای تعداد، مبلغ و نحوه تسویه"""
         try:
@@ -977,7 +1027,7 @@ class AgentsScreen(Screen):
             self.focusable_fields.append(units_input._hidden_input)
             content.add_widget(units_input)
             
-            # مبلغ فاکتور (با جداکننده هزارگان - بدون input_filter)
+            # مبلغ فاکتور
             content.add_widget(RTLLabel(
                 text='مبلغ فاکتور (ریال):',
                 size_hint_y=None,
@@ -985,13 +1035,13 @@ class AgentsScreen(Screen):
                 font_size=sp(14),
                 color=(1, 1, 1, 1)
             ))
-            
+
             self.amount_input = RTLTextInput(
                 text='0',
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                # input_filter='int',  # ✅ حذف شده
+                input_filter='int',
                 font_size=sp(32)
             )
             self.amount_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -999,10 +1049,21 @@ class AgentsScreen(Screen):
             self.amount_input.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.amount_input._hidden_input.foreground_color = (1, 1, 1, 1)
             self.amount_input._hidden_input.bind(focus=self._on_field_focus)
-            # ✅ اتصال رویداد تغییر متن برای فرمت کردن
-            self.amount_input._hidden_input.bind(text=self._on_amount_text_change)
+            # ✅ اتصال رویداد تغییر متن برای به‌روزرسانی برچسب
+            self.amount_input._hidden_input.bind(text=self._update_amount_label)
             self.focusable_fields.append(self.amount_input._hidden_input)
             content.add_widget(self.amount_input)
+
+            # ✅ برچسب نمایش عدد به حروف (بزرگتر)
+            self.amount_words_label = RTLLabel(
+                text='صفر ریال',
+                size_hint_y=None,
+                height=dp(50),          # ← افزایش ارتفاع
+                font_size=sp(24),       # ← افزایش فونت
+                color=(0.8, 1, 0.8, 1), # ← سبز روشن
+                halign='right'
+            )
+            content.add_widget(self.amount_words_label)
             
             # نحوه تسویه
             content.add_widget(RTLLabel(
@@ -1048,15 +1109,14 @@ class AgentsScreen(Screen):
             popup = PersianPopup(
                 title='ثبت فروش موفق',
                 content=content,
-                size_hint=(0.85, 0.7),
+                size_hint=(0.85, 0.8),  # ✅ افزایش ارتفاع برای جای برچسب
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
             
             def on_submit(instance):
                 units = units_input.text.strip()
-                # ✅ حذف جداکننده‌ها برای تبدیل به عدد
-                amount_raw = self.amount_input.text.replace(',', '').strip()
+                amount = self.amount_input.text.strip()
                 payment = payment_spinner.text
                 
                 # اعتبارسنجی
@@ -1064,13 +1124,13 @@ class AgentsScreen(Screen):
                     ErrorPopup.show_error('لطفاً تعداد واحد فروش را وارد کنید')
                     return
                 
-                if not amount_raw or amount_raw == '0':
+                if not amount or amount == '0':
                     ErrorPopup.show_error('لطفاً مبلغ فاکتور را وارد کنید')
                     return
                 
                 try:
                     units_int = int(units)
-                    amount_int = int(amount_raw)  # ✅ استفاده از مقدار بدون جداکننده
+                    amount_int = int(amount)
                     
                     if units_int <= 0:
                         ErrorPopup.show_error('تعداد واحد فروش باید بیشتر از صفر باشد')
@@ -1088,7 +1148,7 @@ class AgentsScreen(Screen):
                     visit_status='موفق',
                     sales_status='موفق',
                     units_sold=units_int,
-                    sales_amount=amount_int,  # ✅ مقدار عددی بدون جداکننده
+                    sales_amount=amount_int,
                     payment_method=payment
                 )
                 popup.dismiss()

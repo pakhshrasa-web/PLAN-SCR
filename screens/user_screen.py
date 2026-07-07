@@ -913,7 +913,7 @@ class UserScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text='عملیات ذخیره‌سازی به منزلهٔ پایان کار می‌باشد.\nآیا ادامه می دهید؟',
+                text=' عملیات ذخیره سازی به منزلهٔ پایان کار می‌باشد،آیا ادامه می دهید؟',
                 size_hint_y=None,
                 height=dp(70),
                 font_size=sp(16),

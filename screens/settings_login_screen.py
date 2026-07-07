@@ -111,7 +111,7 @@ class SettingsLoginScreen(Screen):
                 text='ورود',
                 background_color=(0.2, 0.6, 1, 1),
                 size_hint_y=None,
-                height=dp(46),
+                height=dp(60),
                 color=(1, 1, 1, 1),
                 font_size=sp(18)
             )
@@ -122,7 +122,7 @@ class SettingsLoginScreen(Screen):
                 text='بازگشت',
                 background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
-                height=dp(46),
+                height=dp(60),
                 color=(1, 1, 1, 1),
                 font_size=sp(18)
             )
