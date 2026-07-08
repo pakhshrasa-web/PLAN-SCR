@@ -14,7 +14,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
-from utils.file_manager import get_routes, get_customers, get_settings, save_daily_log, get_daily_logs
+from utils.file_manager import get_routes, get_customers, get_settings, save_daily_log, get_daily_logs, add_customer
 from utils.jalali_date import get_today_jalali, get_current_time
 from error_handler import ErrorPopup
 
@@ -272,7 +272,7 @@ class AgentsScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== 1️⃣ تاریخ (غیر قابل تغییر) ==========
+            # ========== تاریخ (غیر قابل تغییر) ==========
             content.add_widget(RTLLabel(
                 text='تاریخ:',
                 size_hint_y=None,
@@ -292,7 +292,7 @@ class AgentsScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== 2️⃣ ساعت (غیر قابل تغییر) ==========
+            # ========== ساعت (غیر قابل تغییر) ==========
             content.add_widget(RTLLabel(
                 text='ساعت:',
                 size_hint_y=None,
@@ -312,7 +312,7 @@ class AgentsScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== 3️⃣ مسیر (کمبوباکس) ==========
+            # ========== مسیر (کمبوباکس) ==========
             content.add_widget(RTLLabel(
                 text='انتخاب مسیر:',
                 size_hint_y=None,
@@ -339,7 +339,7 @@ class AgentsScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== 4️⃣ مشتری (کمبوباکس) ==========
+            # ========== مشتری (کمبوباکس) ==========
             content.add_widget(RTLLabel(
                 text='انتخاب مشتری:',
                 size_hint_y=None,
@@ -387,6 +387,18 @@ class AgentsScreen(Screen):
             self.search_input._hidden_input.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.search_input._hidden_input)
             content.add_widget(self.search_input)
+            
+            # ========== دکمه افزودن مشتری جدید ==========
+            add_customer_btn = PersianButton(
+                text='افزودن مشتری جدید',
+                background_color=(0.2, 0.6, 0.2, 1),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            add_customer_btn.bind(on_press=self.show_add_customer_dialog)
+            content.add_widget(add_customer_btn)
             
             # بررسی تغییرات جستجو با Clock
             self._last_search_text = ''
@@ -519,6 +531,245 @@ class AgentsScreen(Screen):
         if value and value not in ['', 'مشتری‌ای یافت نشد']:
             self.selected_customer = value
             self.show_confirm_dialog(value)
+    
+    # ============================================================
+    # دیالوگ افزودن مشتری جدید
+    # ============================================================
+    
+    def show_add_customer_dialog(self, instance):
+        """نمایش دیالوگ افزودن مشتری جدید (مشابه AdminScreen)"""
+        try:
+            from utils.file_manager import get_routes, get_customers, add_customer
+            from utils.jalali_date import get_today_jalali
+
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                           size=lambda i, v: setattr(content_rect, 'size', v))
+
+            # عنوان
+            content.add_widget(RTLLabel(
+                text='افزودن مشتری جدید',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(18),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+
+            # انتخاب مسیر
+            content.add_widget(RTLLabel(
+                text='انتخاب مسیر:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+
+            routes = get_routes()
+            if routes:
+                route_names = [r.get('name', '') for r in routes]
+            else:
+                route_names = ['ابتدا مسیر ایجاد کنید']
+
+            # مسیر پیش‌فرض = مسیر انتخاب شده در صفحه
+            default_route = self.route_spinner.text if self.route_spinner.text else route_names[0]
+
+            customer_route_spinner = PersianComboBox(
+                text=default_route if default_route in route_names else route_names[0],
+                values=route_names,
+                height=dp(55)
+            )
+            customer_route_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            customer_route_spinner.main_btn.color = (1, 1, 1, 1)
+            customer_route_spinner.main_btn.font_size = sp(16)
+            content.add_widget(customer_route_spinner)
+
+            # نام مشتری
+            content.add_widget(RTLLabel(
+                text='نام مشتری:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            customer_name_input = RTLTextInput(
+                hint_text='نام مشتری را وارد کنید',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(24)
+            )
+            customer_name_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_name_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_name_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_name_input)
+
+            # نام فروشگاه
+            content.add_widget(RTLLabel(
+                text='نام فروشگاه:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            customer_store_input = RTLTextInput(
+                hint_text='نام فروشگاه را وارد کنید',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(24)
+            )
+            customer_store_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_store_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_store_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_store_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_store_input)
+
+            # موبایل
+            content.add_widget(RTLLabel(
+                text='موبایل:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            customer_mobile_input = RTLTextInput(
+                hint_text='شماره موبایل را وارد کنید',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(24)
+            )
+            customer_mobile_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_mobile_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_mobile_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_mobile_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_mobile_input)
+
+            # آدرس
+            content.add_widget(RTLLabel(
+                text='آدرس:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            customer_address_input = RTLTextInput(
+                hint_text='آدرس را وارد کنید',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(24)
+            )
+            customer_address_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_address_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_address_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_address_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_address_input)
+
+            # دکمه‌ها
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(45))
+
+            submit_btn = PersianButton(
+                text='افزودن مشتری',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+
+            btn_layout.add_widget(submit_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+
+            popup = PersianPopup(
+                title='افزودن مشتری',
+                content=content,
+                size_hint=(0.9, 0.7),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+
+            def do_add_customer(instance):
+                try:
+                    route_name = customer_route_spinner.text
+                    if route_name == 'ابتدا مسیر ایجاد کنید':
+                        self.show_message('خطا', 'لطفاً ابتدا یک مسیر ایجاد کنید')
+                        return
+
+                    name = customer_name_input.text.strip()
+                    if not name:
+                        self.show_message('خطا', 'نام مشتری الزامی است')
+                        return
+
+                    # ✅ اعتبارسنجی تکراری نبودن مشتری در کل مشتریان
+                    all_customers = get_customers()
+                    for c in all_customers:
+                        if c.get('name', '').strip() == name:
+                            self.show_message('خطا', f'مشتری با نام "{name}" قبلاً ثبت شده است')
+                            return
+
+                    mobile = customer_mobile_input.text.strip()
+                    if mobile:
+                        # اعتبارسنجی موبایل
+                        mobile_clean = mobile.replace(' ', '').replace('-', '').replace('_', '')
+                        if not mobile_clean.isdigit():
+                            self.show_message('خطا', 'شماره موبایل باید فقط شامل عدد باشد')
+                            return
+                        if len(mobile_clean) != 11 or not mobile_clean.startswith('09'):
+                            self.show_message('خطا', 'شماره موبایل باید ۱۱ رقم و با 09 شروع شود')
+                            return
+
+                    customer = {
+                        'name': name,
+                        'store_name': customer_store_input.text.strip(),
+                        'route_name': route_name,
+                        'mobile': mobile,
+                        'address': customer_address_input.text.strip()
+                    }
+                    
+                    add_customer(customer)
+                    popup.dismiss()
+                    
+                    # به‌روزرسانی لیست مشتریان
+                    self.update_customers_list()
+                    self.show_message('موفق', f'مشتری "{name}" با موفقیت اضافه شد')
+                    
+                    # اگر مسیر انتخاب شده در دیالوگ با مسیر فعلی یکی بود، مشتری در لیست نمایش داده میشه
+                    if route_name == self.route_spinner.text:
+                        self.filter_customers('')
+                    
+                except Exception as e:
+                    error_details = traceback.format_exc()
+                    ErrorPopup.show_error(f"خطا در افزودن مشتری: {e}", error_details)
+
+            def cancel_add(instance):
+                popup.dismiss()
+
+            submit_btn.bind(on_press=do_add_customer)
+            cancel_btn.bind(on_press=cancel_add)
+            popup.open()
+
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ افزودن مشتری: {e}", error_details)
+
+    # ============================================================
+    # دیالوگ‌های ویزیت
+    # ============================================================
     
     def show_confirm_dialog(self, customer_name):
         """دیالوگ تأیید ویزیت برای مشتری"""
