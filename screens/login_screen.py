@@ -430,8 +430,11 @@ class LoginScreen(Screen):
         try:
             user = login(self.username.text, self.password.text)
             if user:
-                if user.get('role') == 'مدیر':
+                role = user.get('role', '')
+                if role == 'مدیر' or role == 'سرپرست':
                     self.manager.current = 'admin'
+                elif role == 'سوپروایزر':
+                    self.manager.current = 'supervisor'
                 else:
                     self.manager.current = 'user'
             else:

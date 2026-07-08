@@ -523,7 +523,133 @@ class UserScreen(Screen):
             self.form_layout.add_widget(self.target_sales)
             self.inputs['successful_sales_amount'] = sales_amount
             
-            # ========== 9️⃣ ساعت آخرین ویزیت ==========
+            # ========== 9️⃣ فروش نقدی ==========
+            self.form_layout.add_widget(RTLLabel(
+                text='فروش نقدی',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            cash_sales = RTLTextInput(
+                text='0',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(75),
+                input_filter='int',
+                font_size=sp(32)
+            )
+            cash_sales.bg_color = (0.15, 0.15, 0.15, 1)
+            cash_sales.border_color = (0.3, 0.3, 0.3, 1)
+            cash_sales.border_color_focus = (0.2, 0.5, 0.9, 1)
+            cash_sales._hidden_input.foreground_color = (1, 1, 1, 1)
+            cash_sales._hidden_input.disabled = True
+            self.form_layout.add_widget(cash_sales)
+            
+            target_cash = self.settings.get('target_cash_sales', 30000000)
+            try:
+                target_cash = int(target_cash)
+            except:
+                target_cash = 0
+            self.target_cash = Label(
+                text="{:,}".format(target_cash),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(14),
+                font_name='PersianFont',
+                halign='center',
+                valign='middle',
+                text_size=(dp(120), dp(40))
+            )
+            self.form_layout.add_widget(self.target_cash)
+            self.inputs['cash_sales'] = cash_sales
+            
+            # ========== 🔟 فروش چکی ==========
+            self.form_layout.add_widget(RTLLabel(
+                text='فروش چکی',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            check_sales = RTLTextInput(
+                text='0',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(75),
+                input_filter='int',
+                font_size=sp(32)
+            )
+            check_sales.bg_color = (0.15, 0.15, 0.15, 1)
+            check_sales.border_color = (0.3, 0.3, 0.3, 1)
+            check_sales.border_color_focus = (0.2, 0.5, 0.9, 1)
+            check_sales._hidden_input.foreground_color = (1, 1, 1, 1)
+            check_sales._hidden_input.disabled = True
+            self.form_layout.add_widget(check_sales)
+            
+            target_check = self.settings.get('target_credit_sales', 20000000)
+            try:
+                target_check = int(target_check)
+            except:
+                target_check = 0
+            self.target_check = Label(
+                text="{:,}".format(target_check),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(14),
+                font_name='PersianFont',
+                halign='center',
+                valign='middle',
+                text_size=(dp(120), dp(40))
+            )
+            self.form_layout.add_widget(self.target_check)
+            self.inputs['check_sales'] = check_sales
+            
+            # ========== 1️⃣1️⃣ فروش اعتباری ==========
+            self.form_layout.add_widget(RTLLabel(
+                text='فروش اعتباری',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            credit_sales = RTLTextInput(
+                text='0',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(75),
+                input_filter='int',
+                font_size=sp(32)
+            )
+            credit_sales.bg_color = (0.15, 0.15, 0.15, 1)
+            credit_sales.border_color = (0.3, 0.3, 0.3, 1)
+            credit_sales.border_color_focus = (0.2, 0.5, 0.9, 1)
+            credit_sales._hidden_input.foreground_color = (1, 1, 1, 1)
+            credit_sales._hidden_input.disabled = True
+            self.form_layout.add_widget(credit_sales)
+            
+            target_credit = self.settings.get('target_credit_sales', 20000000)
+            try:
+                target_credit = int(target_credit)
+            except:
+                target_credit = 0
+            self.target_credit = Label(
+                text="{:,}".format(target_credit),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(14),
+                font_name='PersianFont',
+                halign='center',
+                valign='middle',
+                text_size=(dp(120), dp(40))
+            )
+            self.form_layout.add_widget(self.target_credit)
+            self.inputs['credit_sales'] = credit_sales
+            
+            # ========== 1️⃣2️⃣ ساعت آخرین ویزیت ==========
             self.form_layout.add_widget(RTLLabel(
                 text='ساعت آخرین ویزیت',
                 size_hint_y=None,
@@ -559,7 +685,7 @@ class UserScreen(Screen):
             self.form_layout.add_widget(self.target_last_visit)
             self.inputs['last_visit_time'] = last_visit_time
             
-            # ========== 🔟 ساعت پایان کار ==========
+            # ========== 1️⃣3️⃣ ساعت پایان کار ==========
             self.form_layout.add_widget(RTLLabel(
                 text='ساعت پایان کار',
                 size_hint_y=None,
@@ -757,6 +883,9 @@ class UserScreen(Screen):
             total_invoices = 0
             total_units = 0
             total_sales = 0
+            total_cash = 0
+            total_check = 0
+            total_credit = 0
             first_visit_time = None
             last_visit_time = None
             start_time = None
@@ -772,6 +901,9 @@ class UserScreen(Screen):
                     continue
                     
                 visit_status = log.get('visit_status', '')
+                sales_status = log.get('sales_status', '')
+                payment_method = log.get('payment_method', '')
+                sales_amount = log.get('sales_amount', 0)
                 log_time = log.get('time', '')
                 route = log.get('route', '')
                 
@@ -791,11 +923,18 @@ class UserScreen(Screen):
                 if visit_status == 'موفق':
                     total_successful_visits += 1
                     
-                    sales_status = log.get('sales_status', '')
                     if sales_status == 'موفق':
                         total_invoices += 1
                         total_units += log.get('units_sold', 0)
-                        total_sales += log.get('sales_amount', 0)
+                        total_sales += sales_amount
+                        
+                        # محاسبه فروش بر اساس نوع تسویه
+                        if payment_method == 'نقد':
+                            total_cash += sales_amount
+                        elif payment_method == 'چک':
+                            total_check += sales_amount
+                        elif payment_method == 'اعتباری':
+                            total_credit += sales_amount
             
             # ذخیره مسیر
             if selected_route:
@@ -824,6 +963,11 @@ class UserScreen(Screen):
             self.inputs['successful_invoices_count'].text = str(total_invoices)
             self.inputs['successful_units_count'].text = str(total_units)
             self.inputs['successful_sales_amount'].text = f"{total_sales:,}"
+            
+            # فروش نقدی، چکی و اعتباری
+            self.inputs['cash_sales'].text = f"{total_cash:,}"
+            self.inputs['check_sales'].text = f"{total_check:,}"
+            self.inputs['credit_sales'].text = f"{total_credit:,}"
             
             if last_visit_time:
                 self.inputs['last_visit_time'].text = last_visit_time
@@ -913,7 +1057,7 @@ class UserScreen(Screen):
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
-                text=' عملیات ذخیره سازی به منزلهٔ پایان کار می‌باشد،آیا ادامه می دهید؟',
+                text='عملیات ذخیره‌سازی به منزلهٔ پایان کار می‌باشد، آیا ادامه می‌دهید؟',
                 size_hint_y=None,
                 height=dp(70),
                 font_size=sp(16),
@@ -972,7 +1116,7 @@ class UserScreen(Screen):
             for key, input_field in self.inputs.items():
                 if key == 'route_name':
                     log_data[key] = self.current_route
-                elif key == 'successful_sales_amount':
+                elif key in ['successful_sales_amount', 'cash_sales', 'check_sales', 'credit_sales']:
                     value = input_field.text.replace(',', '')
                     log_data[key] = value
                 else:

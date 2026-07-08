@@ -1017,7 +1017,7 @@ class AgentsScreen(Screen):
                 size_hint_y=None,
                 height=dp(70),
                 input_filter='int',
-                font_size=sp(32)
+                font_size=sp(22)
             )
             units_input.bg_color = (0.15, 0.15, 0.15, 1)
             units_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -1042,7 +1042,7 @@ class AgentsScreen(Screen):
                 size_hint_y=None,
                 height=dp(70),
                 input_filter='int',
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.amount_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.amount_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -1059,7 +1059,7 @@ class AgentsScreen(Screen):
                 text='صفر ریال',
                 size_hint_y=None,
                 height=dp(50),          # ← افزایش ارتفاع
-                font_size=sp(24),       # ← افزایش فونت
+                font_size=sp(72),       # ← افزایش فونت
                 color=(0.8, 1, 0.8, 1), # ← سبز روشن
                 halign='right'
             )

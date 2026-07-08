@@ -15,12 +15,20 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from kivy.uix.button import Button
+from kivy.uix.checkbox import CheckBox
 
 from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInput
 from utils.persian_text import PersianLabel
 from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path, get_settings
 from utils.excel_exporter import export_to_excel
 from utils.jalali_date import get_today_jalali
+from utils.file_cleaner import (
+    get_excel_files_info,
+    delete_files,
+    delete_old_files,
+    get_total_size,
+    get_file_stats
+)
 from error_handler import ErrorPopup
 
 
@@ -34,6 +42,8 @@ class ReportScreen(Screen):
                 self.bind(pos=self._update_bg, size=self._update_bg)
             self.current_tab = 0
             self.settings = get_settings()
+            self.selected_files = {}  # برای ذخیره وضعیت انتخاب فایل‌ها
+            self.history_popup = None  # برای دسترسی به popup تاریخچه
             self.build_ui()
         except Exception as e:
             error_details = traceback.format_exc()
@@ -564,17 +574,8 @@ class ReportScreen(Screen):
     
     def show_history_dialog(self, instance):
         try:
-            from utils.storage import get_backup_path
-            
-            backup_path = get_backup_path()
-            excel_files = []
-            
-            if os.path.exists(backup_path):
-                for file in os.listdir(backup_path):
-                    if file.endswith('.xlsx') and file.startswith('گزارش_فروش_'):
-                        excel_files.append(file)
-            
-            excel_files.sort(reverse=True)
+            # دریافت لیست فایل‌ها با اطلاعات کامل
+            excel_files = get_excel_files_info(limit=50)
             
             content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
             with content.canvas.before:
@@ -583,8 +584,14 @@ class ReportScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
+            # عنوان + آمار
+            stats = get_file_stats()
+            title_text = 'تاریخچه گزارشات'
+            if stats['count'] > 0:
+                title_text += f' ({stats["count"]} فایل - {stats["total_size_mb"]} MB)'
+            
             content.add_widget(RTLLabel(
-                text='تاریخچه گزارشات',
+                text=title_text,
                 size_hint_y=None,
                 height=dp(35),
                 font_size=sp(18),
@@ -601,11 +608,11 @@ class ReportScreen(Screen):
                     color=(0.5, 0.5, 0.5, 1)
                 ))
             else:
-                # لیست فایل‌ها با ScrollView
+                # لیست فایل‌ها با چک‌باکس
                 scroll = ScrollView(
                     do_scroll_x=False,
                     do_scroll_y=True,
-                    size_hint_y=0.7
+                    size_hint_y=0.6
                 )
                 
                 list_content = GridLayout(
@@ -616,7 +623,10 @@ class ReportScreen(Screen):
                 )
                 list_content.bind(minimum_height=list_content.setter('height'))
                 
-                for file_name in excel_files:
+                # ریست دیکشنری انتخاب فایل‌ها
+                self.selected_files = {}
+                
+                for file_info in excel_files:
                     file_box = BoxLayout(
                         size_hint_y=None,
                         height=dp(45),
@@ -624,10 +634,24 @@ class ReportScreen(Screen):
                         padding=[dp(5), dp(2), dp(5), dp(2)]
                     )
                     
-                    # برچسب نام فایل
+                    # چک‌باکس انتخاب
+                    check = CheckBox(
+                        size_hint_x=0.1,
+                        size_hint_y=None,
+                        height=dp(40),
+                        color=(0.4, 0.7, 1, 1)
+                    )
+                    check.active = False
+                    check.bind(active=lambda checkbox, value, fp=file_info['path']: self._toggle_file_selection(fp, value))
+                    file_box.add_widget(check)
+                    
+                    # ذخیره وضعیت انتخاب
+                    self.selected_files[file_info['path']] = False
+                    
+                    # برچسب نام فایل با تاریخ و حجم
                     file_label = RTLLabel(
-                        text=file_name,
-                        size_hint_x=0.7,
+                        text=f"{file_info['date']} ({file_info['size_kb']} KB)",
+                        size_hint_x=0.6,
                         size_hint_y=None,
                         height=dp(40),
                         font_size=sp(14),
@@ -636,7 +660,7 @@ class ReportScreen(Screen):
                     )
                     file_box.add_widget(file_label)
                     
-                    # دکمه ارسال
+                    # دکمه ارسال (تک فایل)
                     send_btn = PersianButton(
                         text='ارسال',
                         size_hint_x=0.3,
@@ -646,14 +670,70 @@ class ReportScreen(Screen):
                         color=(1, 1, 1, 1),
                         font_size=sp(14)
                     )
-                    file_path = os.path.join(backup_path, file_name)
-                    send_btn.bind(on_press=lambda x, fp=file_path: self._share_file(fp))
+                    send_btn.bind(on_press=lambda x, fp=file_info['path']: self._share_file(fp))
                     file_box.add_widget(send_btn)
                     
                     list_content.add_widget(file_box)
                 
                 scroll.add_widget(list_content)
                 content.add_widget(scroll)
+            
+            # ========== دکمه‌های پایین ==========
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            
+            # دکمه انتخاب همه
+            select_all_btn = PersianButton(
+                text='✓ انتخاب همه',
+                background_color=(0.2, 0.5, 0.8, 1),
+                size_hint_x=0.25,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            select_all_btn.bind(on_press=self._select_all_files)
+            btn_layout.add_widget(select_all_btn)
+            
+            # دکمه حذف انتخابی
+            delete_selected_btn = PersianButton(
+                text='🗑 حذف انتخابی',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_x=0.25,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            delete_selected_btn.bind(on_press=self._delete_selected_files)
+            btn_layout.add_widget(delete_selected_btn)
+            
+            # دکمه پاکسازی فایل‌های قدیمی
+            clean_old_btn = PersianButton(
+                text='🧹 حذف قدیمی‌ها',
+                background_color=(0.7, 0.4, 0.1, 1),
+                size_hint_x=0.25,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            clean_old_btn.bind(on_press=self._clean_old_files)
+            btn_layout.add_widget(clean_old_btn)
+            
+            # دکمه باز کردن پوشه
+            folder_btn = PersianButton(
+                text='📁 باز کردن',
+                background_color=(0.2, 0.5, 0.7, 1),
+                size_hint_x=0.25,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            folder_btn.bind(on_press=self._open_backup_folder)
+            btn_layout.add_widget(folder_btn)
+            
+            content.add_widget(btn_layout)
             
             # دکمه بستن
             close_btn = PersianButton(
@@ -669,10 +749,13 @@ class ReportScreen(Screen):
             popup = PersianPopup(
                 title='تاریخچه',
                 content=content,
-                size_hint=(0.92, 0.7),
+                size_hint=(0.92, 0.75),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
+            
+            # ذخیره popup برای دسترسی در توابع دیگر
+            self.history_popup = popup
             
             close_btn.bind(on_press=popup.dismiss)
             popup.open()
@@ -680,6 +763,310 @@ class ReportScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تاریخچه: {e}", error_details)
+    
+    # ============================================================
+    # توابع مدیریت انتخاب و حذف فایل‌ها
+    # ============================================================
+    
+    def _toggle_file_selection(self, file_path, value):
+        """تغییر وضعیت انتخاب فایل"""
+        if hasattr(self, 'selected_files'):
+            self.selected_files[file_path] = value
+    
+    def _select_all_files(self, instance):
+        """انتخاب همه فایل‌ها"""
+        if not hasattr(self, 'selected_files') or not self.selected_files:
+            self.show_message('توجه', 'هیچ فایلی برای انتخاب وجود ندارد')
+            return
+        
+        # به‌روزرسانی وضعیت همه فایل‌ها
+        for path in self.selected_files.keys():
+            self.selected_files[path] = True
+        
+        # به‌روزرسانی UI
+        self._update_checkboxes(True)
+        
+        # نمایش پیام
+        self.show_message('توجه', f'{len(self.selected_files)} فایل انتخاب شد')
+    
+    def _update_checkboxes(self, value):
+        """به‌روزرسانی وضعیت چک‌باکس‌ها"""
+        try:
+            if hasattr(self, 'history_popup') and self.history_popup:
+                popup = self.history_popup
+                # جستجوی چک‌باکس‌ها در محتوای popup
+                for child in popup.content.children:
+                    if hasattr(child, 'children'):
+                        for box in child.children:
+                            if hasattr(box, 'children'):
+                                for item in box.children:
+                                    if isinstance(item, CheckBox):
+                                        item.active = value
+        except Exception as e:
+            print(f"خطا در به‌روزرسانی چک‌باکس‌ها: {e}")
+    
+    def _delete_selected_files(self, instance):
+        """حذف فایل‌های انتخاب شده"""
+        try:
+            # پیدا کردن فایل‌های انتخاب شده
+            selected = [path for path, selected in self.selected_files.items() if selected]
+            
+            if not selected:
+                self.show_message('توجه', 'هیچ فایلی انتخاب نشده است')
+                return
+            
+            # دیالوگ تایید
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            
+            content.add_widget(RTLLabel(
+                text=f'آیا از حذف {len(selected)} فایل انتخاب شده اطمینان دارید؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(1, 1, 1, 1)
+            ))
+            
+            # نمایش لیست فایل‌ها
+            scroll = ScrollView(size_hint_y=0.4, do_scroll_x=False)
+            list_content = GridLayout(cols=1, spacing=dp(2), size_hint_y=None)
+            list_content.bind(minimum_height=list_content.setter('height'))
+            
+            for path in selected[:10]:  # حداکثر 10 فایل نمایش داده شود
+                list_content.add_widget(RTLLabel(
+                    text=os.path.basename(path),
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+            
+            if len(selected) > 10:
+                list_content.add_widget(RTLLabel(
+                    text=f'... و {len(selected) - 10} فایل دیگر',
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+            
+            scroll.add_widget(list_content)
+            content.add_widget(scroll)
+            
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            
+            confirm_btn = PersianButton(
+                text='حذف',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(confirm_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='تایید حذف',
+                content=content,
+                size_hint=(0.85, 0.6),
+                auto_dismiss=True
+            )
+            
+            def do_delete(instance):
+                popup.dismiss()
+                # اجرای حذف در thread جداگانه
+                def delete_thread():
+                    deleted, failed = delete_files(selected)
+                    Clock.schedule_once(lambda dt: self._on_delete_complete(deleted, failed), 0.1)
+                
+                thread = threading.Thread(target=delete_thread, daemon=True)
+                thread.start()
+            
+            confirm_btn.bind(on_press=do_delete)
+            cancel_btn.bind(on_press=popup.dismiss)
+            
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در حذف فایل‌ها: {e}", error_details)
+    
+    def _on_delete_complete(self, deleted, failed):
+        """پس از اتمام حذف فایل‌ها"""
+        try:
+            # نمایش پیام نتیجه
+            message = f"{deleted} فایل با موفقیت حذف شد"
+            if failed > 0:
+                message += f"\n{failed} فایل حذف نشد"
+            
+            self.show_message('نتیجه حذف', message)
+            
+            # بستن popup تاریخچه و باز کردن مجدد برای به‌روزرسانی
+            if hasattr(self, 'history_popup'):
+                try:
+                    self.history_popup.dismiss()
+                except:
+                    pass
+            
+            # باز کردن مجدد تاریخچه
+            Clock.schedule_once(lambda dt: self.show_history_dialog(None), 0.3)
+            
+        except Exception as e:
+            print(f"خطا در نمایش نتیجه حذف: {e}")
+    
+    def _clean_old_files(self, instance):
+        """پاکسازی فایل‌های قدیمی‌تر از ۳۰ روز"""
+        try:
+            # دیالوگ تایید
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            
+            content.add_widget(RTLLabel(
+                text='آیا از حذف فایل‌های قدیمی‌تر از ۳۰ روز اطمینان دارید؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(1, 1, 1, 1)
+            ))
+            
+            # نمایش آمار
+            stats = get_file_stats()
+            if stats['count'] > 0:
+                content.add_widget(RTLLabel(
+                    text=f'تعداد کل: {stats["count"]} فایل\nحجم کل: {stats["total_size_mb"]} MB',
+                    size_hint_y=None,
+                    height=dp(50),
+                    font_size=sp(14),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+            
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            
+            confirm_btn = PersianButton(
+                text='بله، پاکسازی کن',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(confirm_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='پاکسازی فایل‌های قدیمی',
+                content=content,
+                size_hint=(0.85, 0.5),
+                auto_dismiss=True
+            )
+            
+            def do_clean(instance):
+                popup.dismiss()
+                # اجرای پاکسازی در thread جداگانه
+                def clean_thread():
+                    deleted, failed = delete_old_files(days=30)
+                    Clock.schedule_once(
+                        lambda dt: self._on_clean_complete(deleted, failed), 0.1
+                    )
+                
+                thread = threading.Thread(target=clean_thread, daemon=True)
+                thread.start()
+            
+            confirm_btn.bind(on_press=do_clean)
+            cancel_btn.bind(on_press=popup.dismiss)
+            
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در پاکسازی: {e}", error_details)
+    
+    def _on_clean_complete(self, deleted, failed):
+        """پس از اتمام پاکسازی"""
+        try:
+            if deleted > 0:
+                message = f'{deleted} فایل قدیمی حذف شد'
+                if failed > 0:
+                    message += f'\n{failed} فایل حذف نشد'
+                self.show_message('پاکسازی انجام شد', message)
+            else:
+                self.show_message('پاکسازی انجام شد', 'هیچ فایل قدیمی یافت نشد')
+            
+            # به‌روزرسانی تاریخچه
+            if hasattr(self, 'history_popup'):
+                try:
+                    self.history_popup.dismiss()
+                except:
+                    pass
+            
+            Clock.schedule_once(lambda dt: self.show_history_dialog(None), 0.3)
+            
+        except Exception as e:
+            print(f"خطا در نمایش نتیجه پاکسازی: {e}")
+    
+    def _open_backup_folder(self, instance):
+        """باز کردن پوشه بکاپ"""
+        try:
+            from utils.storage import get_backup_path
+            from kivy.utils import platform
+            
+            backup_path = get_backup_path()
+            if not os.path.exists(backup_path):
+                self.show_message('خطا', 'پوشه بکاپ وجود ندارد')
+                return
+            
+            if platform == 'android':
+                try:
+                    from android import mActivity
+                    from jnius import autoclass
+                    
+                    Intent = autoclass('android.content.Intent')
+                    Uri = autoclass('android.net.Uri')
+                    File = autoclass('java.io.File')
+                    
+                    intent = Intent()
+                    intent.setAction(Intent.ACTION_VIEW)
+                    uri = Uri.fromFile(File(backup_path))
+                    intent.setDataAndType(uri, 'resource/folder')
+                    mActivity.startActivity(intent)
+                except Exception as e:
+                    self.show_message('خطا', f'امکان باز کردن پوشه وجود ندارد:\n{e}')
+            else:
+                import subprocess
+                if platform == 'win':
+                    os.startfile(backup_path)
+                elif platform == 'linux':
+                    subprocess.Popen(['xdg-open', backup_path])
+                elif platform == 'macosx':
+                    subprocess.Popen(['open', backup_path])
+                
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در باز کردن پوشه: {e}")
     
     # ============================================================
     # ارسال فایل
