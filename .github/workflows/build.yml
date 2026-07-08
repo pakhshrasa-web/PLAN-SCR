@@ -61,7 +61,7 @@ jobs:
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
 
-    - name: Clean and use NDK 25b
+    - name: Clean NDK 28c
       run: |
         rm -rf ~/.buildozer/android/platform/android-ndk-r28c
         rm -rf .buildozer/android/platform/android-ndk-r28c
@@ -78,7 +78,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf
         version = 0.1.5
-        requirements = python3,kivy,kivymd,pyjnius,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
+        requirements = python3==3.10.0,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.1,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
         orientation = portrait
         fullscreen = 0
         python3 = True
@@ -105,6 +105,7 @@ jobs:
         android.gradle_version = 8.4
         android.manifest.extra = <application android:enableOnBackInvokedCallback="true" />
 
+        android.version_code = 1
         android.debug = False
         android.release = True
         EOF
@@ -164,29 +165,56 @@ jobs:
 
     - name: Copy fonts and data to build directory
       run: |
+        echo "بررسی فایل‌ها قبل از کپی:"
+        ls -la fonts/ || echo "پوشه fonts وجود ندارد"
+        ls -la screens/ || echo "پوشه screens وجود ندارد"
+        ls -la utils/ || echo "پوشه utils وجود ندارد"
+        
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "No fonts to copy"
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "No data to copy"
+        
+        echo "کپی فونت‌ها..."
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "خطا در کپی فونت‌ها"
+        
+        echo "کپی فایل‌های داده..."
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "خطا در کپی داده‌ها"
+        
+        echo "بررسی فونت‌های کپی شده:"
+        ls -la .buildozer/android/app/fonts/ || echo "پوشه fonts خالی است"
+        
+        echo "بررسی داده‌های کپی شده:"
+        ls -la .buildozer/android/app/data/ || echo "پوشه data خالی است"
 
     - name: Update version_code
       run: |
+        echo "قبل از تغییر:"
+        grep "android.version_code" buildozer.spec
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
-        echo "Version Code updated to ${{ github.run_number }}"
+        echo "بعد از تغییر:"
+        grep "android.version_code" buildozer.spec
 
-    - name: Restore Keystore
+    - name: Restore Keystore from Secrets
       run: |
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+        echo "Keystore restored successfully"
+        ls -la keystore.jks
+
+    - name: Copy keystore to buildozer location
+      run: |
         mkdir -p .buildozer/android/platform/
         cp keystore.jks .buildozer/android/platform/planandroid.keystore
+        echo "Keystore copied to buildozer location"
 
-    - name: Update buildozer.spec with keystore
+    - name: Update buildozer.spec with keystore paths
       run: |
         echo "" >> buildozer.spec
+        echo "# Keystore configuration" >> buildozer.spec
         echo "android.keystore = planandroid.keystore" >> buildozer.spec
         echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+        echo "buildozer.spec updated with keystore info"
+        cat buildozer.spec | grep "android.keystore"
 
     - name: Build with Buildozer
       run: |
@@ -196,9 +224,11 @@ jobs:
         CXX: g++
         LD: g++
 
-    - name: Convert AAB to APK
+    - name: Convert AAB to Signed APK
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
+        echo "Found AAB: $AAB_FILE"
+        
         wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
         
         java -jar bundletool.jar build-apks \
