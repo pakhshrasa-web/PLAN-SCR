@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 360  # ✅ افزایش به ۶ ساعت
+    timeout-minutes: 360
 
     steps:
     - name: Checkout code
@@ -19,7 +19,6 @@ jobs:
       with:
         python-version: '3.10'
 
-    # ✅ افزودن کش برای سرعت بخشیدن به بیلدهای بعدی
     - name: Cache Buildozer
       uses: actions/cache@v3
       with:
@@ -81,7 +80,7 @@ jobs:
         warn_on_root = 1
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r28c
         android.api = 33
         android.minapi = 21
         android.ndk = 28c
