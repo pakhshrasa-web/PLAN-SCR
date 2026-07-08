@@ -28,7 +28,8 @@ from screens import (
     ReportScreen,
     SettingsLoginScreen,
     DebugScreen,
-    AgentsScreen
+    AgentsScreen,
+    SupervisorScreen
 )
 
 # ========== تنظیم فونت ==========
@@ -161,6 +162,7 @@ class MainApp(App):
             sm.add_widget(SettingsLoginScreen(name='settings_login'))
             sm.add_widget(DebugScreen(name='debug'))
             sm.add_widget(AgentsScreen(name='agents'))
+            sm.add_widget(SupervisorScreen(name='supervisor'))
 
             Window.bind(on_keyboard=self.on_keyboard)
             
@@ -189,6 +191,9 @@ class MainApp(App):
             elif current_screen == 'admin':
                 self.root.current = 'login'
                 return True
+            elif current_screen == 'supervisor':
+                self.root.current = 'login'
+                return True
             elif current_screen == 'user':
                 self.root.current = 'login'
                 return True
@@ -197,6 +202,9 @@ class MainApp(App):
                 return True
             elif current_screen == 'debug':
                 self.root.current = 'login'
+                return True
+            elif current_screen == 'agents':
+                self.root.current = 'user'
                 return True
         
         return False
@@ -232,7 +240,8 @@ class MainApp(App):
                 'daily_log.json': {},
                 'users.json': {'users': []},
                 'codes.json': {'codes': []},
-                'admin_password.json': {'hashed_password': hashed_default}
+                'admin_password.json': {'hashed_password': hashed_default},
+                'targets.json': []
             }
             
             from utils.storage import get_data_path
