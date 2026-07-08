@@ -279,6 +279,37 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type
         import traceback
         traceback.print_exc()
         return None
+    
+# utils/storage.py - اضافه کن
+
+def delete_old_backup_files(days=30):
+    """حذف فایل‌های اکسل قدیمی‌تر از تعداد روز مشخص"""
+    try:
+        backup_path = get_backup_path()
+        if not os.path.exists(backup_path):
+            return 0
+        
+        now = time.time()
+        deleted_count = 0
+        cutoff_time = now - (days * 86400)
+        
+        for file in os.listdir(backup_path):
+            if file.endswith('.xlsx') and file.startswith('گزارش_فروش_'):
+                file_path = os.path.join(backup_path, file)
+                try:
+                    if os.path.getmtime(file_path) < cutoff_time:
+                        os.remove(file_path)
+                        deleted_count += 1
+                        logger.info(f"🗑️ فایل قدیمی حذف شد: {file}")
+                except Exception as e:
+                    logger.error(f"❌ خطا در حذف فایل {file}: {e}")
+                    continue
+        
+        return deleted_count
+        
+    except Exception as e:
+        logger.error(f"❌ خطا در حذف فایل‌های قدیمی: {e}")
+        return 0
 
 def _extract_filename_from_uri(uri, file_type='excel'):
     """
