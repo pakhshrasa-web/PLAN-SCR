@@ -1,6 +1,3 @@
-
-
-```python
 # screens/supervisor_screen.py
 # ========== صفحه سوپروایزر ==========
 
@@ -184,7 +181,7 @@ class SupervisorScreen(Screen):
             elif tab_id == 1:
                 self.show_fulfillment_tab()
             elif tab_id == 2:
-                self.show_market_check_tab()
+                self.show_market_check_tab()  # ← تب بررسی بازار
             elif tab_id == 3:
                 self.show_reports_tab()
 
@@ -702,7 +699,7 @@ class SupervisorScreen(Screen):
             ErrorPopup.show_error(f"خطا در خروجی اکسل: {e}", error_details)
 
     def _populate_targets_list(self, list_content, targets):
-        """پر کردن لیست تارگت‌ها با دکمه‌های ویرایش و حذف"""
+        """پر کردن لیست تارگت‌ها"""
         try:
             if not targets:
                 list_content.add_widget(RTLLabel(
@@ -729,7 +726,7 @@ class SupervisorScreen(Screen):
                 box = BoxLayout(
                     orientation='vertical',
                     size_hint_y=None,
-                    height=dp(130),
+                    height=dp(100),
                     spacing=dp(3),
                     padding=[dp(8), dp(6), dp(8), dp(6)]
                 )
@@ -775,400 +772,21 @@ class SupervisorScreen(Screen):
                 box.add_widget(row2)
 
                 # ردیف سوم: مقدار محقق شده
-                row3 = BoxLayout(size_hint_y=None, height=dp(25))
-                achieved = target.get('achieved_value', 0)
-                if achieved > 0:
+                if target.get('achieved_value', 0) > 0:
+                    row3 = BoxLayout(size_hint_y=None, height=dp(25))
                     row3.add_widget(RTLLabel(
-                        text=f"محقق شده: {achieved:,}",
+                        text=f"محقق شده: {target.get('achieved_value', 0):,}",
                         size_hint_x=1,
                         font_size=sp(14),
                         color=(0.2, 0.8, 0.2, 1)
                     ))
-                else:
-                    row3.add_widget(RTLLabel(
-                        text="محقق شده: ۰",
-                        size_hint_x=1,
-                        font_size=sp(14),
-                        color=(0.5, 0.5, 0.5, 1)
-                    ))
-                box.add_widget(row3)
-
-                # ردیف چهارم: دکمه‌ها
-                row4 = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(5))
-
-                # دکمه ویرایش (فقط اگر قابل ویرایش باشد)
-                if can_edit_target(target):
-                    edit_btn = PersianButton(
-                        text='ویرایش',
-                        size_hint_x=0.33,
-                        size_hint_y=None,
-                        height=dp(30),
-                        background_color=(0.8, 0.6, 0.2, 1),
-                        color=(1, 1, 1, 1),
-                        font_size=sp(13)
-                    )
-                    edit_btn.bind(on_press=lambda x, t=target: self._edit_target(t))
-                    row4.add_widget(edit_btn)
-                else:
-                    edit_btn = PersianButton(
-                        text='ویرایش',
-                        size_hint_x=0.33,
-                        size_hint_y=None,
-                        height=dp(30),
-                        background_color=(0.3, 0.3, 0.3, 1),
-                        color=(0.5, 0.5, 0.5, 1),
-                        font_size=sp(13),
-                        disabled=True
-                    )
-                    row4.add_widget(edit_btn)
-
-                # دکمه حذف (فقط اگر نهایی نشده باشد)
-                if status != 'تکمیل شده':
-                    delete_btn = PersianButton(
-                        text='حذف',
-                        size_hint_x=0.33,
-                        size_hint_y=None,
-                        height=dp(30),
-                        background_color=(0.8, 0.2, 0.2, 1),
-                        color=(1, 1, 1, 1),
-                        font_size=sp(13)
-                    )
-                    delete_btn.bind(on_press=lambda x, t=target: self._delete_target(t))
-                    row4.add_widget(delete_btn)
-                else:
-                    delete_btn = PersianButton(
-                        text='حذف',
-                        size_hint_x=0.33,
-                        size_hint_y=None,
-                        height=dp(30),
-                        background_color=(0.3, 0.3, 0.3, 1),
-                        color=(0.5, 0.5, 0.5, 1),
-                        font_size=sp(13),
-                        disabled=True
-                    )
-                    row4.add_widget(delete_btn)
-
-                # دکمه خالی برای تعادل
-                row4.add_widget(Label(size_hint_x=0.34))
-
-                box.add_widget(row4)
+                    box.add_widget(row3)
 
                 list_content.add_widget(box)
 
         except Exception as e:
             print(f"خطا در پر کردن لیست تارگت‌ها: {e}")
 
-    def _edit_target(self, target):
-        """نمایش دیالوگ ویرایش تارگت"""
-        try:
-            from constants import TARGET_TYPES, TARGET_STATUSES
-
-            if not can_edit_target(target):
-                self.show_message('خطا', 'این تارگت قابل ویرایش نیست')
-                return
-
-            content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(8))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
-
-            content.add_widget(RTLLabel(
-                text=f'ویرایش تارگت - {target.get("target_id", "")}',
-                size_hint_y=None,
-                height=dp(35),
-                font_size=sp(18),
-                bold=True,
-                color=(0.4, 0.7, 1, 1)
-            ))
-
-            # نوع تارگت
-            content.add_widget(RTLLabel(
-                text='نوع تارگت:',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
-            ))
-            edit_type = PersianComboBox(
-                text=target.get('target_type', ''),
-                values=TARGET_TYPES,
-                height=dp(55)
-            )
-            edit_type.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            edit_type.main_btn.color = (1, 1, 1, 1)
-            edit_type.main_btn.font_size = sp(16)
-            content.add_widget(edit_type)
-
-            # میزان هدف
-            content.add_widget(RTLLabel(
-                text='میزان هدف:',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
-            ))
-            edit_value = RTLTextInput(
-                text=str(target.get('target_value', 0)),
-                multiline=False,
-                size_hint_y=None,
-                height=dp(55),
-                input_filter='int',
-                font_size=sp(22)
-            )
-            edit_value.bg_color = (0.15, 0.15, 0.15, 1)
-            edit_value.border_color = (0.3, 0.3, 0.3, 1)
-            edit_value.border_color_focus = (0.2, 0.5, 0.9, 1)
-            edit_value._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(edit_value)
-
-            # مدت
-            content.add_widget(RTLLabel(
-                text='مدت (روز):',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
-            ))
-            edit_duration = RTLTextInput(
-                text=str(target.get('duration', 0)),
-                multiline=False,
-                size_hint_y=None,
-                height=dp(55),
-                input_filter='int',
-                font_size=sp(22)
-            )
-            edit_duration.bg_color = (0.15, 0.15, 0.15, 1)
-            edit_duration.border_color = (0.3, 0.3, 0.3, 1)
-            edit_duration.border_color_focus = (0.2, 0.5, 0.9, 1)
-            edit_duration._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(edit_duration)
-
-            # تاریخ شروع
-            content.add_widget(RTLLabel(
-                text='تاریخ شروع:',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
-            ))
-            edit_start_date = RTLTextInput(
-                text=target.get('start_date', ''),
-                multiline=False,
-                size_hint_y=None,
-                height=dp(55),
-                font_size=sp(22)
-            )
-            edit_start_date.bg_color = (0.15, 0.15, 0.15, 1)
-            edit_start_date.border_color = (0.3, 0.3, 0.3, 1)
-            edit_start_date.border_color_focus = (0.2, 0.5, 0.9, 1)
-            edit_start_date._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(edit_start_date)
-
-            # وضعیت
-            content.add_widget(RTLLabel(
-                text='وضعیت:',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
-            ))
-            edit_status = PersianComboBox(
-                text=target.get('status', ''),
-                values=TARGET_STATUSES,
-                height=dp(55)
-            )
-            edit_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            edit_status.main_btn.color = (1, 1, 1, 1)
-            edit_status.main_btn.font_size = sp(16)
-            content.add_widget(edit_status)
-
-            # توضیحات
-            content.add_widget(RTLLabel(
-                text='توضیحات:',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
-            ))
-            edit_description = RTLTextInput(
-                text=target.get('description', ''),
-                multiline=True,
-                size_hint_y=None,
-                height=dp(60),
-                font_size=sp(18)
-            )
-            edit_description.bg_color = (0.15, 0.15, 0.15, 1)
-            edit_description.border_color = (0.3, 0.3, 0.3, 1)
-            edit_description.border_color_focus = (0.2, 0.5, 0.9, 1)
-            edit_description._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(edit_description)
-
-            btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
-
-            save_btn = PersianButton(
-                text='ذخیره تغییرات',
-                background_color=(0.2, 0.7, 0.2, 1),
-                size_hint_x=0.5,
-                size_hint_y=None,
-                height=dp(40),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
-            )
-            cancel_btn = PersianButton(
-                text='انصراف',
-                background_color=(0.3, 0.3, 0.3, 1),
-                size_hint_x=0.5,
-                size_hint_y=None,
-                height=dp(40),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
-            )
-
-            btn_layout.add_widget(save_btn)
-            btn_layout.add_widget(cancel_btn)
-            content.add_widget(btn_layout)
-
-            popup = PersianPopup(
-                title='ویرایش تارگت',
-                content=content,
-                size_hint=(0.92, 0.85),
-                background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
-            )
-
-            def do_save(instance):
-                try:
-                    from utils.jalali_date import validate_jalali_date
-
-                    target_id = target.get('target_id')
-                    updates = {
-                        'target_type': edit_type.text,
-                        'target_value': int(edit_value.text) if edit_value.text else 0,
-                        'duration': int(edit_duration.text) if edit_duration.text else 0,
-                        'start_date': edit_start_date.text,
-                        'status': edit_status.text,
-                        'description': edit_description.text
-                    }
-
-                    if updates['target_value'] <= 0:
-                        self.show_message('خطا', 'میزان هدف باید بزرگتر از صفر باشد')
-                        return
-
-                    if updates['duration'] <= 0:
-                        self.show_message('خطا', 'مدت باید بزرگتر از صفر باشد')
-                        return
-
-                    if not validate_jalali_date(updates['start_date']):
-                        self.show_message('خطا', 'تاریخ شروع نامعتبر است')
-                        return
-
-                    success, message = update_target(target_id, updates)
-                    popup.dismiss()
-
-                    if success:
-                        self.show_message('موفق', message)
-                        self.show_targets_list(None)
-                    else:
-                        self.show_message('خطا', message)
-
-                except Exception as e:
-                    error_details = traceback.format_exc()
-                    ErrorPopup.show_error(f"خطا در ذخیره تغییرات: {e}", error_details)
-
-            save_btn.bind(on_press=do_save)
-            cancel_btn.bind(on_press=popup.dismiss)
-            popup.open()
-
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در ویرایش تارگت: {e}", error_details)
-
-    def _delete_target(self, target):
-        """حذف تارگت با دیالوگ تأیید"""
-        try:
-            from utils.target_manager import delete_target
-
-            status = target.get('status', '')
-            if status == 'تکمیل شده':
-                self.show_message('خطا', 'تارگت‌های نهایی شده قابل حذف نیستند')
-                return
-
-            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
-
-            content.add_widget(RTLLabel(
-                text=f'آیا از حذف تارگت "{target.get("target_id", "")}" اطمینان دارید؟',
-                size_hint_y=None,
-                height=dp(45),
-                font_size=sp(18),
-                color=(1, 0.8, 0.2, 1)
-            ))
-
-            content.add_widget(RTLLabel(
-                text=f'عامل: {target.get("agent_name", "")}\nنوع: {target.get("target_type", "")}\nمیزان: {target.get("target_value", 0):,}',
-                size_hint_y=None,
-                height=dp(50),
-                font_size=sp(14),
-                color=(0.8, 0.8, 0.8, 1)
-            ))
-
-            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
-
-            confirm_btn = PersianButton(
-                text='بله، حذف شود',
-                background_color=(0.8, 0.2, 0.2, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
-            )
-            cancel_btn = PersianButton(
-                text='انصراف',
-                background_color=(0.3, 0.3, 0.3, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
-            )
-
-            btn_layout.add_widget(confirm_btn)
-            btn_layout.add_widget(cancel_btn)
-            content.add_widget(btn_layout)
-
-            popup = PersianPopup(
-                title='تأیید حذف',
-                content=content,
-                size_hint=(0.85, 0.45),
-                background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
-            )
-
-            def do_delete(instance):
-                popup.dismiss()
-                target_id = target.get('target_id')
-                success, message = delete_target(target_id)
-                if success:
-                    self.show_message('موفق', message)
-                    self.show_targets_list(None)
-                else:
-                    self.show_message('خطا', message)
-
-            def cancel_delete(instance):
-                popup.dismiss()
-
-            confirm_btn.bind(on_press=do_delete)
-            cancel_btn.bind(on_press=cancel_delete)
-            popup.open()
-
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در حذف تارگت: {e}", error_details)
 
     # ============================================================
     # تب ۲: تحقق تارگت
@@ -1324,6 +942,7 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تب تحقق تارگت: {e}", error_details)
 
+
     def show_fulfillment_targets(self, instance):
         """نمایش تارگت‌ها در یک دیالوگ جداگانه"""
         try:
@@ -1352,6 +971,8 @@ class SupervisorScreen(Screen):
                 content_rect = Rectangle(pos=dialog_content.pos, size=dialog_content.size)
                 dialog_content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                                 size=lambda i, v: setattr(content_rect, 'size', v))
+
+
 
             if not targets:
                 dialog_content.add_widget(RTLLabel(
@@ -1468,6 +1089,7 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تارگت‌ها: {e}", error_details)
 
+
     def _select_all_fulfillment_targets(self, instance):
         """انتخاب همه تارگت‌ها در دیالوگ تحقق"""
         try:
@@ -1476,9 +1098,11 @@ class SupervisorScreen(Screen):
                 for key in self.fulfillment_selected:
                     self.fulfillment_selected[key] = True
                     count += 1
+                # ✅ پیغام تعداد تارگت‌های انتخاب شده
                 self.show_message('اطلاع', f'{count} تارگت انتخاب شد، برای نهایی سازی فایل اکسل را انتخاب نمایید')
         except Exception as e:
             print(f"خطا در انتخاب همه: {e}")
+
 
     def _apply_fulfillment_from_dialog(self, popup):
         """اعمال تحقق از دیالوگ"""
@@ -1489,19 +1113,23 @@ class SupervisorScreen(Screen):
                 self.show_message('خطا', 'هیچ تارگتی انتخاب نشده است')
                 return
 
+            # ✅ پیغام تعداد تارگت‌های انتخاب شده
             agent_name = self.fulfillment_agent.text
             self.show_message('اطلاع', f'{len(selected_targets)} تارگت انتخاب شد، برای نهایی سازی فایل اکسل را انتخاب نمایید')
             
+            # بستن دیالوگ
             popup.dismiss()
 
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در اعمال تحقق: {e}", error_details)
 
+
     def _toggle_fulfillment_selection(self, target_id, value):
         """تغییر وضعیت انتخاب تارگت برای تحقق"""
         if hasattr(self, 'fulfillment_selected'):
             self.fulfillment_selected[target_id] = value
+
 
     def on_fulfillment_file_selected(self, filepath):
         """پس از انتخاب فایل اکسل برای تحقق"""
@@ -1510,20 +1138,24 @@ class SupervisorScreen(Screen):
                 self.show_message('خطا', 'فایلی انتخاب نشده است')
                 return
 
+            # خواندن داده‌های خلاصه از فایل اکسل
             summary_data = read_excel_summary(filepath)
 
             if not summary_data:
                 self.show_message('خطا', 'داده‌های خلاصه در فایل اکسل یافت نشد')
                 return
 
+            # دریافت تارگت‌های انتخاب شده
             selected_targets = [tid for tid, selected in self.fulfillment_selected.items() if selected]
 
             if not selected_targets:
                 self.show_message('خطا', 'هیچ تارگتی انتخاب نشده است')
                 return
 
+            # دریافت اطلاعات تارگت‌ها
             all_targets = get_all_targets()
 
+            # محاسبه مقادیر تحقق برای هر تارگت
             achieved_values = {}
             target_details = []
             agent_name = self.fulfillment_agent.text
@@ -1550,11 +1182,13 @@ class SupervisorScreen(Screen):
                 self.show_message('خطا', 'هیچ داده‌ای برای تطبیق با تارگت‌ها یافت نشد')
                 return
 
+            # ✅ دیالوگ تأیید با نام عامل
             self._show_fulfillment_confirm_dialog(selected_targets, achieved_values, target_details, agent_name)
 
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در اعمال تحقق: {e}", error_details)
+
 
     def _show_fulfillment_confirm_dialog(self, target_ids, achieved_values, target_details, agent_name):
         """نمایش دیالوگ تأیید نهایی‌سازی"""
@@ -1566,6 +1200,7 @@ class SupervisorScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
 
+            # ✅ پیغام تأیید با نام عامل
             content.add_widget(RTLLabel(
                 text=f'کاربر گرامی از انتخاب این فایل اکسل برای {agent_name} مطمئن هستید؟',
                 size_hint_y=None,
@@ -1574,6 +1209,7 @@ class SupervisorScreen(Screen):
                 color=(1, 0.8, 0.2, 1)
             ))
 
+            # نمایش لیست تارگت‌ها و مقادیر تحقق
             list_scroll = ScrollView(size_hint_y=0.5, do_scroll_x=False)
             list_content = GridLayout(cols=1, spacing=dp(4), size_hint_y=None)
             list_content.bind(minimum_height=list_content.setter('height'))
@@ -1637,12 +1273,14 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
 
+
     def _perform_fulfillment(self, target_ids, achieved_values):
         """اجرای نهایی‌سازی تارگت‌ها"""
         try:
             success, message = finalize_targets(target_ids, achieved_values)
 
             if success:
+                # ✅ پیغام موفقیت
                 self.show_message('موفق', 'عملیات نهایی سازی با موفقیت انجام شد')
                 self.show_fulfillment_targets(None)
             else:
@@ -1651,6 +1289,7 @@ class SupervisorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نهایی‌سازی تارگت‌ها: {e}", error_details)
+
 
     # ============================================================
     # تب ۳: بررسی بازار
@@ -2053,7 +1692,10 @@ class SupervisorScreen(Screen):
             self.market_need_followup.main_btn.color = (1, 1, 1, 1)
             self.market_need_followup.main_btn.font_size = sp(17)
             
+            # ✅ مقداردهی اولیه متغیر
             self._last_followup_text = self.market_need_followup.text
+            
+            # ✅ شروع نظارت
             Clock.schedule_interval(self._check_followup_change, 0.3)
             
             content.add_widget(self.market_need_followup)
@@ -2079,6 +1721,7 @@ class SupervisorScreen(Screen):
             self.market_next_visit_date.border_color = (0.3, 0.3, 0.3, 1)
             self.market_next_visit_date.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.market_next_visit_date._hidden_input.foreground_color = (1, 1, 1, 1)
+            # ✅ حذف خط disabled
             content.add_widget(self.market_next_visit_date)
 
             # ========== دکمه ثبت ==========
@@ -2111,11 +1754,13 @@ class SupervisorScreen(Screen):
             scroll.add_widget(content)
             self.content_area.add_widget(scroll)
 
+            # بارگذاری اولیه مشتریان
             Clock.schedule_once(lambda dt: self.update_market_customers(), 0.1)
 
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تب بررسی بازار: {e}", error_details)
+
 
     def _check_market_route_change(self, dt):
         """بررسی تغییر مسیر در تب بررسی بازار با Clock"""
@@ -2124,6 +1769,7 @@ class SupervisorScreen(Screen):
             if current_text != self._last_market_route_text:
                 self._last_market_route_text = current_text
                 self.update_market_customers()
+
 
     def _check_followup_change(self, dt):
         """بررسی تغییر گزینه نیاز به پیگیری"""
@@ -2136,10 +1782,12 @@ class SupervisorScreen(Screen):
             if current_text != self._last_followup_text:
                 self._last_followup_text = current_text
                 
+                # فقط در صورت نیاز، تاریخ امروز رو توی فیلد قرار بده
                 if current_text == 'بله' and not self.market_next_visit_date.text:
                     self.market_next_visit_date.text = get_today_jalali()
         except Exception as e:
             print(f"خطا در بررسی تغییرات: {e}")
+
 
     def update_market_customers(self):
         """به‌روزرسانی لیست مشتریان بر اساس مسیر انتخاب شده"""
@@ -2165,12 +1813,24 @@ class SupervisorScreen(Screen):
         except Exception as e:
             print(f"خطا در به‌روزرسانی مشتریان: {e}")
 
+
+    def on_need_followup_changed(self, instance, value):
+        """زمانی که گزینه نیاز به پیگیری تغییر میکند"""
+        if value == 'بله':
+            self.market_next_visit_date._hidden_input.disabled = False
+            self.market_next_visit_date.text = get_today_jalali()
+        else:
+            self.market_next_visit_date._hidden_input.disabled = True
+            self.market_next_visit_date.text = ''
+
+
     def submit_market_check(self, instance):
         """ثبت سرکشی بررسی بازار"""
         try:
             from utils.supervisor_visits_manager import create_supervisor_visit
             from utils.jalali_date import validate_jalali_date
 
+            # جمع‌آوری داده‌ها
             data = {
                 'route': self.market_route_spinner.text,
                 'customer': self.market_customer_spinner.text,
@@ -2193,6 +1853,7 @@ class SupervisorScreen(Screen):
                 'next_visit_date': self.market_next_visit_date.text.strip()
             }
 
+            # اعتبارسنجی
             if not data['route'] or data['route'] == '':
                 self.show_message('خطا', 'لطفاً یک مسیر را انتخاب کنید')
                 return
@@ -2209,9 +1870,11 @@ class SupervisorScreen(Screen):
                     self.show_message('خطا', 'فرمت تاریخ مراجعه بعدی نامعتبر است (مثال: 1405/01/31)')
                     return
 
+            # ثبت سرکشی
             success, message, visit = create_supervisor_visit(data)
 
             if success:
+                # پاک کردن فرم
                 self.market_supervisor_note.text = ''
                 self.market_customer_feedback.text = ''
                 self.market_supervisor_opinion.text = ''
@@ -2223,6 +1886,7 @@ class SupervisorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ثبت سرکشی: {e}", error_details)
+
 
     def show_market_reports(self, instance):
         """نمایش دیالوگ گزارشات بررسی بازار"""
@@ -2236,6 +1900,7 @@ class SupervisorScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
 
+            # ========== فیلترها ==========
             filter_layout = GridLayout(cols=2, spacing=dp(4), size_hint_y=None, height=dp(140))
             filter_layout.bind(minimum_height=filter_layout.setter('height'))
 
@@ -2305,6 +1970,7 @@ class SupervisorScreen(Screen):
 
             content.add_widget(filter_layout)
 
+            # دکمه‌ها
             btn_filter_layout = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(4))
 
             apply_btn = PersianButton(
@@ -2331,6 +1997,7 @@ class SupervisorScreen(Screen):
 
             content.add_widget(btn_filter_layout)
 
+            # ========== لیست سرکشی‌ها ==========
             list_scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -2383,6 +2050,7 @@ class SupervisorScreen(Screen):
                         color=(1, 1, 1, 1),
                         font_size=sp(11)
                     )
+                    # ذخیره کپی از visit در متغیر محلی
                     visit_copy = visit.copy() if isinstance(visit, dict) else visit
                     detail_btn.bind(on_press=lambda x, v=visit_copy: self._show_visit_detail(v))
                     box.add_widget(detail_btn)
@@ -2392,6 +2060,7 @@ class SupervisorScreen(Screen):
             list_scroll.add_widget(list_content)
             content.add_widget(list_scroll)
 
+            # دکمه بستن
             close_btn = PersianButton(
                 text='بستن',
                 background_color=(0.3, 0.3, 0.3, 1),
@@ -2491,6 +2160,7 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش گزارشات: {e}", error_details)
 
+
     def _show_visit_detail(self, visit):
         """نمایش جزئیات کامل یک سرکشی"""
         try:
@@ -2505,9 +2175,11 @@ class SupervisorScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
 
+            # ========== ایجاد یک BoxLayout برای کل محتوا ==========
             main_box = BoxLayout(orientation='vertical', size_hint_y=None)
             main_box.bind(minimum_height=main_box.setter('height'))
 
+            # عنوان
             visit_id = visit.get('id', 'نامشخص')
             main_box.add_widget(RTLLabel(
                 text=f'جزئیات سرکشی - {visit_id}',
@@ -2518,6 +2190,7 @@ class SupervisorScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
 
+            # ========== جدول اطلاعات ==========
             table_container = BoxLayout(
                 orientation='vertical',
                 size_hint_y=None,
@@ -2526,6 +2199,7 @@ class SupervisorScreen(Screen):
             )
             table_container.bind(minimum_height=table_container.setter('height'))
 
+            # هدر جدول
             header_box = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(4))
             header_box.add_widget(RTLLabel(
                 text='آیتم',
@@ -2547,6 +2221,7 @@ class SupervisorScreen(Screen):
             ))
             table_container.add_widget(header_box)
 
+            # لیست فیلدها
             fields = [
                 ('تاریخ', 'date'),
                 ('ساعت', 'time'),
@@ -2589,6 +2264,7 @@ class SupervisorScreen(Screen):
                 ))
                 table_container.add_widget(row)
 
+            # فیلدهای متنی
             text_fields = [
                 ('توضیحات سوپروایزر', 'supervisor_note'),
                 ('نظرات مشتری', 'customer_feedback'),
@@ -2617,16 +2293,18 @@ class SupervisorScreen(Screen):
                     ))
                     table_container.add_widget(row)
 
-            total_height = 32
+            # ========== محاسبه ارتفاع جدول ==========
+            total_height = 32  # هدر
             total_height += len(fields) * 30
             for label, key in text_fields:
                 if visit.get(key, ''):
                     total_height += 40
-            total_height += 20
+            total_height += 20  # فاصله انتهایی
 
             table_container.height = total_height
             main_box.add_widget(table_container)
 
+            # ========== قرار دادن محتوا در ScrollView ==========
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -2635,6 +2313,7 @@ class SupervisorScreen(Screen):
             scroll.add_widget(main_box)
             content.add_widget(scroll)
 
+            # ========== دکمه بستن ==========
             close_btn = PersianButton(
                 text='بستن',
                 background_color=(0.3, 0.3, 0.3, 1),
@@ -2733,4 +2412,6 @@ class SupervisorScreen(Screen):
 
         except Exception as e:
             print(f"خطا در نمایش پیام: {e}")
-```
+
+خب فکر کنم یادمون رفته دکمه ی ویرایش و حذف برای تارگتها بذاریم فقط باید برای حذف شرطش این باشه که نهایی نشده باشه
+دکمه ی حذف و ویرایش توی دیالوگ لیست تارگتها باشه و برای هر تارگت دکمه بذار مثل دکمه ی نمایش جزئیات 
