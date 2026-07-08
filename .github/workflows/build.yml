@@ -61,6 +61,13 @@ jobs:
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
 
+    # ✅ پاک کردن NDK 28c و استفاده از NDK 25b
+    - name: Clean and use NDK 25b
+      run: |
+        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
+        rm -rf .buildozer/android/platform/android-ndk-r28c
+        echo "NDK 28c removed"
+
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -80,10 +87,10 @@ jobs:
         warn_on_root = 1
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r28c
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
         android.api = 33
         android.minapi = 21
-        android.ndk = 28c
+        android.ndk = 25b
         android.archs = arm64-v8a
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
         android.enable_androidx = True
