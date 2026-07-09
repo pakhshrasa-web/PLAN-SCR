@@ -126,9 +126,17 @@ jobs:
         cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "خطا در کپی فونت‌ها"
         cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "خطا در کپی داده‌ها"
 
-    - name: Update version_code
+    - name: Update version and version_code for auto-update
       run: |
+        # آپدیت version_code با شماره بیلد
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
+        
+        # آپدیت version با شماره بیلد برای آپدیت خودکار
+        sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
+        
+        echo "✅ Version set to: ${{ github.run_number }}"
+        echo "✅ Version Code set to: ${{ github.run_number }}"
+        echo "📱 APK will auto-update previous version"
 
     - name: Restore Keystore from Secrets
       run: |
@@ -152,6 +160,42 @@ jobs:
       with:
         workdir: .
         buildozer_cmd: buildozer android release
+
+    - name: Convert AAB to Signed APK (if needed)
+      run: |
+        # اگر فایل AAB وجود داشت به APK تبدیل کن
+        if [ -f bin/*.aab ]; then
+          AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
+          echo "📦 Found AAB: $AAB_FILE"
+          
+          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+          
+          java -jar bundletool.jar build-apks \
+            --bundle="$AAB_FILE" \
+            --output=app.apks \
+            --mode=universal \
+            --ks=keystore.jks \
+            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
+            --overwrite
+          
+          unzip -o app.apks -d apk_output
+          mkdir -p bin
+          cp apk_output/universal.apk bin/app-release.apk
+          echo "✅ APK created successfully from AAB"
+        fi
+
+    - name: Verify APK exists
+      run: |
+        echo "📱 Checking APK files:"
+        ls -la bin/ || echo "No APK found!"
+        if [ -f bin/*.apk ]; then
+          echo "✅ APK found successfully!"
+        else
+          echo "❌ No APK found!"
+          exit 1
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
