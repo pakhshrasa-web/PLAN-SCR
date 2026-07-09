@@ -17,7 +17,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'  # تغییر کلیدی به 3.11
 
     - name: Cache Buildozer
       uses: actions/cache@v3
@@ -80,7 +80,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf
         version = 0.1.5
-        requirements = python3==3.10,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.2,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
+        requirements = python3==3.11,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.2,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
         orientation = portrait
         fullscreen = 0
         python3 = True
@@ -222,17 +222,16 @@ jobs:
 
     - name: Build with Buildozer
       run: |
-        # تنظیم محیط برای Python 3.10
-        export P4A_PYTHON_VERSION=3.10
-        export PYTHON_FOR_ANDROID_PYTHON_VERSION=3.10
-        echo "🚀 Starting build with Python 3.10..."
+        export P4A_PYTHON_VERSION=3.11
+        export PYTHON_FOR_ANDROID_PYTHON_VERSION=3.11
+        echo "🚀 Starting build with Python 3.11..."
         echo "y" | buildozer -v android release
       env:
         CC: gcc
         CXX: g++
         LD: g++
-        P4A_PYTHON_VERSION: 3.10
-        PYTHON_FOR_ANDROID_PYTHON_VERSION: 3.10
+        P4A_PYTHON_VERSION: 3.11
+        PYTHON_FOR_ANDROID_PYTHON_VERSION: 3.11
 
     - name: Convert AAB to Signed APK
       run: |
