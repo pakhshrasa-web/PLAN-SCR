@@ -17,7 +17,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'  # تغییر کلیدی به 3.11
+        python-version: '3.10'
 
     - name: Cache Buildozer
       uses: actions/cache@v3
@@ -47,10 +47,13 @@ jobs:
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install Python packages
+    - name: Install specific Python packages (FIXED)
       run: |
         pip install --upgrade pip
-        pip install buildozer==1.5.0 cython==0.29.37
+        # نصب نسخه‌های قدیمی‌تر و سازگار
+        pip install buildozer==1.4.0 cython==0.29.33
+        # نصب python-for-android نسخه 2023.9.16 که با python 3.10 سازگاره
+        pip install python-for-android==2023.9.16
         echo "✅ Python packages installed successfully"
 
     - name: Set GCC as default compiler
@@ -63,11 +66,11 @@ jobs:
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
 
-    - name: Clean NDK 28c (fix for compatibility)
+    - name: Clean all NDK versions
       run: |
-        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
-        rm -rf .buildozer/android/platform/android-ndk-r28c
-        echo "✅ NDK 28c removed to prevent conflicts"
+        rm -rf ~/.buildozer/android/platform/android-ndk-*
+        rm -rf .buildozer/android/platform/android-ndk-*
+        echo "✅ All NDKs removed"
 
     - name: Create buildozer.spec
       run: |
@@ -80,7 +83,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf
         version = 0.1.5
-        requirements = python3==3.11,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.2,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
+        requirements = python3,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.1,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
         orientation = portrait
         fullscreen = 0
         python3 = True
@@ -91,9 +94,9 @@ jobs:
 
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
-        android.ndk = 25b
-        android.api = 33
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r23c
+        android.ndk = 23c
+        android.api = 30
         android.minapi = 21
         android.archs = armeabi-v7a, arm64-v8a
 
@@ -171,8 +174,6 @@ jobs:
       run: |
         echo "بررسی فایل‌ها قبل از کپی:"
         ls -la fonts/ || echo "پوشه fonts وجود ندارد"
-        ls -la screens/ || echo "پوشه screens وجود ندارد"
-        ls -la utils/ || echo "پوشه utils وجود ندارد"
         
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
@@ -222,16 +223,12 @@ jobs:
 
     - name: Build with Buildozer
       run: |
-        export P4A_PYTHON_VERSION=3.11
-        export PYTHON_FOR_ANDROID_PYTHON_VERSION=3.11
-        echo "🚀 Starting build with Python 3.11..."
+        echo "🚀 Starting build with Python 3.10 and NDK 23c..."
         echo "y" | buildozer -v android release
       env:
         CC: gcc
         CXX: g++
         LD: g++
-        P4A_PYTHON_VERSION: 3.11
-        PYTHON_FOR_ANDROID_PYTHON_VERSION: 3.11
 
     - name: Convert AAB to Signed APK
       run: |
