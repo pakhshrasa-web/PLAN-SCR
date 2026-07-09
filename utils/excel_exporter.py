@@ -72,7 +72,7 @@ def export_to_excel():
         # ========== هدرها با ستون‌های جدید ==========
         headers = ["ردیف", "تاریخ", "مسیر", "مشتری", "وضعیت ویزیت", 
                    "وضعیت فروش", "تعداد واحد", "مبلغ فروش", "نحوه تسویه",
-                   "فروش نقدی", "فروش چکی", "ساعت"]  # ← دو ستون جدید
+                   "فروش نقدی", "فروش چکی", "مشتری جدید", "ساعت"]  # ← ستون مشتری جدید اضافه شد
         
         for col, header in enumerate(headers, 1):
             cell = ws1.cell(row=1, column=col, value=header)
@@ -90,8 +90,9 @@ def export_to_excel():
         total_failed_visits = 0
         total_successful_sales = 0
         total_failed_sales = 0
-        total_cash = 0      # ← متغیر جدید
-        total_check = 0     # ← متغیر جدید
+        total_cash = 0
+        total_check = 0
+        total_new_customers = 0  # ← متغیر جدید
         
         sorted_dates = sorted(all_logs.keys(), reverse=True)
         idx = 1
@@ -110,6 +111,7 @@ def export_to_excel():
                 sales_amount = safe_int(log.get('sales_amount', 0))
                 units_sold = safe_int(log.get('units_sold', 0))
                 payment_method = log.get('payment_method', '')
+                is_new_customer = log.get('is_new_customer', False)  # ← دریافت وضعیت مشتری جدید
                 
                 # محاسبه فروش نقدی و چکی
                 cash_amount = 0
@@ -122,6 +124,10 @@ def export_to_excel():
                         check_amount = sales_amount
                         total_check += sales_amount
                 
+                # شمارش مشتریان جدید
+                if is_new_customer:
+                    total_new_customers += 1
+                
                 ws1.cell(row=row, column=1, value=idx)
                 ws1.cell(row=row, column=2, value=safe_str(date))
                 ws1.cell(row=row, column=3, value=safe_str(log.get('route', '')))
@@ -131,9 +137,11 @@ def export_to_excel():
                 ws1.cell(row=row, column=7, value=units_sold if sales_status == 'موفق' else 0)
                 ws1.cell(row=row, column=8, value=sales_amount if sales_status == 'موفق' else 0)
                 ws1.cell(row=row, column=9, value=safe_str(payment_method if sales_status == 'موفق' else '---'))
-                ws1.cell(row=row, column=10, value=cash_amount)   # ← ستون فروش نقدی
-                ws1.cell(row=row, column=11, value=check_amount)  # ← ستون فروش چکی
-                ws1.cell(row=row, column=12, value=safe_str(log.get('time', '')))
+                ws1.cell(row=row, column=10, value=cash_amount)
+                ws1.cell(row=row, column=11, value=check_amount)
+                # ← ستون مشتری جدید
+                ws1.cell(row=row, column=12, value="✅" if is_new_customer else "—")
+                ws1.cell(row=row, column=13, value=safe_str(log.get('time', '')))
                 
                 total_visits += 1
                 if visit_status == 'موفق':
@@ -152,7 +160,7 @@ def export_to_excel():
                 idx += 1
         
         # تنظیم عرض ستون‌ها با ستون‌های جدید
-        col_widths = [8, 14, 18, 22, 14, 14, 14, 18, 14, 14, 14, 14]
+        col_widths = [8, 14, 18, 22, 14, 14, 14, 18, 14, 14, 14, 14, 14]
         for col, width in enumerate(col_widths, 1):
             ws1.column_dimensions[get_column_letter(col)].width = width
         
@@ -162,8 +170,8 @@ def export_to_excel():
         summary_data = [
             ["شاخص", "مقدار"],
             ["کل فروش (ریال)", f"{total_sales:,}"],
-            ["فروش نقدی (ریال)", f"{total_cash:,}"],      # ← اضافه شد
-            ["فروش چکی (ریال)", f"{total_check:,}"],      # ← اضافه شد
+            ["فروش نقدی (ریال)", f"{total_cash:,}"],
+            ["فروش چکی (ریال)", f"{total_check:,}"],
             ["تعداد کل فاکتورها", total_invoices],
             ["تعداد کل ویزیت‌ها", total_visits],
             ["تعداد ویزیت موفق", total_successful_visits],
@@ -171,6 +179,7 @@ def export_to_excel():
             ["تعداد فروش موفق", total_successful_sales],
             ["تعداد فروش ناموفق", total_failed_sales],
             ["تعداد کل واحد فروش", total_units],
+            ["تعداد مشتری جدید", total_new_customers],  # ← اضافه شد
             ["تعداد روزهای کاری", len(all_logs)],
             ["میانگین مبلغ هر فاکتور", f"{total_sales // total_invoices:,}" if total_invoices > 0 else "۰"],
             ["میانگین فروش هر ویزیت موفق", f"{total_sales // total_successful_visits:,}" if total_successful_visits > 0 else "۰"],
@@ -192,7 +201,7 @@ def export_to_excel():
         
         daily_headers = ["تاریخ", "کل ویزیت", "ویزیت موفق", "ویزیت ناموفق", 
                         "فروش موفق", "فروش ناموفق", "تعداد واحد", "مبلغ فروش",
-                        "فروش نقدی", "فروش چکی"]  # ← دو ستون جدید
+                        "فروش نقدی", "فروش چکی", "مشتری جدید"]  # ← ستون مشتری جدید اضافه شد
         
         for col, header in enumerate(daily_headers, 1):
             cell = ws3.cell(row=1, column=col, value=header)
@@ -214,8 +223,9 @@ def export_to_excel():
             daily_sales_failed = 0
             daily_units = 0
             daily_amount = 0
-            daily_cash = 0      # ← متغیر جدید
-            daily_check = 0     # ← متغیر جدید
+            daily_cash = 0
+            daily_check = 0
+            daily_new_customers = 0  # ← متغیر جدید
             
             for log in log_list:
                 if not isinstance(log, dict):
@@ -225,8 +235,14 @@ def export_to_excel():
                 sales_status = log.get('sales_status', '')
                 sales_amount = safe_int(log.get('sales_amount', 0))
                 payment_method = log.get('payment_method', '')
+                is_new_customer = log.get('is_new_customer', False)
                 
                 daily_visits += 1
+                
+                # شمارش مشتریان جدید روزانه
+                if is_new_customer:
+                    daily_new_customers += 1
+                
                 if visit_status == 'موفق':
                     daily_successful += 1
                     if sales_status == 'موفق':
@@ -234,7 +250,6 @@ def export_to_excel():
                         daily_units += safe_int(log.get('units_sold', 0))
                         daily_amount += sales_amount
                         
-                        # محاسبه روزانه فروش نقدی و چکی
                         if payment_method == 'نقد':
                             daily_cash += sales_amount
                         elif payment_method == 'چک':
@@ -252,8 +267,9 @@ def export_to_excel():
             ws3.cell(row=row, column=6, value=daily_sales_failed)
             ws3.cell(row=row, column=7, value=daily_units)
             ws3.cell(row=row, column=8, value=daily_amount)
-            ws3.cell(row=row, column=9, value=daily_cash)    # ← ستون فروش نقدی روزانه
-            ws3.cell(row=row, column=10, value=daily_check)  # ← ستون فروش چکی روزانه
+            ws3.cell(row=row, column=9, value=daily_cash)
+            ws3.cell(row=row, column=10, value=daily_check)
+            ws3.cell(row=row, column=11, value=daily_new_customers)  # ← ستون مشتری جدید روزانه
             row += 1
         
         # تنظیم عرض ستون‌های جدید
