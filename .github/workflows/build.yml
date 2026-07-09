@@ -167,6 +167,23 @@ jobs:
         sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
         echo "✅ Version set to: ${{ github.run_number }}"
 
+    - name: Restore Keystore from Secrets
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+        mkdir -p .buildozer/android/platform/
+        cp keystore.jks .buildozer/android/platform/planandroid.keystore
+        echo "✅ Keystore restored successfully"
+
+    - name: Update buildozer.spec with keystore paths
+      run: |
+        echo "" >> buildozer.spec
+        echo "# Keystore configuration" >> buildozer.spec
+        echo "android.keystore = planandroid.keystore" >> buildozer.spec
+        echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
+        echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
+        echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+        echo "✅ buildozer.spec updated with keystore info"
+
     - name: Build with Buildozer
       run: |
         echo "y" | buildozer -v android release
@@ -174,13 +191,6 @@ jobs:
         CC: gcc
         CXX: g++
         LD: g++
-
-    - name: Generate Keystore
-      run: |
-        keytool -genkey -v -keystore keystore.jks \
-          -alias myalias -keyalg RSA -keysize 2048 -validity 10000 \
-          -storepass password -keypass password \
-          -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=City, S=State, C=IR"
 
     - name: Convert AAB to Signed APK
       run: |
@@ -195,9 +205,9 @@ jobs:
             --output=app.apks \
             --mode=universal \
             --ks=keystore.jks \
-            --ks-pass=pass:password \
-            --ks-key-alias=myalias \
-            --key-pass=pass:password \
+            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
             --overwrite
           
           unzip -o app.apks -d apk_output
