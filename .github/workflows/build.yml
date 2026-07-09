@@ -61,44 +61,49 @@ jobs:
 
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
-        version = 0.1.1
+        source.include_patterns = data/*,fonts/*
 
-        requirements = python3,kivy,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
+        version = 0.1.3
+
+        # ✅ Kivy بدون نسخه ثابت (Buildozer خودش انتخاب می‌کنه)
+        # ✅ sqlite3 برای دیتابیس
+        requirements = python3,kivy,sqlite3,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
 
         orientation = portrait
         fullscreen = 1
-
-        android.add_src = fonts/
 
         [buildozer]
         log_level = 2
         warn_on_root = 1
 
         [buildozer:android]
-        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
+        android.ndk = 25b
         android.api = 33
         android.minapi = 21
-        android.ndk = 25b
         android.archs = armeabi-v7a, arm64-v8a
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
+        
+        # ✅ فقط دسترسی‌های لازم (WRITE_EXTERNAL_STORAGE برای اندروید ۱۲-)
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+        
         android.enable_androidx = True
         android.allow_backup = True
         android.unsafe_ssl = False
         android.presplash_color = #FFFFFF
         android.ignore_manifest = False
         android.enable_on_back_invoked_callback = True
-        android.version_code = 2
+        android.accept_sdk_license = True
+
+        android.version_code = 3
 
         android.debug = 0
         android.release = 1
         EOF
 
-    - name: Create initial json files
+    - name: Create initial json files (if not exists)
       run: |
         mkdir -p data
         
-        cat > data/definitions.json << 'EOF'
+        [ -f data/definitions.json ] || cat > data/definitions.json << 'EOF'
         {
           "agents": [],
           "routes": [],
@@ -106,7 +111,7 @@ jobs:
         }
         EOF
         
-        cat > data/settings.json << 'EOF'
+        [ -f data/settings.json ] || cat > data/settings.json << 'EOF'
         {
           "supervision_rate": 0.3,
           "conversion_rate": 0.25,
@@ -125,49 +130,33 @@ jobs:
         }
         EOF
         
-        cat > data/users.json << 'EOF'
+        [ -f data/users.json ] || cat > data/users.json << 'EOF'
         {
           "users": []
         }
         EOF
         
-        cat > data/codes.json << 'EOF'
+        [ -f data/codes.json ] || cat > data/codes.json << 'EOF'
         {
           "codes": []
         }
         EOF
         
-        cat > data/admin_password.json << 'EOF'
+        [ -f data/admin_password.json ] || cat > data/admin_password.json << 'EOF'
         {
           "hashed_password": ""
         }
         EOF
         
-        cat > data/daily_log.json << 'EOF'
+        [ -f data/daily_log.json ] || cat > data/daily_log.json << 'EOF'
         {}
         EOF
 
-    - name: Copy fonts and data to build directory
+    - name: Ensure __init__.py files exist
       run: |
-        echo "📁 بررسی فایل‌ها قبل از کپی:"
-        ls -la fonts/ || echo "⚠️ پوشه fonts وجود ندارد"
-        ls -la screens/ || echo "⚠️ پوشه screens وجود ندارد"
-        ls -la utils/ || echo "⚠️ پوشه utils وجود ندارد"
-        
-        mkdir -p .buildozer/android/app/fonts
-        mkdir -p .buildozer/android/app/data
-        
-        echo "📁 کپی فونت‌ها..."
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "⚠️ خطا در کپی فونت‌ها"
-        
-        echo "📁 کپی فایل‌های داده..."
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "⚠️ خطا در کپی داده‌ها"
-        
-        echo "📁 بررسی فونت‌های کپی شده:"
-        ls -la .buildozer/android/app/fonts/ || echo "⚠️ پوشه fonts خالی است"
-        
-        echo "📁 بررسی داده‌های کپی شده:"
-        ls -la .buildozer/android/app/data/ || echo "⚠️ پوشه data خالی است"
+        touch utils/__init__.py
+        touch screens/__init__.py
+        echo "✅ __init__.py files ensured"
 
     - name: Build with Buildozer
       run: |
@@ -184,28 +173,7 @@ jobs:
           -storepass password -keypass password \
           -dname "CN=Plan Android, OU=Dev, O=Pakhshrasa, L=City, S=State, C=IR"
 
-    - name: Convert AAB to Signed APK
-      run: |
-        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        echo "Found AAB: $AAB_FILE"
-        
-        wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-        
-        java -jar bundletool.jar build-apks \
-          --bundle="$AAB_FILE" \
-          --output=app.apks \
-          --mode=universal \
-          --ks=keystore.jks \
-          --ks-pass=pass:password \
-          --ks-key-alias=myalias \
-          --key-pass=pass:password \
-          --overwrite
-        
-        unzip -o app.apks -d apk_output
-        mkdir -p bin
-        cp apk_output/universal.apk bin/app-release.apk
-
-    - name: Upload APK
+    - name: Upload APK (Direct from Buildozer)
       uses: actions/upload-artifact@v4
       with:
         name: app-release
