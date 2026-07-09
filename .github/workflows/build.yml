@@ -14,61 +14,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Cache Buildozer
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.buildozer
-          .buildozer
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          ${{ runner.os }}-buildozer-
-
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq \
-          build-essential git zip unzip \
-          autoconf libtool \
-          pkg-config zlib1g-dev libncurses5-dev \
-          libncursesw5-dev libtinfo5 cmake \
-          libffi-dev libssl-dev wget \
-          ccache \
-          libfreetype6-dev libjpeg-dev zlib1g-dev
-
-    - name: Install specific Python packages (FIX)
-      run: |
-        pip install -q buildozer cython==0.29.37
-        # نصب python-for-android نسخه 2024.1.21 که با Python 3.10 کار می‌کند
-        pip install python-for-android==2024.1.21
-        echo "✅ Python packages installed"
-
-    - name: Set GCC as default compiler
-      run: |
-        sudo apt-get install -y gcc g++
-        echo "CC=gcc" >> $GITHUB_ENV
-        echo "CXX=g++" >> $GITHUB_ENV
-        echo "LD=g++" >> $GITHUB_ENV
-        sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
-        sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
-        gcc --version
-
-    - name: Clean NDK 28c
-      run: |
-        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
-        rm -rf .buildozer/android/platform/android-ndk-r28c
-        echo "NDK 28c removed"
 
     - name: Create buildozer.spec
       run: |
@@ -91,8 +41,8 @@ jobs:
         warn_on_root = 1
 
         [buildozer:android]
-        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
+        android.sdk_path = /home/user/.buildozer/android/platform/android-sdk
+        android.ndk_path = /home/user/.buildozer/android/platform/android-ndk-r25b
         android.ndk = 25b
         android.api = 33
         android.minapi = 21
@@ -196,35 +146,12 @@ jobs:
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "✅ buildozer.spec updated with keystore info"
 
-    - name: Build with Buildozer
-      run: |
-        echo "y" | buildozer -v android release
-      env:
-        CC: gcc
-        CXX: g++
-        LD: g++
-
-    - name: Convert AAB to Signed APK
-      run: |
-        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        echo "Found AAB: $AAB_FILE"
-        
-        wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-        
-        java -jar bundletool.jar build-apks \
-          --bundle="$AAB_FILE" \
-          --output=app.apks \
-          --mode=universal \
-          --ks=keystore.jks \
-          --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --ks-key-alias=${{ secrets.KEY_ALIAS }} \
-          --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
-          --overwrite
-        
-        unzip -o app.apks -d apk_output
-        mkdir -p bin
-        cp apk_output/universal.apk bin/app-release.apk
-        echo "✅ APK created successfully"
+    - name: Build APK with Buildozer Action
+      uses: ArtemSBulgakov/buildozer-action@v1
+      id: buildozer
+      with:
+        workdir: .
+        buildozer_cmd: buildozer android release
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
