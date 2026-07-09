@@ -33,7 +33,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'  # برگشت به Java 17
+        java-version: '17'  # ✅ Java 17 موفق
 
     - name: Install system dependencies
       run: |
@@ -47,11 +47,12 @@ jobs:
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install Python packages
+    - name: Install Python packages (CRITICAL FIX)
       run: |
         pip install -q buildozer cython==0.29.37
-        # نصب نسخه قدیمی python-for-android
+        # ✅ نصب نسخه قدیمی python-for-android برای جلوگیری از hostpython3 3.14.2
         pip install python-for-android==2023.9.16
+        echo "✅ Python packages installed"
 
     - name: Set GCC as default compiler
       run: |
