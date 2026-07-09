@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # استفاده از نسخه قدیمی‌تر
+    runs-on: ubuntu-22.04
     timeout-minutes: 360
 
     steps:
@@ -19,11 +19,21 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Cache Buildozer
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '17'  # برگشت به Java 17
 
     - name: Install system dependencies
       run: |
@@ -35,19 +45,29 @@ jobs:
           libncursesw5-dev libtinfo5 cmake \
           libffi-dev libssl-dev wget \
           ccache \
-          libfreetype6-dev libjpeg-dev zlib1g-dev \
-          openjdk-11-jdk
+          libfreetype6-dev libjpeg-dev zlib1g-dev
 
     - name: Install Python packages
       run: |
-        pip install --upgrade pip
-        pip install buildozer cython
-        echo "✅ Python packages installed"
+        pip install -q buildozer cython==0.29.37
+        # نصب نسخه قدیمی python-for-android
+        pip install python-for-android==2023.9.16
 
-    - name: Accept Android SDK licenses
+    - name: Set GCC as default compiler
       run: |
-        mkdir -p ~/.android
-        echo "✅ Android licenses directory created"
+        sudo apt-get install -y gcc g++
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        echo "LD=g++" >> $GITHUB_ENV
+        sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
+        sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
+        gcc --version
+
+    - name: Clean NDK 28c
+      run: |
+        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
+        rm -rf .buildozer/android/platform/android-ndk-r28c
+        echo "NDK 28c removed"
 
     - name: Create buildozer.spec
       run: |
@@ -67,13 +87,13 @@ jobs:
 
         [buildozer]
         log_level = 4
-        warn_on_root = 0
+        warn_on_root = 1
 
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r23c
-        android.ndk = 23c
-        android.api = 30
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
+        android.ndk = 25b
+        android.api = 33
         android.minapi = 21
         android.archs = armeabi-v7a, arm64-v8a
 
@@ -91,7 +111,6 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created"
 
     - name: Create initial json files
       run: |
@@ -145,7 +164,6 @@ jobs:
         cat > data/daily_log.json << 'EOF'
         {}
         EOF
-        echo "✅ JSON files created"
 
     - name: Copy fonts and data to build directory
       run: |
@@ -176,15 +194,16 @@ jobs:
 
     - name: Build with Buildozer
       run: |
-        echo "🚀 Starting build on Ubuntu 20.04..."
-        echo "yes" | buildozer android release
+        echo "y" | buildozer -v android release
       env:
-        JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+        CC: gcc
+        CXX: g++
+        LD: g++
 
     - name: Convert AAB to Signed APK
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        echo "📦 Found AAB: $AAB_FILE"
+        echo "Found AAB: $AAB_FILE"
         
         wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
         
@@ -201,7 +220,6 @@ jobs:
         unzip -o app.apks -d apk_output
         mkdir -p bin
         cp apk_output/universal.apk bin/app-release.apk
-        echo "✅ APK created successfully"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
