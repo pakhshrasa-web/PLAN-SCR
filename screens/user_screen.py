@@ -407,6 +407,44 @@ class UserScreen(Screen):
             self.form_layout.add_widget(self.visited_customers_target)
             self.inputs['visited_customers_count'] = visited_count
             
+            # ✅ ========== 5️⃣-1️⃣ تعداد مشتری جدید ==========
+            self.form_layout.add_widget(RTLLabel(
+                text='تعداد مشتری جدید',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(0.4, 0.7, 1, 1),
+                bold=True
+            ))
+            new_customers_count = RTLTextInput(
+                text='0',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(75),
+                input_filter='int',
+                font_size=sp(32)
+            )
+            new_customers_count.bg_color = (0.15, 0.15, 0.15, 1)
+            new_customers_count.border_color = (0.3, 0.3, 0.3, 1)
+            new_customers_count.border_color_focus = (0.2, 0.5, 0.9, 1)
+            new_customers_count._hidden_input.foreground_color = (1, 1, 1, 1)
+            new_customers_count._hidden_input.disabled = True
+            self.form_layout.add_widget(new_customers_count)
+
+            self.new_customers_target = Label(
+                text='0',
+                size_hint_y=None,
+                height=dp(40),
+                color=(0.4, 0.7, 1, 1),
+                font_size=sp(14),
+                font_name='PersianFont',
+                halign='center',
+                valign='middle',
+                text_size=(dp(120), dp(40))
+            )
+            self.form_layout.add_widget(self.new_customers_target)
+            self.inputs['new_customers_count'] = new_customers_count
+            
             # ========== 6️⃣ تعداد فاکتور موفق ==========
             self.form_layout.add_widget(RTLLabel(
                 text='تعداد فاکتور موفق',
@@ -886,6 +924,7 @@ class UserScreen(Screen):
             total_cash = 0
             total_check = 0
             total_credit = 0
+            total_new_customers = 0
             first_visit_time = None
             last_visit_time = None
             start_time = None
@@ -906,6 +945,10 @@ class UserScreen(Screen):
                 sales_amount = log.get('sales_amount', 0)
                 log_time = log.get('time', '')
                 route = log.get('route', '')
+                
+                # شمارش مشتریان جدید
+                if log.get('is_new_customer', False):
+                    total_new_customers += 1
                 
                 if route and not selected_route:
                     selected_route = route
@@ -968,6 +1011,10 @@ class UserScreen(Screen):
             self.inputs['cash_sales'].text = f"{total_cash:,}"
             self.inputs['check_sales'].text = f"{total_check:,}"
             self.inputs['credit_sales'].text = f"{total_credit:,}"
+            
+            # تعداد مشتری جدید
+            self.inputs['new_customers_count'].text = str(total_new_customers)
+            self.new_customers_target.text = str(total_new_customers)
             
             if last_visit_time:
                 self.inputs['last_visit_time'].text = last_visit_time
@@ -1116,7 +1163,7 @@ class UserScreen(Screen):
             for key, input_field in self.inputs.items():
                 if key == 'route_name':
                     log_data[key] = self.current_route
-                elif key in ['successful_sales_amount', 'cash_sales', 'check_sales', 'credit_sales']:
+                elif key in ['successful_sales_amount', 'cash_sales', 'check_sales', 'credit_sales', 'new_customers_count']:
                     value = input_field.text.replace(',', '')
                     log_data[key] = value
                 else:
@@ -1151,7 +1198,7 @@ class UserScreen(Screen):
             self.is_locked = True
             self.lock_page()
             
-            self.show_message('موفق', 'اطلاعات با موفقیت ذخیره شد\nصفحه تا پایان روز قفل شد')
+            self.show_message('موفق', 'اطلاعات با موفقیت ذخیره شدصفحه تا پایان روز قفل شد')
             
         except Exception as e:
             error_details = traceback.format_exc()

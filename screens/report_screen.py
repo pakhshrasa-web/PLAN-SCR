@@ -185,6 +185,7 @@ class ReportScreen(Screen):
             all_logs = get_daily_logs()
             total_cash = 0
             total_check = 0
+            total_new_customers = 0
             
             for date, logs in all_logs.items():
                 if not isinstance(logs, list):
@@ -200,6 +201,8 @@ class ReportScreen(Screen):
                             total_cash += sales_amount
                         elif payment_method == 'چک':
                             total_check += sales_amount
+                    if log.get('is_new_customer', False):
+                        total_new_customers += 1
             
             layout = ScrollView()
             content = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=dp(8))
@@ -258,9 +261,14 @@ class ReportScreen(Screen):
             
             row4 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row4.add_widget(self._make_card('فروش چکی', f"{total_check:,}", (0.6, 0.3, 0.6, 1)))
-            avg_sale = total_sales // total_visits if total_visits > 0 else 0
-            row4.add_widget(self._make_card('میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
+            row4.add_widget(self._make_card('مشتری جدید', f"{total_new_customers:,}", (0.2, 0.8, 0.4, 1)))
             content.add_widget(row4)
+            
+            row5 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
+            avg_sale = total_sales // total_visits if total_visits > 0 else 0
+            row5.add_widget(self._make_card('میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
+            row5.add_widget(Label())
+            content.add_widget(row5)
             
             content.add_widget(RTLLabel(
                 text='خلاصه روزانه',
@@ -272,7 +280,7 @@ class ReportScreen(Screen):
             ))
             
             header_box = BoxLayout(size_hint_y=None, height=dp(37), spacing=dp(2))
-            headers = ['تاریخ', 'ویزیت', 'فاکتور', 'واحد', 'فروش', 'نقدی', 'چکی']
+            headers = ['تاریخ', 'ویزیت', 'فاکتور', 'واحد', 'فروش', 'نقدی', 'چکی', 'مشتری جدید']
             for i, text in enumerate(headers):
                 btn = PersianButton(
                     text=text,
@@ -287,9 +295,10 @@ class ReportScreen(Screen):
             content.add_widget(header_box)
             
             for date, summary in sorted(all_summaries.items(), reverse=True):
-                # محاسبه فروش نقدی و چکی برای هر روز
                 day_cash = 0
                 day_check = 0
+                day_new_customers = 0
+                
                 if date in all_logs and isinstance(all_logs[date], list):
                     for log in all_logs[date]:
                         if not isinstance(log, dict):
@@ -302,6 +311,8 @@ class ReportScreen(Screen):
                                 day_cash += sales_amount
                             elif payment_method == 'چک':
                                 day_check += sales_amount
+                        if log.get('is_new_customer', False):
+                            day_new_customers += 1
                 
                 row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(2))
                 
@@ -346,6 +357,12 @@ class ReportScreen(Screen):
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(0.6, 0.3, 0.6, 1)
+                ))
+                row.add_widget(RTLLabel(
+                    text=f"{day_new_customers:,}",
+                    size_hint_x=1/len(headers),
+                    font_size=sp(14),
+                    color=(0.2, 0.8, 0.4, 1)
                 ))
                 
                 content.add_widget(row)
@@ -399,7 +416,8 @@ class ReportScreen(Screen):
                         'sales_amount': log.get('sales_amount', 0),
                         'payment_method': log.get('payment_method', ''),
                         'fail_reason': log.get('fail_reason', ''),
-                        'fail_sales_reason': log.get('fail_sales_reason', '')
+                        'fail_sales_reason': log.get('fail_sales_reason', ''),
+                        'is_new_customer': log.get('is_new_customer', False)
                     })
             
             content.add_widget(RTLLabel(
@@ -424,7 +442,7 @@ class ReportScreen(Screen):
                 return
             
             header_box = BoxLayout(size_hint_y=None, height=dp(37), spacing=dp(2))
-            headers = ['تاریخ', 'مسیر', 'مشتری', 'ویزیت', 'فروش', 'ساعت']
+            headers = ['تاریخ', 'مسیر', 'مشتری', 'ویزیت', 'فروش', 'ساعت', 'جدید']
             for i, text in enumerate(headers):
                 btn = PersianButton(
                     text=text,
@@ -491,6 +509,15 @@ class ReportScreen(Screen):
                     color=(1, 1, 1, 1)
                 ))
                 
+                new_customer_text = '✅' if item['is_new_customer'] else '—'
+                new_customer_color = (0.2, 0.8, 0.4, 1) if item['is_new_customer'] else (0.3, 0.3, 0.3, 1)
+                row.add_widget(RTLLabel(
+                    text=new_customer_text,
+                    size_hint_x=1/len(headers),
+                    font_size=sp(14),
+                    color=new_customer_color
+                ))
+                
                 content.add_widget(row)
             
             layout.add_widget(content)
@@ -545,7 +572,6 @@ class ReportScreen(Screen):
             
             layout.add_widget(btn_layout)
             
-            # ========== ردیف دوم دکمه‌ها (تاریخچه گزارشات) ==========
             btn_layout2 = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10))
             
             history_btn = PersianButton(
@@ -574,7 +600,6 @@ class ReportScreen(Screen):
     
     def show_history_dialog(self, instance):
         try:
-            # دریافت لیست فایل‌ها با اطلاعات کامل
             excel_files = get_excel_files_info(limit=50)
             
             content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
@@ -584,7 +609,6 @@ class ReportScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                            size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # عنوان + آمار
             stats = get_file_stats()
             title_text = 'تاریخچه گزارشات'
             if stats['count'] > 0:
@@ -608,7 +632,6 @@ class ReportScreen(Screen):
                     color=(0.5, 0.5, 0.5, 1)
                 ))
             else:
-                # لیست فایل‌ها با چک‌باکس
                 scroll = ScrollView(
                     do_scroll_x=False,
                     do_scroll_y=True,
@@ -623,7 +646,6 @@ class ReportScreen(Screen):
                 )
                 list_content.bind(minimum_height=list_content.setter('height'))
                 
-                # ریست دیکشنری انتخاب فایل‌ها
                 self.selected_files = {}
                 
                 for file_info in excel_files:
@@ -634,7 +656,6 @@ class ReportScreen(Screen):
                         padding=[dp(5), dp(2), dp(5), dp(2)]
                     )
                     
-                    # چک‌باکس انتخاب
                     check = CheckBox(
                         size_hint_x=0.1,
                         size_hint_y=None,
@@ -645,10 +666,8 @@ class ReportScreen(Screen):
                     check.bind(active=lambda checkbox, value, fp=file_info['path']: self._toggle_file_selection(fp, value))
                     file_box.add_widget(check)
                     
-                    # ذخیره وضعیت انتخاب
                     self.selected_files[file_info['path']] = False
                     
-                    # برچسب نام فایل با تاریخ و حجم
                     file_label = RTLLabel(
                         text=f"{file_info['date']} ({file_info['size_kb']} KB)",
                         size_hint_x=0.6,
@@ -660,7 +679,6 @@ class ReportScreen(Screen):
                     )
                     file_box.add_widget(file_label)
                     
-                    # دکمه ارسال (تک فایل)
                     send_btn = PersianButton(
                         text='ارسال',
                         size_hint_x=0.3,
@@ -678,10 +696,8 @@ class ReportScreen(Screen):
                 scroll.add_widget(list_content)
                 content.add_widget(scroll)
             
-            # ========== دکمه‌های پایین ==========
             btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
             
-            # دکمه انتخاب همه
             select_all_btn = PersianButton(
                 text='✓ انتخاب همه',
                 background_color=(0.2, 0.5, 0.8, 1),
@@ -694,7 +710,6 @@ class ReportScreen(Screen):
             select_all_btn.bind(on_press=self._select_all_files)
             btn_layout.add_widget(select_all_btn)
             
-            # دکمه حذف انتخابی
             delete_selected_btn = PersianButton(
                 text='🗑 حذف انتخابی',
                 background_color=(0.8, 0.2, 0.2, 1),
@@ -707,7 +722,6 @@ class ReportScreen(Screen):
             delete_selected_btn.bind(on_press=self._delete_selected_files)
             btn_layout.add_widget(delete_selected_btn)
             
-            # دکمه پاکسازی فایل‌های قدیمی
             clean_old_btn = PersianButton(
                 text='🧹 حذف قدیمی‌ها',
                 background_color=(0.7, 0.4, 0.1, 1),
@@ -720,7 +734,6 @@ class ReportScreen(Screen):
             clean_old_btn.bind(on_press=self._clean_old_files)
             btn_layout.add_widget(clean_old_btn)
             
-            # دکمه باز کردن پوشه
             folder_btn = PersianButton(
                 text='📁 باز کردن',
                 background_color=(0.2, 0.5, 0.7, 1),
@@ -735,7 +748,6 @@ class ReportScreen(Screen):
             
             content.add_widget(btn_layout)
             
-            # دکمه بستن
             close_btn = PersianButton(
                 text='بستن',
                 background_color=(0.3, 0.3, 0.3, 1),
@@ -754,7 +766,6 @@ class ReportScreen(Screen):
                 auto_dismiss=False
             )
             
-            # ذخیره popup برای دسترسی در توابع دیگر
             self.history_popup = popup
             
             close_btn.bind(on_press=popup.dismiss)
@@ -779,14 +790,11 @@ class ReportScreen(Screen):
             self.show_message('توجه', 'هیچ فایلی برای انتخاب وجود ندارد')
             return
         
-        # به‌روزرسانی وضعیت همه فایل‌ها
         for path in self.selected_files.keys():
             self.selected_files[path] = True
         
-        # به‌روزرسانی UI
         self._update_checkboxes(True)
         
-        # نمایش پیام
         self.show_message('توجه', f'{len(self.selected_files)} فایل انتخاب شد')
     
     def _update_checkboxes(self, value):
@@ -794,7 +802,6 @@ class ReportScreen(Screen):
         try:
             if hasattr(self, 'history_popup') and self.history_popup:
                 popup = self.history_popup
-                # جستجوی چک‌باکس‌ها در محتوای popup
                 for child in popup.content.children:
                     if hasattr(child, 'children'):
                         for box in child.children:
@@ -808,14 +815,12 @@ class ReportScreen(Screen):
     def _delete_selected_files(self, instance):
         """حذف فایل‌های انتخاب شده"""
         try:
-            # پیدا کردن فایل‌های انتخاب شده
             selected = [path for path, selected in self.selected_files.items() if selected]
             
             if not selected:
                 self.show_message('توجه', 'هیچ فایلی انتخاب نشده است')
                 return
             
-            # دیالوگ تایید
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
             content.add_widget(RTLLabel(
@@ -826,12 +831,11 @@ class ReportScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             
-            # نمایش لیست فایل‌ها
             scroll = ScrollView(size_hint_y=0.4, do_scroll_x=False)
             list_content = GridLayout(cols=1, spacing=dp(2), size_hint_y=None)
             list_content.bind(minimum_height=list_content.setter('height'))
             
-            for path in selected[:10]:  # حداکثر 10 فایل نمایش داده شود
+            for path in selected[:10]:
                 list_content.add_widget(RTLLabel(
                     text=os.path.basename(path),
                     size_hint_y=None,
@@ -887,7 +891,6 @@ class ReportScreen(Screen):
             
             def do_delete(instance):
                 popup.dismiss()
-                # اجرای حذف در thread جداگانه
                 def delete_thread():
                     deleted, failed = delete_files(selected)
                     Clock.schedule_once(lambda dt: self._on_delete_complete(deleted, failed), 0.1)
@@ -907,21 +910,18 @@ class ReportScreen(Screen):
     def _on_delete_complete(self, deleted, failed):
         """پس از اتمام حذف فایل‌ها"""
         try:
-            # نمایش پیام نتیجه
             message = f"{deleted} فایل با موفقیت حذف شد"
             if failed > 0:
                 message += f"\n{failed} فایل حذف نشد"
             
             self.show_message('نتیجه حذف', message)
             
-            # بستن popup تاریخچه و باز کردن مجدد برای به‌روزرسانی
             if hasattr(self, 'history_popup'):
                 try:
                     self.history_popup.dismiss()
                 except:
                     pass
             
-            # باز کردن مجدد تاریخچه
             Clock.schedule_once(lambda dt: self.show_history_dialog(None), 0.3)
             
         except Exception as e:
@@ -930,7 +930,6 @@ class ReportScreen(Screen):
     def _clean_old_files(self, instance):
         """پاکسازی فایل‌های قدیمی‌تر از ۳۰ روز"""
         try:
-            # دیالوگ تایید
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
             content.add_widget(RTLLabel(
@@ -941,7 +940,6 @@ class ReportScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             
-            # نمایش آمار
             stats = get_file_stats()
             if stats['count'] > 0:
                 content.add_widget(RTLLabel(
@@ -987,7 +985,6 @@ class ReportScreen(Screen):
             
             def do_clean(instance):
                 popup.dismiss()
-                # اجرای پاکسازی در thread جداگانه
                 def clean_thread():
                     deleted, failed = delete_old_files(days=30)
                     Clock.schedule_once(
@@ -1017,7 +1014,6 @@ class ReportScreen(Screen):
             else:
                 self.show_message('پاکسازی انجام شد', 'هیچ فایل قدیمی یافت نشد')
             
-            # به‌روزرسانی تاریخچه
             if hasattr(self, 'history_popup'):
                 try:
                     self.history_popup.dismiss()
@@ -1092,7 +1088,6 @@ class ReportScreen(Screen):
                 mActivity.startActivity(chooser)
                 
             else:
-                # برای ویندوز/دسکتاپ
                 import os
                 os.startfile(file_path)
                 
@@ -1138,17 +1133,17 @@ class ReportScreen(Screen):
             
             date_layout.add_widget(RTLLabel(
                 text='از تاریخ:',
-                size_hint_x=0.15,
+                size_hint_x=0.5,
                 size_hint_y=None,
-                height=dp(40),
+                height=dp(50),
                 font_size=sp(16),
                 color=(1, 1, 1, 1)
             ))
             from_date_input = RTLTextInput(
                 text=get_today_jalali(),
-                size_hint_x=0.35,
+                size_hint_x=1,
                 size_hint_y=None,
-                height=dp(65),
+                height=dp(80),
                 font_size=sp(28)
             )
             from_date_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1160,17 +1155,17 @@ class ReportScreen(Screen):
             
             date_layout.add_widget(RTLLabel(
                 text='تا تاریخ:',
-                size_hint_x=0.15,
+                size_hint_x=0.5,
                 size_hint_y=None,
-                height=dp(40),
+                height=dp(50),
                 font_size=sp(16),
                 color=(1, 1, 1, 1)
             ))
             to_date_input = RTLTextInput(
                 text=get_today_jalali(),
-                size_hint_x=0.35,
+                size_hint_x=1,
                 size_hint_y=None,
-                height=dp(65),
+                height=dp(80),
                 font_size=sp(28)
             )
             to_date_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1245,7 +1240,6 @@ class ReportScreen(Screen):
             all_summaries = load_json('daily_summary.json') if os.path.exists(os.path.join(get_data_path(), 'daily_summary.json')) else {}
             settings = get_settings()
             
-            # جمع‌آوری داده‌های بازه
             total_visits = 0
             total_invoices = 0
             total_units = 0
@@ -1253,10 +1247,10 @@ class ReportScreen(Screen):
             total_cash = 0
             total_check = 0
             total_credit = 0
+            total_new_customers = 0
             
             day_count = 0
             
-            # لیست تاریخ‌های بازه
             date_list = []
             for date in all_logs.keys():
                 if from_date <= date <= to_date:
@@ -1267,7 +1261,6 @@ class ReportScreen(Screen):
                 self.show_message('اطلاع', 'هیچ داده‌ای در بازه انتخابی وجود ندارد')
                 return
             
-            # محاسبه اهداف روزانه
             target_visits_per_day = settings.get('target_customer_count', 50)
             target_invoices_per_day = settings.get('target_invoice_count', 20)
             target_units_per_day = settings.get('target_count', 100)
@@ -1275,7 +1268,6 @@ class ReportScreen(Screen):
             target_cash_per_day = settings.get('target_cash_sales', 30000000)
             target_credit_per_day = settings.get('target_credit_sales', 20000000)
             
-            # اهداف کل بازه
             target_visits = target_visits_per_day * day_count
             target_invoices = target_invoices_per_day * day_count
             target_units = target_units_per_day * day_count
@@ -1283,7 +1275,6 @@ class ReportScreen(Screen):
             target_cash = target_cash_per_day * day_count
             target_credit = target_credit_per_day * day_count
             
-            # محاسبه عملکرد
             for date in date_list:
                 if date in all_logs and isinstance(all_logs[date], list):
                     for log in all_logs[date]:
@@ -1307,8 +1298,9 @@ class ReportScreen(Screen):
                                 total_check += sales_amount
                             elif payment_method == 'اعتباری':
                                 total_credit += sales_amount
+                        if log.get('is_new_customer', False):
+                            total_new_customers += 1
             
-            # آیتم‌ها
             items = [
                 {'name': 'تعداد ویزیت', 'target': target_visits, 'actual': total_visits},
                 {'name': 'تعداد فاکتور', 'target': target_invoices, 'actual': total_invoices},
@@ -1317,9 +1309,9 @@ class ReportScreen(Screen):
                 {'name': 'فروش نقدی', 'target': target_cash, 'actual': total_cash},
                 {'name': 'فروش چکی', 'target': target_credit, 'actual': total_check},
                 {'name': 'فروش اعتباری', 'target': target_credit, 'actual': total_credit},
+                {'name': 'مشتری جدید', 'target': 0, 'actual': total_new_customers},
             ]
             
-            # ========== ساخت محتوای دیالوگ ==========
             content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
@@ -1327,8 +1319,6 @@ class ReportScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                         size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ========== جدول ==========
-            # یک BoxLayout برای جدول
             table_container = BoxLayout(
                 orientation='vertical',
                 size_hint_y=0.9,
@@ -1336,7 +1326,6 @@ class ReportScreen(Screen):
                 padding=dp(3)
             )
             
-            # هدر جدول - کوچکتر
             header_box = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(2))
             headers = ['آیتم', 'هدف', 'عملکرد', 'نتیجه']
             for header in headers:
@@ -1345,14 +1334,13 @@ class ReportScreen(Screen):
                     size_hint_x=1/len(headers),
                     size_hint_y=None,
                     height=dp(34),
-                    font_size=sp(18),
+                    font_size=sp(22),
                     bold=True,
                     color=(0.4, 0.7, 1, 1),
                     halign='center'
                 ))
             table_container.add_widget(header_box)
             
-            # ردیف‌های جدول با ScrollView
             table_scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -1367,7 +1355,6 @@ class ReportScreen(Screen):
             )
             rows_content.bind(minimum_height=rows_content.setter('height'))
             
-            # اضافه کردن ردیف‌ها
             for item in items:
                 row = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(2))
                 
@@ -1380,7 +1367,7 @@ class ReportScreen(Screen):
                     size_hint_x=1/len(headers),
                     size_hint_y=None,
                     height=dp(28),
-                    font_size=sp(16),
+                    font_size=sp(20),
                     color=(1, 1, 1, 1),
                     halign='right'
                 ))
@@ -1389,7 +1376,7 @@ class ReportScreen(Screen):
                     size_hint_x=1/len(headers),
                     size_hint_y=None,
                     height=dp(28),
-                    font_size=sp(16),
+                    font_size=sp(20),
                     color=(1, 1, 1, 1),
                     halign='center'
                 ))
@@ -1398,7 +1385,7 @@ class ReportScreen(Screen):
                     size_hint_x=1/len(headers),
                     size_hint_y=None,
                     height=dp(28),
-                    font_size=sp(16),
+                    font_size=sp(20),
                     color=(1, 1, 1, 1),
                     halign='center'
                 ))
@@ -1407,7 +1394,7 @@ class ReportScreen(Screen):
                     size_hint_x=1/len(headers),
                     size_hint_y=None,
                     height=dp(28),
-                    font_size=sp(16),
+                    font_size=sp(20),
                     color=diff_color,
                     halign='center'
                 ))
@@ -1418,7 +1405,6 @@ class ReportScreen(Screen):
             table_container.add_widget(table_scroll)
             content.add_widget(table_container)
             
-            # ========== دکمه ارزیابی ==========
             eval_btn = PersianButton(
                 text='ارزیابی',
                 background_color=(0.2, 0.6, 1, 1),
@@ -1429,11 +1415,9 @@ class ReportScreen(Screen):
             )
             content.add_widget(eval_btn)
             
-            # ========== باکس نتیجه ارزیابی ==========
             result_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(1))
             content.add_widget(result_box)
             
-            # ========== دکمه بستن ==========
             btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(10))
             close_btn = PersianButton(
                 text='بستن',
@@ -1447,7 +1431,6 @@ class ReportScreen(Screen):
             btn_layout.add_widget(close_btn)
             content.add_widget(btn_layout)
             
-            # ========== ایجاد پاپ‌آپ ==========
             popup = PersianPopup(
                 title='ارزیابی',
                 content=content,
@@ -1456,11 +1439,9 @@ class ReportScreen(Screen):
                 auto_dismiss=False
             )
             
-            # اتصال دکمه‌ها
             eval_btn.bind(on_press=lambda x: self._show_evaluation_result(result_box, items, date_list, all_logs))
             close_btn.bind(on_press=lambda x: popup.dismiss())
             
-            # ✅ نمایش پاپ‌آپ
             popup.open()
             
         except Exception as e:
@@ -1473,7 +1454,6 @@ class ReportScreen(Screen):
     
     def _show_evaluation_result(self, result_box, items, date_list, all_logs):
         try:
-            # محاسبه درصد عملکرد فروش
             total_target = 0
             total_actual = 0
             sale_items = ['مبلغ فروش', 'تعداد فاکتور', 'واحد فروش']
@@ -1484,7 +1464,6 @@ class ReportScreen(Screen):
             
             percent = (total_actual / total_target * 100) if total_target > 0 else 0
             
-            # تعیین رنگ و پیام فروش
             if percent < 65:
                 sales_msg = 'به اندازه کافی تلاش نکردم'
                 sales_color = (0.5, 0.5, 0.5, 1)
@@ -1492,21 +1471,19 @@ class ReportScreen(Screen):
                 sales_msg = 'باید بیشتر تلاش کنم'
                 sales_color = (1, 0.5, 0, 1)
             elif percent < 85:
-                sales_msg = 'هنوز به نتیجه نرسیدم'
+                sales_msg = 'تلاشم داره نتیجه میده'
                 sales_color = (1, 0.8, 0, 1)
             elif percent < 100:
-                sales_msg = 'خوبم اما هنوز میتونم بهتر باشم'
+                sales_msg = 'تا موفقیت راهی نیست'
                 sales_color = (0.2, 0.5, 1, 1)
             else:
                 sales_msg = 'به خودم افتخار میکنم'
                 sales_color = (0.2, 0.7, 0.2, 1)
             
-            # محاسبه زمان‌ها
             first_visit_target = '09:00'
             work_start_target = '08:00'
             min_hours = 6
             
-            # پیدا کردن اولین و آخرین ویزیت از لاگ‌های روز
             all_times = []
             for date in date_list:
                 if date in all_logs and isinstance(all_logs[date], list):
@@ -1521,7 +1498,6 @@ class ReportScreen(Screen):
             first_actual = all_times[0] if all_times else '--:--'
             last_actual = all_times[-1] if all_times else '--:--'
             
-            # محاسبه اختلاف‌ها
             def time_diff(t1, t2):
                 try:
                     h1, m1 = map(int, t1.split(':'))
@@ -1531,7 +1507,6 @@ class ReportScreen(Screen):
                 except:
                     return 0
             
-            # محاسبه کارکرد مفید
             work_hours = 0
             work_minutes = 0
             if first_actual != '--:--' and last_actual != '--:--':
@@ -1539,7 +1514,6 @@ class ReportScreen(Screen):
                 work_hours = diff_min // 60
                 work_minutes = diff_min % 60
             
-            # تعیین رنگ و پیام کارکرد مفید
             if work_hours < 5:
                 work_msg = 'به اندازه کافی وقت نذاشتم باید جبران کنم'
                 work_color = (0.5, 0.5, 0.5, 1)
@@ -1550,43 +1524,37 @@ class ReportScreen(Screen):
                 work_msg = 'تمام تلاشم رو کردم امیدوارم نتیجه بگیرم'
                 work_color = (0.2, 0.7, 0.2, 1)
             
-            # پاک کردن result_box
             result_box.clear_widgets()
             result_box.height = dp(1)
             
-            # ایجاد محتوای نتیجه
             result_content = BoxLayout(orientation='vertical', spacing=dp(5), size_hint_y=None)
             
-            # عنوان
             result_content.add_widget(RTLLabel(
                 text='نتیجه ارزیابی',
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(20),
+                font_size=sp(24),
                 bold=True,
                 color=(0.4, 0.7, 1, 1)
             ))
             
-            # ارزیابی فروش
             result_content.add_widget(RTLLabel(
                 text=f'عملکرد فروش: {percent:.1f}% - {sales_msg}',
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=sales_color
             ))
             
-            # ارزیابی زمان
             result_content.add_widget(RTLLabel(
                 text='ارزیابی زمان:',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(18),
+                font_size=sp(22),
                 bold=True,
                 color=(1, 1, 1, 1)
             ))
             
-            # تاخیر در شروع کار
             if first_actual != '--:--':
                 diff = time_diff(work_start_target, first_actual)
                 if diff > 0:
@@ -1594,7 +1562,7 @@ class ReportScreen(Screen):
                         text=f'{diff} دقیقه دیر کردم',
                         size_hint_y=None,
                         height=dp(25),
-                        font_size=sp(16),
+                        font_size=sp(20),
                         color=(1, 0.5, 0, 1)
                     ))
                 else:
@@ -1602,16 +1570,15 @@ class ReportScreen(Screen):
                         text='در شروع کار تاخیر نداشتم',
                         size_hint_y=None,
                         height=dp(25),
-                        font_size=sp(16),
+                        font_size=sp(20),
                         color=(0.2, 0.7, 0.2, 1)
                     ))
             
-            # کارکرد مفید
             result_content.add_widget(RTLLabel(
                 text=f'کارکرد مفید: {work_hours} ساعت و {work_minutes} دقیقه',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             
@@ -1619,7 +1586,7 @@ class ReportScreen(Screen):
                 text=work_msg,
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=work_color
             ))
             

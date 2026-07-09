@@ -35,13 +35,19 @@ class AgentsScreen(Screen):
             # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
-            self.settings = get_settings()
-            self.selected_customer = None
-            self.selected_route = None
+            # تعریف متغیرهای کلاس
+            self.amount_words_label = None
+            self._last_reason_text = ''
             self._last_search_text = ''
             self._last_route_text = ''
             self._last_customer_text = ''
-            self._last_reason_text = ''
+            self.locked_route = None  # مسیر قفل‌شده
+            self.route_confirmed = False  # آیا مسیر تأیید شده؟
+            self.session_new_customers = []  # ✅ لیست مشتریان جدید در این جلسه
+            
+            self.settings = get_settings()
+            self.selected_customer = None
+            self.selected_route = None
             
             self.build_ui()
             
@@ -58,71 +64,75 @@ class AgentsScreen(Screen):
 
     def number_to_persian_words(self, number):
         """تبدیل عدد به حروف فارسی + ریال"""
-        if number == 0:
-            return "صفر ریال"
-        
-        ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه']
-        tens = ['', 'ده', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود']
-        hundreds = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد']
-        groups = ['', 'هزار', 'میلیون', 'میلیارد']
-        
-        def convert_three_digits(num):
-            if num == 0:
-                return ''
-            h = num // 100
-            t = (num % 100) // 10
-            o = num % 10
-            result = []
-            if h > 0:
-                result.append(hundreds[h])
-            if t == 1:
-                if o == 0:
-                    result.append('ده')
-                elif o == 1:
-                    result.append('یازده')
-                elif o == 2:
-                    result.append('دوازده')
-                elif o == 3:
-                    result.append('سیزده')
-                elif o == 4:
-                    result.append('چهارده')
-                elif o == 5:
-                    result.append('پانزده')
-                elif o == 6:
-                    result.append('شانزده')
-                elif o == 7:
-                    result.append('هفده')
-                elif o == 8:
-                    result.append('هجده')
-                elif o == 9:
-                    result.append('نوزده')
-            else:
-                if t > 0:
-                    result.append(tens[t])
-                if o > 0:
-                    result.append(ones[o])
-            return ' و '.join(result)
-        
-        num_str = str(number)
-        group_list = []
-        for i in range(len(num_str), 0, -3):
-            start = max(0, i - 3)
-            group = int(num_str[start:i])
-            group_list.insert(0, group)
-        
-        result_parts = []
-        for i, group in enumerate(group_list):
-            if group == 0:
-                continue
-            group_words = convert_three_digits(group)
-            if group_words:
-                group_name = groups[len(group_list) - 1 - i]
-                if group_name:
-                    result_parts.append(f"{group_words} {group_name}")
+        try:
+            if number == 0:
+                return "صفر ریال"
+            
+            ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه']
+            tens = ['', 'ده', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود']
+            hundreds = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد']
+            groups = ['', 'هزار', 'میلیون', 'میلیارد']
+            
+            def convert_three_digits(num):
+                if num == 0:
+                    return ''
+                h = num // 100
+                t = (num % 100) // 10
+                o = num % 10
+                result = []
+                if h > 0:
+                    result.append(hundreds[h])
+                if t == 1:
+                    if o == 0:
+                        result.append('ده')
+                    elif o == 1:
+                        result.append('یازده')
+                    elif o == 2:
+                        result.append('دوازده')
+                    elif o == 3:
+                        result.append('سیزده')
+                    elif o == 4:
+                        result.append('چهارده')
+                    elif o == 5:
+                        result.append('پانزده')
+                    elif o == 6:
+                        result.append('شانزده')
+                    elif o == 7:
+                        result.append('هفده')
+                    elif o == 8:
+                        result.append('هجده')
+                    elif o == 9:
+                        result.append('نوزده')
                 else:
-                    result_parts.append(group_words)
-        
-        return " و ".join(result_parts) + " ریال"
+                    if t > 0:
+                        result.append(tens[t])
+                    if o > 0:
+                        result.append(ones[o])
+                return ' و '.join(result)
+            
+            num_str = str(number)
+            group_list = []
+            for i in range(len(num_str), 0, -3):
+                start = max(0, i - 3)
+                group = int(num_str[start:i])
+                group_list.insert(0, group)
+            
+            result_parts = []
+            for i, group in enumerate(group_list):
+                if group == 0:
+                    continue
+                group_words = convert_three_digits(group)
+                if group_words:
+                    group_name = groups[len(group_list) - 1 - i]
+                    if group_name:
+                        result_parts.append(f"{group_words} {group_name}")
+                    else:
+                        result_parts.append(group_words)
+            
+            return " و ".join(result_parts) + " ریال"
+        except Exception as e:
+            print(f"خطا در تبدیل عدد به حروف: {e}")
+            return f"{number:,} ریال"
     
     def _update_bg(self, instance, value):
         self.bg_rect.pos = instance.pos
@@ -230,12 +240,22 @@ class AgentsScreen(Screen):
             if today in logs and logs[today] and len(logs[today]) > 0:
                 # مسیر قفل بشه
                 if hasattr(self, 'route_spinner'):
-                    self.route_spinner.main_btn.disabled = True
-                    self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
-                    self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
+                    # ✅ مسیر قفل‌شده را از آخرین لاگ بگیر
+                    last_visit = logs[today][-1]
+                    locked_route = last_visit.get('route', '')
+                    
+                    if locked_route:
+                        self.locked_route = locked_route
+                        self.route_spinner.text = locked_route
+                        self.route_spinner.main_btn.disabled = True
+                        self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
+                        self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
+                        self.route_confirmed = True
+                        # ✅ به‌روزرسانی لیست مشتریان بر اساس مسیر قفل‌شده
+                        Clock.schedule_once(lambda dt: self.update_customers_list(), 0.3)
                 
                 # نمایش پیام به کاربر
-                self.show_message('اطلاع', 'امروز قبلاً ویزیت ثبت شده است.\nمسیر قفل شد.')
+                self.show_message('اطلاع', 'امروز قبلاً ویزیت ثبت شده است.مسیر قفل شد.')
         except Exception as e:
             print(f"خطا در بررسی ویزیت‌های امروز: {e}")
     
@@ -312,7 +332,7 @@ class AgentsScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== مسیر (کمبوباکس) ==========
+            # ========== مسیر (کمبوباکس - همیشه خالی شروع میشود) ==========
             content.add_widget(RTLLabel(
                 text='انتخاب مسیر:',
                 size_hint_y=None,
@@ -326,15 +346,28 @@ class AgentsScreen(Screen):
             route_names = [r.get('name', '') for r in routes] if routes else ['']
             
             self.route_spinner = PersianComboBox(
-                text=route_names[0] if route_names else '',
+                text='',  # ✅ خالی شروع میشود
                 values=route_names,
                 height=dp(70)
             )
             self.route_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             self.route_spinner.main_btn.color = (1, 1, 1, 1)
             self.route_spinner.main_btn.font_size = sp(18)
+            
+            # ✅ اگر مسیر قفل‌شده وجود دارد و امروز ویزیت ثبت شده، مسیر را تنظیم و قفل کن
+            today = get_today_jalali()
+            logs = get_daily_logs()
+            if self.locked_route and today in logs and logs[today] and len(logs[today]) > 0:
+                if self.locked_route in route_names:
+                    self.route_spinner.text = self.locked_route
+                    self.route_spinner.main_btn.disabled = True
+                    self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
+                    self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
+                    self.route_confirmed = True
+            
             self._last_route_text = self.route_spinner.text
-            Clock.schedule_interval(self._check_route_change, 0.3)
+            # ✅ تغییر Clock: وقتی مسیر تغییر کرد، دیالوگ تأیید نمایش داده شود
+            Clock.schedule_interval(self._check_route_change_with_confirm, 0.3)
             content.add_widget(self.route_spinner)
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
@@ -468,13 +501,14 @@ class AgentsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در جستجوی مشتری: {e}", error_details)
 
-    def _check_route_change(self, dt):
-        """بررسی تغییر مسیر با Clock"""
-        if hasattr(self, 'route_spinner'):
+    def _check_route_change_with_confirm(self, dt):
+        """بررسی تغییر مسیر و نمایش دیالوگ تأیید"""
+        if hasattr(self, 'route_spinner') and not self.route_spinner.main_btn.disabled:
             current_text = self.route_spinner.text
-            if current_text != self._last_route_text:
+            if current_text != self._last_route_text and current_text and current_text != '':
                 self._last_route_text = current_text
-                self.on_route_selected(current_text)
+                # ✅ نمایش دیالوگ تأیید مسیر
+                self.show_route_confirm_dialog(current_text)
     
     def _check_customer_change(self, dt):
         """بررسی تغییر مشتری با Clock"""
@@ -492,14 +526,6 @@ class AgentsScreen(Screen):
     def on_route_selected(self, value):
         """زمانی که مسیر انتخاب می‌شود"""
         self.selected_route = value
-        
-        # قفل کردن مسیر بعد از انتخاب (فقط اگر قبلاً قفل نشده باشه)
-        # و اگر امروز ویزیتی ثبت شده باشه، مسیر قفل بمونه
-        if not self.route_spinner.main_btn.disabled:
-            self.route_spinner.main_btn.disabled = True
-            self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
-            self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
-        
         self.update_customers_list()
     
     def update_customers_list(self):
@@ -587,9 +613,9 @@ class AgentsScreen(Screen):
             customer_route_spinner.main_btn.font_size = sp(16)
             content.add_widget(customer_route_spinner)
 
-            # نام مشتری
+            # نام مشتری (اجباری)
             content.add_widget(RTLLabel(
-                text='نام مشتری:',
+                text='نام مشتری (الزامی):',
                 size_hint_y=None,
                 height=dp(25),
                 font_size=sp(14),
@@ -608,7 +634,7 @@ class AgentsScreen(Screen):
             customer_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(customer_name_input)
 
-            # نام فروشگاه
+            # نام فروشگاه (اختیاری)
             content.add_widget(RTLLabel(
                 text='نام فروشگاه:',
                 size_hint_y=None,
@@ -617,7 +643,7 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             customer_store_input = RTLTextInput(
-                hint_text='نام فروشگاه را وارد کنید',
+                hint_text='نام فروشگاه را وارد کنید (اختیاری)',
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
@@ -629,16 +655,16 @@ class AgentsScreen(Screen):
             customer_store_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(customer_store_input)
 
-            # موبایل
+            # موبایل (اجباری)
             content.add_widget(RTLLabel(
-                text='موبایل:',
+                text='موبایل (الزامی):',
                 size_hint_y=None,
                 height=dp(25),
                 font_size=sp(14),
                 color=(1, 1, 1, 1)
             ))
             customer_mobile_input = RTLTextInput(
-                hint_text='شماره موبایل را وارد کنید',
+                hint_text='شماره موبایل را وارد کنید (11 رقم)',
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
@@ -648,9 +674,10 @@ class AgentsScreen(Screen):
             customer_mobile_input.border_color = (0.3, 0.3, 0.3, 1)
             customer_mobile_input.border_color_focus = (0.2, 0.5, 0.9, 1)
             customer_mobile_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            customer_mobile_input._hidden_input.input_filter = 'int'
             content.add_widget(customer_mobile_input)
 
-            # آدرس
+            # آدرس (اختیاری)
             content.add_widget(RTLLabel(
                 text='آدرس:',
                 size_hint_y=None,
@@ -659,7 +686,7 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             customer_address_input = RTLTextInput(
-                hint_text='آدرس را وارد کنید',
+                hint_text='آدرس را وارد کنید (اختیاری)',
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
@@ -698,7 +725,7 @@ class AgentsScreen(Screen):
             popup = PersianPopup(
                 title='افزودن مشتری',
                 content=content,
-                size_hint=(0.9, 0.7),
+                size_hint=(0.9, 0.75),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
@@ -710,38 +737,65 @@ class AgentsScreen(Screen):
                         self.show_message('خطا', 'لطفاً ابتدا یک مسیر ایجاد کنید')
                         return
 
+                    # اعتبارسنجی نام مشتری
                     name = customer_name_input.text.strip()
                     if not name:
                         self.show_message('خطا', 'نام مشتری الزامی است')
+                        customer_name_input._hidden_input.focus = True
                         return
 
-                    # ✅ اعتبارسنجی تکراری نبودن مشتری در کل مشتریان
+                    # اعتبارسنجی شماره موبایل
+                    mobile = customer_mobile_input.text.strip()
+                    if not mobile:
+                        self.show_message('خطا', 'شماره موبایل الزامی است')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+
+                    # اعتبارسنجی فرمت موبایل
+                    mobile_clean = mobile.replace(' ', '').replace('-', '').replace('_', '')
+                    if not mobile_clean.isdigit():
+                        self.show_message('خطا', 'شماره موبایل باید فقط شامل عدد باشد')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+                    
+                    if len(mobile_clean) != 11:
+                        self.show_message('خطا', 'شماره موبایل باید ۱۱ رقم باشد')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+                    
+                    if not mobile_clean.startswith('09'):
+                        self.show_message('خطا', 'شماره موبایل باید با 09 شروع شود')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+
+                    # بررسی تکراری بودن نام مشتری
                     all_customers = get_customers()
                     for c in all_customers:
                         if c.get('name', '').strip() == name:
                             self.show_message('خطا', f'مشتری با نام "{name}" قبلاً ثبت شده است')
+                            customer_name_input._hidden_input.focus = True
                             return
-
-                    mobile = customer_mobile_input.text.strip()
-                    if mobile:
-                        # اعتبارسنجی موبایل
-                        mobile_clean = mobile.replace(' ', '').replace('-', '').replace('_', '')
-                        if not mobile_clean.isdigit():
-                            self.show_message('خطا', 'شماره موبایل باید فقط شامل عدد باشد')
-                            return
-                        if len(mobile_clean) != 11 or not mobile_clean.startswith('09'):
-                            self.show_message('خطا', 'شماره موبایل باید ۱۱ رقم و با 09 شروع شود')
+                        
+                        # بررسی تکراری بودن شماره موبایل
+                        existing_mobile = c.get('mobile', '').strip()
+                        if existing_mobile and existing_mobile == mobile_clean:
+                            self.show_message('خطا', f'شماره موبایل "{mobile_clean}" قبلاً برای مشتری "{c.get("name")}" ثبت شده است')
+                            customer_mobile_input._hidden_input.focus = True
                             return
 
                     customer = {
                         'name': name,
                         'store_name': customer_store_input.text.strip(),
                         'route_name': route_name,
-                        'mobile': mobile,
+                        'mobile': mobile_clean,
                         'address': customer_address_input.text.strip()
                     }
                     
                     add_customer(customer)
+                    
+                    # ✅ اضافه کردن نام مشتری به لیست مشتریان جدید جلسه
+                    self.session_new_customers.append(name)
+                    
                     popup.dismiss()
                     
                     # به‌روزرسانی لیست مشتریان
@@ -771,6 +825,85 @@ class AgentsScreen(Screen):
     # دیالوگ‌های ویزیت
     # ============================================================
     
+    def show_route_confirm_dialog(self, route_name):
+        """نمایش دیالوگ تأیید مسیر انتخاب شده"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.15, 0.15, 0.15, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                        size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text=f'آیا قصد ویزیت مسیر "{route_name}" را دارید؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(1, 1, 1, 1)
+            ))
+            
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+            
+            yes_btn = PersianButton(
+                text='بله',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            no_btn = PersianButton(
+                text='خیر',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(yes_btn)
+            btn_layout.add_widget(no_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='تأیید مسیر',
+                content=content,
+                size_hint=(0.85, 0.35),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def on_yes(instance):
+                popup.dismiss()
+                # ✅ قفل کردن مسیر و ذخیره در locked_route
+                self.locked_route = route_name
+                self.route_confirmed = True
+                self.route_spinner.main_btn.disabled = True
+                self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
+                self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
+                # ✅ به‌روزرسانی لیست مشتریان بر اساس مسیر انتخاب شده
+                self.update_customers_list()
+                self.show_message('موفق', f'مسیر "{route_name}" با موفقیت انتخاب و قفل شد.')
+            
+            def on_no(instance):
+                popup.dismiss()
+                # ✅ برگرداندن کامبوباکس به حالت خالی
+                self.route_spinner.text = ''
+                self._last_route_text = ''
+                self.route_confirmed = False
+                # غیرفعال کردن مشتریان
+                self.customer_spinner.values = ['']
+                self.customer_spinner.text = ''
+            
+            yes_btn.bind(on_press=on_yes)
+            no_btn.bind(on_press=on_no)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید مسیر: {e}", error_details)
+
     def show_confirm_dialog(self, customer_name):
         """دیالوگ تأیید ویزیت برای مشتری"""
         try:
@@ -1219,6 +1352,10 @@ class AgentsScreen(Screen):
     def _update_amount_label(self, instance, value):
         """به‌روزرسانی برچسب نمایش مبلغ به حروف"""
         try:
+            # اگر لیبل وجود ندارد، کاری نکن
+            if not self.amount_words_label:
+                return
+                
             amount = value.strip()
             if not amount or amount == '0':
                 self.amount_words_label.set_text('صفر ریال')
@@ -1228,10 +1365,12 @@ class AgentsScreen(Screen):
             words = self.number_to_persian_words(number)
             self.amount_words_label.set_text(words)
         except ValueError:
-            self.amount_words_label.set_text('مبلغ نامعتبر')
+            if self.amount_words_label:
+                self.amount_words_label.set_text('مبلغ نامعتبر')
         except Exception as e:
             print(f"خطا در تبدیل عدد به حروف: {e}")
-            self.amount_words_label.set_text('خطا در تبدیل')
+            if self.amount_words_label:
+                self.amount_words_label.set_text('خطا در تبدیل')
 
     def show_success_sales_dialog(self, customer_name):
         """دیالوگ فروش موفق با فیلدهای تعداد، مبلغ و نحوه تسویه"""
@@ -1300,18 +1439,17 @@ class AgentsScreen(Screen):
             self.amount_input.border_color_focus = (0.2, 0.5, 0.9, 1)
             self.amount_input._hidden_input.foreground_color = (1, 1, 1, 1)
             self.amount_input._hidden_input.bind(focus=self._on_field_focus)
-            # ✅ اتصال رویداد تغییر متن برای به‌روزرسانی برچسب
             self.amount_input._hidden_input.bind(text=self._update_amount_label)
             self.focusable_fields.append(self.amount_input._hidden_input)
             content.add_widget(self.amount_input)
 
-            # ✅ برچسب نمایش عدد به حروف (بزرگتر)
+            # برچسب نمایش عدد به حروف
             self.amount_words_label = RTLLabel(
                 text='صفر ریال',
                 size_hint_y=None,
-                height=dp(50),          # ← افزایش ارتفاع
-                font_size=sp(72),       # ← افزایش فونت
-                color=(0.8, 1, 0.8, 1), # ← سبز روشن
+                height=dp(50),
+                font_size=sp(72),
+                color=(0.8, 1, 0.8, 1),
                 halign='right'
             )
             content.add_widget(self.amount_words_label)
@@ -1360,7 +1498,7 @@ class AgentsScreen(Screen):
             popup = PersianPopup(
                 title='ثبت فروش موفق',
                 content=content,
-                size_hint=(0.85, 0.8),  # ✅ افزایش ارتفاع برای جای برچسب
+                size_hint=(0.85, 0.8),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
@@ -1432,12 +1570,18 @@ class AgentsScreen(Screen):
             if not isinstance(logs[today], list):
                 logs[today] = []
             
+            customer_name = kwargs.get('customer_name')
+            
+            # ✅ بررسی اینکه آیا مشتری در همین جلسه اضافه شده
+            is_new_customer = customer_name in self.session_new_customers
+            
             log_data = {
                 'date': today,
                 'route': self.route_spinner.text,
-                'customer': kwargs.get('customer_name'),
+                'customer': customer_name,
                 'visit_status': kwargs.get('visit_status'),
-                'time': get_current_time()
+                'time': get_current_time(),
+                'is_new_customer': is_new_customer  # ✅ ذخیره میشود
             }
             
             # اضافه کردن فیلدهای مختلف بر اساس وضعیت
@@ -1458,6 +1602,21 @@ class AgentsScreen(Screen):
             
             # ذخیره کل لاگ‌ها
             save_daily_log(today, logs[today])
+            
+            # ذخیره مسیر قفل‌شده
+            self.locked_route = self.route_spinner.text
+            
+            # قفل کردن مسیر فقط بعد از ثبت موفق ویزیت
+            if hasattr(self, 'route_spinner'):
+                self.route_spinner.main_btn.disabled = True
+                self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
+                self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
+            
+            # قفل کردن مشتری هم بعد از ثبت ویزیت
+            if hasattr(self, 'customer_spinner'):
+                self.customer_spinner.main_btn.disabled = True
+                self.customer_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
+                self.customer_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
             
         except Exception as e:
             error_details = traceback.format_exc()
@@ -1509,4 +1668,27 @@ class AgentsScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
     
     def go_back(self, instance):
+        today = get_today_jalali()
+        logs = get_daily_logs()
+        
+        if today in logs and logs[today] and len(logs[today]) > 0:
+            # ویزیت ثبت شده، مسیر را ذخیره کن
+            if hasattr(self, 'route_spinner'):
+                self.locked_route = self.route_spinner.text
+        else:
+            # ویزیت ثبت نشده، قفل را باز کن
+            self.locked_route = None
+            self.route_confirmed = False
+            if hasattr(self, 'route_spinner'):
+                self.route_spinner.main_btn.disabled = False
+                self.route_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+                self.route_spinner.main_btn.color = (1, 1, 1, 1)
+                self.route_spinner.text = ''
+                self._last_route_text = ''
+            
+            if hasattr(self, 'customer_spinner'):
+                self.customer_spinner.main_btn.disabled = False
+                self.customer_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+                self.customer_spinner.main_btn.color = (1, 1, 1, 1)
+        
         self.manager.current = 'user'
