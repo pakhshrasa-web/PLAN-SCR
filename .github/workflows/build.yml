@@ -14,11 +14,59 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Cache Buildozer
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq \
+          build-essential git zip unzip \
+          autoconf libtool \
+          pkg-config zlib1g-dev libncurses5-dev \
+          libncursesw5-dev libtinfo5 cmake \
+          libffi-dev libssl-dev wget \
+          ccache \
+          libfreetype6-dev libjpeg-dev zlib1g-dev
+
+    - name: Install Python packages
+      run: |
+        pip install -q buildozer cython==0.29.37
+        echo "✅ Python packages installed"
+
+    - name: Set GCC as default compiler
+      run: |
+        sudo apt-get install -y gcc g++
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        echo "LD=g++" >> $GITHUB_ENV
+        sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
+        sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
+        gcc --version
+
+    - name: Clean NDK 28c
+      run: |
+        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
+        rm -rf .buildozer/android/platform/android-ndk-r28c
+        echo "NDK 28c removed"
 
     - name: Create buildozer.spec
       run: |
@@ -41,8 +89,8 @@ jobs:
         warn_on_root = 1
 
         [buildozer:android]
-        android.sdk_path = /home/user/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/user/.buildozer/android/platform/android-ndk-r25b
+        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
         android.ndk = 25b
         android.api = 33
         android.minapi = 21
@@ -126,17 +174,10 @@ jobs:
         cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "خطا در کپی فونت‌ها"
         cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "خطا در کپی داده‌ها"
 
-    - name: Update version and version_code for auto-update
+    - name: Update version_code
       run: |
-        # آپدیت version_code با شماره بیلد
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
-        
-        # آپدیت version با شماره بیلد برای آپدیت خودکار
-        sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
-        
-        echo "✅ Version set to: ${{ github.run_number }}"
-        echo "✅ Version Code set to: ${{ github.run_number }}"
-        echo "📱 APK will auto-update previous version"
+        echo "✅ Version Code updated"
 
     - name: Restore Keystore from Secrets
       run: |
@@ -154,48 +195,79 @@ jobs:
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "✅ buildozer.spec updated with keystore info"
 
-    - name: Build APK with Buildozer Action
-      uses: ArtemSBulgakov/buildozer-action@v1
-      id: buildozer
-      with:
-        workdir: .
-        buildozer_cmd: buildozer android release
-
-    - name: Convert AAB to Signed APK (if needed)
+    - name: Build with Buildozer (with patch)
       run: |
-        # اگر فایل AAB وجود داشت به APK تبدیل کن
-        if [ -f bin/*.aab ]; then
-          AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-          echo "📦 Found AAB: $AAB_FILE"
-          
-          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-          
-          java -jar bundletool.jar build-apks \
-            --bundle="$AAB_FILE" \
-            --output=app.apks \
-            --mode=universal \
-            --ks=keystore.jks \
-            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
-            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
-            --overwrite
-          
-          unzip -o app.apks -d apk_output
-          mkdir -p bin
-          cp apk_output/universal.apk bin/app-release.apk
-          echo "✅ APK created successfully from AAB"
-        fi
+        echo "🚀 Starting build with pyjnius patch..."
+        
+        # ایجاد یک hook برای patch کردن pyjnius قبل از کامپایل
+        mkdir -p .buildozer/hooks
+        
+        cat > .buildozer/hooks/patch_pyjnius.py << 'EOF'
+        import os
+        import shutil
+        import re
+        from pythonforandroid.recipe import Recipe
+        from pythonforandroid.logger import info
 
-    - name: Verify APK exists
+        class PatchedPyjniusRecipe(Recipe):
+            def prebuild_arch(self, arch):
+                info("Patching pyjnius for Python 3.14 compatibility...")
+                # مسیر فایل jnius_utils.pxi را پیدا کن
+                build_dir = self.get_build_dir(arch)
+                pxi_file = os.path.join(build_dir, 'jnius', 'jnius_utils.pxi')
+                
+                if os.path.exists(pxi_file):
+                    # خواندن فایل
+                    with open(pxi_file, 'r') as f:
+                        content = f.read()
+                    
+                    # جایگزینی long با int
+                    new_content = re.sub(r'\b(long)\b', 'int', content)
+                    
+                    # نوشتن فایل جدید
+                    with open(pxi_file, 'w') as f:
+                        f.write(new_content)
+                    
+                    info(f"✅ Patched {pxi_file}")
+                else:
+                    info(f"⚠️ File not found: {pxi_file}")
+                
+                super().prebuild_arch(arch)
+
+        recipe = PatchedPyjniusRecipe()
+        EOF
+
+        echo "✅ Hook created for pyjnius patch"
+        
+        # اجرای بیلد
+        echo "y" | buildozer -v android release
+      env:
+        CC: gcc
+        CXX: g++
+        LD: g++
+        P4A_PYTHON_VERSION: 3.10
+
+    - name: Convert AAB to Signed APK
       run: |
-        echo "📱 Checking APK files:"
-        ls -la bin/ || echo "No APK found!"
-        if [ -f bin/*.apk ]; then
-          echo "✅ APK found successfully!"
-        else
-          echo "❌ No APK found!"
-          exit 1
-        fi
+        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
+        echo "Found AAB: $AAB_FILE"
+        
+        wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+        
+        java -jar bundletool.jar build-apks \
+          --bundle="$AAB_FILE" \
+          --output=app.apks \
+          --mode=universal \
+          --ks=keystore.jks \
+          --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+          --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+          --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
+          --overwrite
+        
+        unzip -o app.apks -d apk_output
+        mkdir -p bin
+        cp apk_output/universal.apk bin/app-release.apk
+        echo "✅ APK created successfully"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
