@@ -47,9 +47,11 @@ jobs:
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install Python packages
+    - name: Install specific Python packages (FIX)
       run: |
         pip install -q buildozer cython==0.29.37
+        # نصب python-for-android نسخه 2024.1.21 که با Python 3.10 کار می‌کند
+        pip install python-for-android==2024.1.21
         echo "✅ Python packages installed"
 
     - name: Set GCC as default compiler
@@ -62,13 +64,13 @@ jobs:
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
 
-    - name: Clean all NDK versions
+    - name: Clean NDK 28c
       run: |
-        rm -rf ~/.buildozer/android/platform/android-ndk-*
-        rm -rf .buildozer/android/platform/android-ndk-*
-        echo "✅ All NDKs removed"
+        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
+        rm -rf .buildozer/android/platform/android-ndk-r28c
+        echo "NDK 28c removed"
 
-    - name: Create buildozer.spec with NDK 23c
+    - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
@@ -90,9 +92,9 @@ jobs:
 
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r23c
-        android.ndk = 23c
-        android.api = 30
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
+        android.ndk = 25b
+        android.api = 33
         android.minapi = 21
         android.archs = armeabi-v7a, arm64-v8a
 
@@ -110,7 +112,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created with NDK 23c and API 30"
+        echo "✅ buildozer.spec created"
 
     - name: Create initial json files
       run: |
