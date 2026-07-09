@@ -47,10 +47,10 @@ jobs:
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install Python packages
+    - name: Install specific Python packages
       run: |
-        pip install -q buildozer cython==0.29.37
-        echo "✅ Python packages installed"
+        pip install buildozer==1.4.0 cython==0.29.37
+        echo "✅ Buildozer 1.4.0 installed"
 
     - name: Set GCC as default compiler
       run: |
@@ -195,79 +195,51 @@ jobs:
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "✅ buildozer.spec updated with keystore info"
 
-    - name: Build with Buildozer (with patch)
+    - name: Build with Buildozer 1.4.0
       run: |
-        echo "🚀 Starting build with pyjnius patch..."
-        
-        # ایجاد یک hook برای patch کردن pyjnius قبل از کامپایل
-        mkdir -p .buildozer/hooks
-        
-        cat > .buildozer/hooks/patch_pyjnius.py << 'EOF'
-        import os
-        import shutil
-        import re
-        from pythonforandroid.recipe import Recipe
-        from pythonforandroid.logger import info
-
-        class PatchedPyjniusRecipe(Recipe):
-            def prebuild_arch(self, arch):
-                info("Patching pyjnius for Python 3.14 compatibility...")
-                # مسیر فایل jnius_utils.pxi را پیدا کن
-                build_dir = self.get_build_dir(arch)
-                pxi_file = os.path.join(build_dir, 'jnius', 'jnius_utils.pxi')
-                
-                if os.path.exists(pxi_file):
-                    # خواندن فایل
-                    with open(pxi_file, 'r') as f:
-                        content = f.read()
-                    
-                    # جایگزینی long با int
-                    new_content = re.sub(r'\b(long)\b', 'int', content)
-                    
-                    # نوشتن فایل جدید
-                    with open(pxi_file, 'w') as f:
-                        f.write(new_content)
-                    
-                    info(f"✅ Patched {pxi_file}")
-                else:
-                    info(f"⚠️ File not found: {pxi_file}")
-                
-                super().prebuild_arch(arch)
-
-        recipe = PatchedPyjniusRecipe()
-        EOF
-
-        echo "✅ Hook created for pyjnius patch"
-        
-        # اجرای بیلد
-        echo "y" | buildozer -v android release
+        echo "🚀 Starting build with Buildozer 1.4.0..."
+        echo "y" | buildozer --version 1.4.0 android release
       env:
         CC: gcc
         CXX: g++
         LD: g++
-        P4A_PYTHON_VERSION: 3.10
 
     - name: Convert AAB to Signed APK
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        echo "Found AAB: $AAB_FILE"
-        
-        wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-        
-        java -jar bundletool.jar build-apks \
-          --bundle="$AAB_FILE" \
-          --output=app.apks \
-          --mode=universal \
-          --ks=keystore.jks \
-          --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --ks-key-alias=${{ secrets.KEY_ALIAS }} \
-          --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
-          --overwrite
-        
-        unzip -o app.apks -d apk_output
-        mkdir -p bin
-        cp apk_output/universal.apk bin/app-release.apk
-        echo "✅ APK created successfully"
+        if [ -f "$AAB_FILE" ]; then
+          echo "Found AAB: $AAB_FILE"
+          
+          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+          
+          java -jar bundletool.jar build-apks \
+            --bundle="$AAB_FILE" \
+            --output=app.apks \
+            --mode=universal \
+            --ks=keystore.jks \
+            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
+            --overwrite
+          
+          unzip -o app.apks -d apk_output
+          mkdir -p bin
+          cp apk_output/universal.apk bin/app-release.apk
+          echo "✅ APK created successfully"
+        else
+          echo "⚠️ No AAB file found, checking for APK..."
+          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -f "$APK_FILE" ]; then
+            mkdir -p bin
+            cp "$APK_FILE" bin/app-release.apk
+            echo "✅ APK found and copied"
+          else
+            echo "❌ No APK or AAB file found!"
+            ls -la bin/ || echo "bin directory empty"
+            find . -name "*.apk" -o -name "*.aab" | head -20
+            exit 1
+          fi
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
