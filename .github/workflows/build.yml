@@ -22,6 +22,11 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
+    - name: Accept Android SDK licenses
+      run: |
+        yes | sdkmanager --licenses || true
+        echo "✅ Android SDK licenses accepted"
+
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -40,7 +45,7 @@ jobs:
 
         [buildozer]
         log_level = 4
-        warn_on_root = 0  # غیرفعال کردن هشدار root
+        warn_on_root = 0
 
         [buildozer:android]
         android.sdk_path = /home/user/.buildozer/android/platform/android-sdk
@@ -64,7 +69,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created with warn_on_root=0"
+        echo "✅ buildozer.spec created"
 
     - name: Create initial json files
       run: |
@@ -147,11 +152,13 @@ jobs:
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
 
-    - name: Build with Buildozer (force mode)
+    - name: Build with Buildozer
       run: |
         echo "🚀 Starting build with Docker container..."
-        # استفاده از --force برای اجبار به ادامه
-        buildozer --force android release
+        yes | buildozer --force android release
+      env:
+        # تنظیم متغیرهای محیطی برای قبول خودکار لایسنس‌ها
+        JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
 
     - name: Convert AAB to Signed APK
       run: |
