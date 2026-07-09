@@ -56,7 +56,7 @@ jobs:
         rm -rf ~/.buildozer/android/platform/android-ndk-r28c
         rm -rf .buildozer/android/platform/android-ndk-r28c
 
-    - name: Create buildozer.spec
+    - name: Create buildozer.spec (بدون pyjnius)
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
@@ -68,7 +68,8 @@ jobs:
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
 
-        requirements = python3,kivy,openpyxl,plyer,arabic-reshaper,python-bidi,requests,Pillow
+        # pyjnius حذف شد چون در کد استفاده نشده
+        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
 
         orientation = portrait
         fullscreen = 1
@@ -154,29 +155,17 @@ jobs:
 
     - name: Copy fonts and data to build directory
       run: |
-        echo "📁 بررسی فایل‌ها قبل از کپی:"
-        ls -la fonts/ || echo "⚠️ پوشه fonts وجود ندارد"
-        
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
         
-        echo "📁 کپی فونت‌ها..."
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "⚠️ خطا در کپی فونت‌ها"
-        
-        echo "📁 کپی فایل‌های داده..."
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "⚠️ خطا در کپی داده‌ها"
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "⚠️ No fonts"
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "⚠️ No data"
 
-    - name: Update version and version_code for auto-update
+    - name: Update version and version_code
       run: |
-        # آپدیت version_code با شماره بیلد
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
-        
-        # آپدیت version با شماره بیلد برای آپدیت خودکار
         sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
-        
         echo "✅ Version set to: ${{ github.run_number }}"
-        echo "✅ Version Code set to: ${{ github.run_number }}"
-        echo "📱 APK will auto-update previous version"
 
     - name: Build with Buildozer
       run: |
@@ -196,23 +185,37 @@ jobs:
     - name: Convert AAB to Signed APK
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        echo "Found AAB: $AAB_FILE"
-        
-        wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-        
-        java -jar bundletool.jar build-apks \
-          --bundle="$AAB_FILE" \
-          --output=app.apks \
-          --mode=universal \
-          --ks=keystore.jks \
-          --ks-pass=pass:password \
-          --ks-key-alias=myalias \
-          --key-pass=pass:password \
-          --overwrite
-        
-        unzip -o app.apks -d apk_output
-        mkdir -p bin
-        cp apk_output/universal.apk bin/app-release.apk
+        if [ -f "$AAB_FILE" ]; then
+          echo "📦 Found AAB: $AAB_FILE"
+          
+          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+          
+          java -jar bundletool.jar build-apks \
+            --bundle="$AAB_FILE" \
+            --output=app.apks \
+            --mode=universal \
+            --ks=keystore.jks \
+            --ks-pass=pass:password \
+            --ks-key-alias=myalias \
+            --key-pass=pass:password \
+            --overwrite
+          
+          unzip -o app.apks -d apk_output
+          mkdir -p bin
+          cp apk_output/universal.apk bin/app-release.apk
+          echo "✅ APK created successfully"
+        else
+          echo "⚠️ No AAB file found, checking for APK..."
+          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -f "$APK_FILE" ]; then
+            mkdir -p bin
+            cp "$APK_FILE" bin/app-release.apk
+            echo "✅ APK found and copied"
+          else
+            echo "❌ No APK or AAB file found!"
+            exit 1
+          fi
+        fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
