@@ -79,7 +79,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf
         version = 0.1.5
-        requirements = python3,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.1,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
+        requirements = python3,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.2,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
         orientation = portrait
         fullscreen = 0
         python3 = True
@@ -110,7 +110,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created"
+        echo "✅ buildozer.spec created with pyjnius==1.6.2"
 
     - name: Create initial json files
       run: |
