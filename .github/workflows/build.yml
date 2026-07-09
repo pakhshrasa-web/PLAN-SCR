@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04  # استفاده از نسخه قدیمی‌تر
     timeout-minutes: 360
 
     steps:
@@ -80,7 +80,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf
         version = 0.1.5
-        requirements = python3,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.1,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
+        requirements = python3,kivy==2.2.1,kivymd==1.1.1,pyjnius==1.6.0,android,openpyxl,jdatetime,arabic-reshaper,python-bidi,requests
         orientation = portrait
         fullscreen = 0
         python3 = True
@@ -111,7 +111,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created"
+        echo "✅ buildozer.spec created with pyjnius 1.6.0"
 
     - name: Create initial json files
       run: |
@@ -198,7 +198,7 @@ jobs:
 
     - name: Build with Buildozer
       run: |
-        echo "🚀 Starting build..."
+        echo "🚀 Starting build with pyjnius 1.6.0..."
         echo "y" | buildozer -v android release
       env:
         CC: gcc
@@ -236,10 +236,6 @@ jobs:
             echo "✅ APK found and copied"
           else
             echo "❌ No APK or AAB file found!"
-            echo "📂 Listing files in current directory:"
-            find . -name "*.apk" -o -name "*.aab" 2>/dev/null | head -20
-            echo "📂 Buildozer output:"
-            ls -la .buildozer/android/app/ || echo "No .buildozer directory"
             exit 1
           fi
         fi
