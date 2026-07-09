@@ -68,7 +68,7 @@ jobs:
         rm -rf .buildozer/android/platform/android-ndk-r28c
         echo "NDK 28c removed"
 
-    - name: Create buildozer.spec with p4a.version
+    - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
@@ -87,7 +87,6 @@ jobs:
         [buildozer]
         log_level = 4
         warn_on_root = 1
-        p4a.version = 2023.9.16
 
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
@@ -111,7 +110,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created with p4a.version=2023.9.16"
+        echo "✅ buildozer.spec created"
 
     - name: Create initial json files
       run: |
@@ -193,6 +192,7 @@ jobs:
         echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+        echo "✅ buildozer.spec updated with keystore info"
 
     - name: Build with Buildozer
       run: |
@@ -222,6 +222,7 @@ jobs:
         unzip -o app.apks -d apk_output
         mkdir -p bin
         cp apk_output/universal.apk bin/app-release.apk
+        echo "✅ APK created successfully"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
