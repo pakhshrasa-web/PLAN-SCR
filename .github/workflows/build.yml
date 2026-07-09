@@ -33,7 +33,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '11'  # تغییر به Java 11 برای سازگاری بهتر
+        java-version: '11'
 
     - name: Install system dependencies
       run: |
@@ -49,11 +49,9 @@ jobs:
 
     - name: Install Python packages
       run: |
-        # نصب نسخه‌های مشخص برای جلوگیری از مشکل
         pip install --upgrade pip
         pip install buildozer==1.5.0 cython==0.29.37
-        pip install python-for-android==2024.1.7
-        echo "Python packages installed successfully"
+        echo "✅ Python packages installed successfully"
 
     - name: Set GCC as default compiler
       run: |
@@ -69,7 +67,7 @@ jobs:
       run: |
         rm -rf ~/.buildozer/android/platform/android-ndk-r28c
         rm -rf .buildozer/android/platform/android-ndk-r28c
-        echo "NDK 28c removed to prevent conflicts"
+        echo "✅ NDK 28c removed to prevent conflicts"
 
     - name: Create buildozer.spec
       run: |
@@ -86,7 +84,6 @@ jobs:
         orientation = portrait
         fullscreen = 0
         python3 = True
-        python_version = 3.10
 
         [buildozer]
         log_level = 4
@@ -114,6 +111,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
+        echo "✅ buildozer.spec created"
 
     - name: Create initial json files
       run: |
@@ -167,6 +165,7 @@ jobs:
         cat > data/daily_log.json << 'EOF'
         {}
         EOF
+        echo "✅ JSON files created"
 
     - name: Copy fonts and data to build directory
       run: |
@@ -201,14 +200,14 @@ jobs:
     - name: Restore Keystore from Secrets
       run: |
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
-        echo "Keystore restored successfully"
+        echo "✅ Keystore restored successfully"
         ls -la keystore.jks
 
     - name: Copy keystore to buildozer location
       run: |
         mkdir -p .buildozer/android/platform/
         cp keystore.jks .buildozer/android/platform/planandroid.keystore
-        echo "Keystore copied to buildozer location"
+        echo "✅ Keystore copied to buildozer location"
 
     - name: Update buildozer.spec with keystore paths
       run: |
@@ -218,7 +217,7 @@ jobs:
         echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
-        echo "buildozer.spec updated with keystore info"
+        echo "✅ buildozer.spec updated with keystore info"
         cat buildozer.spec | grep "android.keystore"
 
     - name: Build with Buildozer
@@ -226,7 +225,7 @@ jobs:
         # تنظیم محیط برای Python 3.10
         export P4A_PYTHON_VERSION=3.10
         export PYTHON_FOR_ANDROID_PYTHON_VERSION=3.10
-        echo "Starting build with Python 3.10..."
+        echo "🚀 Starting build with Python 3.10..."
         echo "y" | buildozer -v android release
       env:
         CC: gcc
@@ -238,7 +237,7 @@ jobs:
     - name: Convert AAB to Signed APK
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        echo "Found AAB: $AAB_FILE"
+        echo "📦 Found AAB: $AAB_FILE"
         
         wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
         
@@ -255,6 +254,7 @@ jobs:
         unzip -o app.apks -d apk_output
         mkdir -p bin
         cp apk_output/universal.apk bin/app-release.apk
+        echo "✅ APK created successfully"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
