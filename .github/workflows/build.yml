@@ -47,10 +47,11 @@ jobs:
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install specific Python packages
+    - name: Install Python packages
       run: |
-        pip install buildozer==1.4.0 cython==0.29.37
-        echo "✅ Buildozer 1.4.0 installed"
+        pip install --upgrade pip
+        pip install buildozer cython==0.29.37
+        echo "✅ Python packages installed"
 
     - name: Set GCC as default compiler
       run: |
@@ -195,10 +196,10 @@ jobs:
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "✅ buildozer.spec updated with keystore info"
 
-    - name: Build with Buildozer 1.4.0
+    - name: Build with Buildozer
       run: |
-        echo "🚀 Starting build with Buildozer 1.4.0..."
-        echo "y" | buildozer --version 1.4.0 android release
+        echo "🚀 Starting build..."
+        echo "y" | buildozer -v android release
       env:
         CC: gcc
         CXX: g++
@@ -208,7 +209,7 @@ jobs:
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
         if [ -f "$AAB_FILE" ]; then
-          echo "Found AAB: $AAB_FILE"
+          echo "📦 Found AAB: $AAB_FILE"
           
           wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
           
@@ -235,8 +236,10 @@ jobs:
             echo "✅ APK found and copied"
           else
             echo "❌ No APK or AAB file found!"
-            ls -la bin/ || echo "bin directory empty"
-            find . -name "*.apk" -o -name "*.aab" | head -20
+            echo "📂 Listing files in current directory:"
+            find . -name "*.apk" -o -name "*.aab" 2>/dev/null | head -20
+            echo "📂 Buildozer output:"
+            ls -la .buildozer/android/app/ || echo "No .buildozer directory"
             exit 1
           fi
         fi
