@@ -7,14 +7,17 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04  # استفاده از نسخه قدیمی‌تر
     timeout-minutes: 360
-    container:
-      image: kivy/buildozer:latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -22,10 +25,29 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq \
+          build-essential git zip unzip \
+          autoconf libtool \
+          pkg-config zlib1g-dev libncurses5-dev \
+          libncursesw5-dev libtinfo5 cmake \
+          libffi-dev libssl-dev wget \
+          ccache \
+          libfreetype6-dev libjpeg-dev zlib1g-dev \
+          openjdk-11-jdk
+
+    - name: Install Python packages
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython
+        echo "✅ Python packages installed"
+
     - name: Accept Android SDK licenses
       run: |
-        yes | sdkmanager --licenses || true
-        echo "✅ Android SDK licenses accepted"
+        mkdir -p ~/.android
+        echo "✅ Android licenses directory created"
 
     - name: Create buildozer.spec
       run: |
@@ -48,8 +70,8 @@ jobs:
         warn_on_root = 0
 
         [buildozer:android]
-        android.sdk_path = /home/user/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/user/.buildozer/android/platform/android-ndk-r23c
+        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
+        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r23c
         android.ndk = 23c
         android.api = 30
         android.minapi = 21
@@ -154,10 +176,9 @@ jobs:
 
     - name: Build with Buildozer
       run: |
-        echo "🚀 Starting build with Docker container..."
-        yes | buildozer --force android release
+        echo "🚀 Starting build on Ubuntu 20.04..."
+        echo "yes" | buildozer android release
       env:
-        # تنظیم متغیرهای محیطی برای قبول خودکار لایسنس‌ها
         JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
 
     - name: Convert AAB to Signed APK
