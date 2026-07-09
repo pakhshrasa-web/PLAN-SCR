@@ -1069,6 +1069,7 @@ class ReportScreen(Screen):
     # ============================================================
     
     def _share_file(self, file_path):
+        """ارسال فایل با استفاده از Intent در اندروید"""
         try:
             from kivy.utils import platform
             
@@ -1076,23 +1077,44 @@ class ReportScreen(Screen):
                 from android import mActivity
                 from jnius import autoclass
                 
-                file = autoclass('java.io.File')(file_path)
-                uri = autoclass('android.net.Uri').fromFile(file)
+                Intent = autoclass('android.content.Intent')
+                Uri = autoclass('android.net.Uri')
+                File = autoclass('java.io.File')
                 
-                intent = autoclass('android.content.Intent')
-                intent.setAction(intent.ACTION_SEND)
-                intent.setType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-                intent.putExtra(intent.EXTRA_STREAM, uri)
+                file = File(file_path)
                 
-                chooser = intent.createChooser(intent, 'ارسال فایل')
-                mActivity.startActivity(chooser)
+                if not file.exists():
+                    ErrorPopup.show_error('فایل وجود ندارد')
+                    return
+                
+                uri = Uri.fromFile(file)
+                
+                intent = Intent(Intent.ACTION_VIEW)
+                intent.setDataAndType(uri, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                
+                mActivity.startActivity(intent)
                 
             else:
+                # ✅ برای دسکتاپ - باز کردن پوشه حاوی فایل
                 import os
-                os.startfile(file_path)
+                import subprocess
+                folder_path = os.path.dirname(file_path)
                 
+                if platform == 'win':
+                    os.startfile(folder_path)
+                elif platform == 'linux':
+                    subprocess.Popen(['xdg-open', folder_path])
+                elif platform == 'macosx':
+                    subprocess.Popen(['open', folder_path])
+                else:
+                    # fallback: نمایش مسیر
+                    self.show_message('مسیر فایل', f'فایل در مسیر زیر ذخیره شده است:\n{file_path}')
+                    
         except Exception as e:
             print(f"خطا در ارسال فایل: {e}")
+            import traceback
+            traceback.print_exc()
             ErrorPopup.show_error(f"خطا در ارسال فایل: {e}")
     
     # ============================================================

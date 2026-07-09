@@ -413,7 +413,7 @@ class UserScreen(Screen):
                 size_hint_y=None,
                 height=dp(40),
                 font_size=sp(14),
-                color=(0.4, 0.7, 1, 1),
+                color=(1, 1, 1, 1),
                 bold=True
             ))
             new_customers_count = RTLTextInput(
@@ -435,7 +435,7 @@ class UserScreen(Screen):
                 text='0',
                 size_hint_y=None,
                 height=dp(40),
-                color=(0.4, 0.7, 1, 1),
+                color=(1, 1, 1, 1),
                 font_size=sp(14),
                 font_name='PersianFont',
                 halign='center',
