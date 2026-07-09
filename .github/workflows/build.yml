@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # استفاده از نسخه قدیمی‌تر
+    runs-on: ubuntu-22.04  # ← برگشت به ubuntu-22.04
     timeout-minutes: 360
 
     steps:
@@ -111,7 +111,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created with pyjnius 1.6.0"
+        echo "✅ buildozer.spec created"
 
     - name: Create initial json files
       run: |
@@ -236,6 +236,8 @@ jobs:
             echo "✅ APK found and copied"
           else
             echo "❌ No APK or AAB file found!"
+            echo "📂 Checking buildozer output:"
+            ls -la .buildozer/android/app/ || echo "No .buildozer directory"
             exit 1
           fi
         fi
