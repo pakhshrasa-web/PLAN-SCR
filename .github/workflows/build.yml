@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     container:
-      image: kivy/buildozer:latest  # استفاده از Docker image رسمی Buildozer
+      image: kivy/buildozer:latest
 
     steps:
     - name: Checkout code
@@ -40,7 +40,7 @@ jobs:
 
         [buildozer]
         log_level = 4
-        warn_on_root = 1
+        warn_on_root = 0  # غیرفعال کردن هشدار root
 
         [buildozer:android]
         android.sdk_path = /home/user/.buildozer/android/platform/android-sdk
@@ -64,7 +64,7 @@ jobs:
         android.debug = False
         android.release = True
         EOF
-        echo "✅ buildozer.spec created"
+        echo "✅ buildozer.spec created with warn_on_root=0"
 
     - name: Create initial json files
       run: |
@@ -147,10 +147,11 @@ jobs:
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
 
-    - name: Build with Buildozer
+    - name: Build with Buildozer (force mode)
       run: |
         echo "🚀 Starting build with Docker container..."
-        buildozer android release
+        # استفاده از --force برای اجبار به ادامه
+        buildozer --force android release
 
     - name: Convert AAB to Signed APK
       run: |
