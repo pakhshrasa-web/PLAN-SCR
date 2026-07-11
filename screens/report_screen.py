@@ -1069,7 +1069,7 @@ class ReportScreen(Screen):
     # ============================================================
     
     def _share_file(self, file_path):
-        """ارسال فایل با استفاده از Intent در اندروید"""
+        """ارسال فایل با استفاده از FileProvider در اندروید"""
         try:
             from kivy.utils import platform
             
@@ -1078,7 +1078,6 @@ class ReportScreen(Screen):
                 from jnius import autoclass
                 
                 Intent = autoclass('android.content.Intent')
-                Uri = autoclass('android.net.Uri')
                 File = autoclass('java.io.File')
                 
                 file = File(file_path)
@@ -1087,7 +1086,24 @@ class ReportScreen(Screen):
                     ErrorPopup.show_error('فایل وجود ندارد')
                     return
                 
-                uri = Uri.fromFile(file)
+                # ✅ استفاده از FileProvider برای اندروید 7+
+                try:
+                    FileProvider = autoclass('androidx.core.content.FileProvider')
+                    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                    
+                    authority = f"{PythonActivity.mActivity.getPackageName()}.fileprovider"
+                    uri = FileProvider.getUriForFile(
+                        PythonActivity.mActivity,
+                        authority,
+                        file
+                    )
+                    print(f"✅ URI created with FileProvider: {uri}")
+                    
+                except Exception as e:
+                    # Fallback برای اندروید قدیمی‌تر
+                    print(f"FileProvider failed, using fallback: {e}")
+                    Uri = autoclass('android.net.Uri')
+                    uri = Uri.fromFile(file)
                 
                 intent = Intent(Intent.ACTION_VIEW)
                 intent.setDataAndType(uri, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -1096,7 +1112,7 @@ class ReportScreen(Screen):
                 mActivity.startActivity(intent)
                 
             else:
-                # ✅ برای دسکتاپ - باز کردن پوشه حاوی فایل
+                # برای دسکتاپ - باز کردن پوشه
                 import os
                 import subprocess
                 folder_path = os.path.dirname(file_path)
@@ -1108,7 +1124,6 @@ class ReportScreen(Screen):
                 elif platform == 'macosx':
                     subprocess.Popen(['open', folder_path])
                 else:
-                    # fallback: نمایش مسیر
                     self.show_message('مسیر فایل', f'فایل در مسیر زیر ذخیره شده است:\n{file_path}')
                     
         except Exception as e:
