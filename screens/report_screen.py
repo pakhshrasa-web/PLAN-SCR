@@ -42,8 +42,15 @@ class ReportScreen(Screen):
                 self.bind(pos=self._update_bg, size=self._update_bg)
             self.current_tab = 0
             self.settings = get_settings()
-            self.selected_files = {}  # برای ذخیره وضعیت انتخاب فایل‌ها
-            self.history_popup = None  # برای دسترسی به popup تاریخچه
+            self.selected_files = {}
+            self.history_popup = None
+            
+            # متغیرهای فیلتر
+            self.performance_from_date = ''
+            self.performance_to_date = ''
+            self.detail_from_date = ''
+            self.detail_to_date = ''
+            
             self.build_ui()
         except Exception as e:
             error_details = traceback.format_exc()
@@ -55,12 +62,10 @@ class ReportScreen(Screen):
         self.bg_rect.size = instance.size
 
     def _on_field_focus(self, instance, value):
-        """وقتی فیلد فوکوس میشه"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
 
     def _select_all_text(self, instance):
-        """انتخاب کل متن فیلد"""
         if instance and hasattr(instance, 'select_all'):
             instance.select_all()
     
@@ -168,35 +173,216 @@ class ReportScreen(Screen):
             self.show_stats_tab()
     
     # ============================================================
+    # توابع تاریخ
+    # ============================================================
+    
+    def _get_first_day_of_month(self):
+        """دریافت اولین روز ماه جاری به صورت jalali"""
+        try:
+            today = get_today_jalali()
+            parts = today.split('/')
+            if len(parts) == 3:
+                return f"{parts[0]}/{parts[1]}/01"
+            return today
+        except:
+            return get_today_jalali()
+    
+    def _filter_dates(self, date_list, from_date, to_date):
+        """فیلتر کردن لیست تاریخ‌ها بر اساس بازه"""
+        if not from_date and not to_date:
+            return date_list
+        
+        filtered = []
+        for date in date_list:
+            if from_date and date < from_date:
+                continue
+            if to_date and date > to_date:
+                continue
+            filtered.append(date)
+        return filtered
+    
+    # ============================================================
     # تب عملکرد کلی
     # ============================================================
     
     def show_performance_tab(self):
         try:
-            summary_file = 'daily_summary.json'
-            summary_path = os.path.join(get_data_path(), summary_file)
+            # تنظیم پیشفرض: اول ماه تا امروز
+            if not self.performance_from_date:
+                self.performance_from_date = self._get_first_day_of_month()
+            if not self.performance_to_date:
+                self.performance_to_date = get_today_jalali()
             
-            if os.path.exists(summary_path):
-                all_summaries = load_json(summary_file)
-            else:
-                all_summaries = {}
-            
-            # محاسبه فروش نقدی و چکی از daily_log
             all_logs = get_daily_logs()
+            
+            # ✅ ساخت بخش فیلتر
+            filter_layout = BoxLayout(
+                orientation='vertical',
+                size_hint_y=None,
+                height=dp(120),
+                spacing=dp(5),
+                padding=dp(5)
+            )
+            filter_layout.add_widget(RTLLabel(
+                text='فیلتر بازه زمانی:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(0.4, 0.7, 1, 1),
+                bold=True
+            ))
+            
+            date_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(5))
+            
+            date_row.add_widget(RTLLabel(
+                text='از:',
+                size_hint_x=0.1,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            self.perf_from_input = RTLTextInput(
+                text=self.performance_from_date,
+                multiline=False,
+                size_hint_x=0.45,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18)
+            )
+            self.perf_from_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.perf_from_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.perf_from_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.perf_from_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            date_row.add_widget(self.perf_from_input)
+            
+            date_row.add_widget(RTLLabel(
+                text='تا:',
+                size_hint_x=0.1,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            self.perf_to_input = RTLTextInput(
+                text=self.performance_to_date,
+                multiline=False,
+                size_hint_x=0.45,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18)
+            )
+            self.perf_to_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.perf_to_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.perf_to_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.perf_to_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            date_row.add_widget(self.perf_to_input)
+            
+            filter_layout.add_widget(date_row)
+            
+            btn_row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(5))
+            
+            apply_btn = PersianButton(
+                text='اعمال فیلتر',
+                background_color=(0.2, 0.6, 0.2, 1),
+                size_hint_x=0.33,
+                size_hint_y=None,
+                height=dp(35),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            apply_btn.bind(on_press=self._apply_performance_filter)
+            btn_row.add_widget(apply_btn)
+            
+            clear_btn = PersianButton(
+                text='پاک کردن فیلتر',
+                background_color=(0.8, 0.4, 0.1, 1),
+                size_hint_x=0.33,
+                size_hint_y=None,
+                height=dp(35),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            clear_btn.bind(on_press=self._clear_performance_filter)
+            btn_row.add_widget(clear_btn)
+            
+            month_btn = PersianButton(
+                text='ماه جاری',
+                background_color=(0.2, 0.4, 0.8, 1),
+                size_hint_x=0.34,
+                size_hint_y=None,
+                height=dp(35),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            month_btn.bind(on_press=self._set_performance_current_month)
+            btn_row.add_widget(month_btn)
+            
+            filter_layout.add_widget(btn_row)
+            
+            # ✅ محتوای اصلی
+            content_layout = BoxLayout(orientation='vertical')
+            
+            # اضافه کردن فیلتر به بالا
+            content_layout.add_widget(filter_layout)
+            
+            # ✅ نمایش داده‌ها - پاک کردن قبلی
+            data_scroll = ScrollView()
+            data_content = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=dp(8))
+            data_content.bind(minimum_height=data_content.setter('height'))
+            
+            # فیلتر کردن تاریخ‌ها
+            date_list = list(all_logs.keys())
+            filtered_dates = self._filter_dates(
+                date_list,
+                self.performance_from_date,
+                self.performance_to_date
+            )
+            
+            # ✅ ذخیره داده‌های فیلتر شده برای استفاده در خروجی اکسل
+            self._current_performance_data = filtered_dates
+            
+            if not filtered_dates:
+                data_content.add_widget(RTLLabel(
+                    text='هیچ داده‌ای در بازه انتخابی یافت نشد',
+                    size_hint_y=None,
+                    height=dp(45),
+                    font_size=sp(18),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+                data_scroll.add_widget(data_content)
+                content_layout.add_widget(data_scroll)
+                self.content_area.add_widget(content_layout)
+                return
+            
+            # محاسبه آمار
+            total_days = len(filtered_dates)
+            total_visits = 0
+            total_invoices = 0
+            total_units = 0
+            total_sales = 0
             total_cash = 0
             total_check = 0
             total_new_customers = 0
             
-            for date, logs in all_logs.items():
-                if not isinstance(logs, list):
+            for date in filtered_dates:
+                if date not in all_logs or not isinstance(all_logs[date], list):
                     continue
-                for log in logs:
+                for log in all_logs[date]:
                     if not isinstance(log, dict):
                         continue
+                    visit_status = log.get('visit_status', '')
                     sales_status = log.get('sales_status', '')
                     payment_method = log.get('payment_method', '')
                     sales_amount = log.get('sales_amount', 0)
-                    if sales_status == 'موفق' and sales_amount > 0:
+                    units_sold = log.get('units_sold', 0)
+                    
+                    if visit_status == 'موفق':
+                        total_visits += 1
+                    if sales_status == 'موفق':
+                        total_invoices += 1
+                        total_units += units_sold
+                        total_sales += sales_amount
                         if payment_method == 'نقد':
                             total_cash += sales_amount
                         elif payment_method == 'چک':
@@ -204,39 +390,8 @@ class ReportScreen(Screen):
                     if log.get('is_new_customer', False):
                         total_new_customers += 1
             
-            layout = ScrollView()
-            content = GridLayout(cols=1, spacing=dp(8), size_hint_y=None, padding=dp(8))
-            content.bind(minimum_height=content.setter('height'))
-            
-            if not all_summaries:
-                content.add_widget(RTLLabel(
-                    text='هیچ خلاصه عملکردی ثبت نشده است',
-                    size_hint_y=None,
-                    height=dp(45),
-                    font_size=sp(18),
-                    color=(0.5, 0.5, 0.5, 1)
-                ))
-                layout.add_widget(content)
-                self.content_area.add_widget(layout)
-                return
-            
-            total_days = len(all_summaries)
-            total_visits = 0
-            total_invoices = 0
-            total_units = 0
-            total_sales = 0
-            
-            for date, summary in all_summaries.items():
-                try:
-                    total_visits += int(summary.get('visited_customers_count', 0))
-                    total_invoices += int(summary.get('successful_invoices_count', 0))
-                    total_units += int(summary.get('successful_units_count', 0))
-                    total_sales += int(summary.get('successful_sales_amount', 0))
-                except:
-                    pass
-            
-            content.add_widget(RTLLabel(
-                text='خلاصه عملکرد کلی',
+            data_content.add_widget(RTLLabel(
+                text=f'خلاصه عملکرد ({self.performance_from_date} تا {self.performance_to_date})',
                 size_hint_y=None,
                 height=dp(45),
                 font_size=sp(20),
@@ -247,30 +402,30 @@ class ReportScreen(Screen):
             row1 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row1.add_widget(self._make_card('روزهای کاری', f"{total_days:,}", (0.3, 0.6, 0.6, 1)))
             row1.add_widget(self._make_card('کل ویزیت‌ها', f"{total_visits:,}", (0.6, 0.4, 0.8, 1)))
-            content.add_widget(row1)
+            data_content.add_widget(row1)
             
             row2 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row2.add_widget(self._make_card('فاکتورها', f"{total_invoices:,}", (0.3, 0.5, 0.7, 1)))
             row2.add_widget(self._make_card('واحد فروش', f"{total_units:,}", (0.5, 0.3, 0.7, 1)))
-            content.add_widget(row2)
+            data_content.add_widget(row2)
             
             row3 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row3.add_widget(self._make_card('کل مبلغ فروش', f"{total_sales:,}", (0.2, 0.6, 0.3, 1)))
             row3.add_widget(self._make_card('فروش نقدی', f"{total_cash:,}", (0.2, 0.5, 0.8, 1)))
-            content.add_widget(row3)
+            data_content.add_widget(row3)
             
             row4 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             row4.add_widget(self._make_card('فروش چکی', f"{total_check:,}", (0.6, 0.3, 0.6, 1)))
             row4.add_widget(self._make_card('مشتری جدید', f"{total_new_customers:,}", (0.2, 0.8, 0.4, 1)))
-            content.add_widget(row4)
+            data_content.add_widget(row4)
             
             row5 = BoxLayout(size_hint_y=None, height=dp(75), spacing=dp(7))
             avg_sale = total_sales // total_visits if total_visits > 0 else 0
             row5.add_widget(self._make_card('میانگین هر ویزیت', f"{avg_sale:,}", (0.7, 0.4, 0.4, 1)))
             row5.add_widget(Label())
-            content.add_widget(row5)
+            data_content.add_widget(row5)
             
-            content.add_widget(RTLLabel(
+            data_content.add_widget(RTLLabel(
                 text='خلاصه روزانه',
                 size_hint_y=None,
                 height=dp(40),
@@ -292,27 +447,41 @@ class ReportScreen(Screen):
                     font_size=sp(15)
                 )
                 header_box.add_widget(btn)
-            content.add_widget(header_box)
+            data_content.add_widget(header_box)
             
-            for date, summary in sorted(all_summaries.items(), reverse=True):
+            for date in sorted(filtered_dates, reverse=True):
+                if date not in all_logs or not isinstance(all_logs[date], list):
+                    continue
+                    
+                day_visits = 0
+                day_invoices = 0
+                day_units = 0
+                day_sales = 0
                 day_cash = 0
                 day_check = 0
                 day_new_customers = 0
                 
-                if date in all_logs and isinstance(all_logs[date], list):
-                    for log in all_logs[date]:
-                        if not isinstance(log, dict):
-                            continue
-                        sales_status = log.get('sales_status', '')
-                        payment_method = log.get('payment_method', '')
-                        sales_amount = log.get('sales_amount', 0)
-                        if sales_status == 'موفق' and sales_amount > 0:
-                            if payment_method == 'نقد':
-                                day_cash += sales_amount
-                            elif payment_method == 'چک':
-                                day_check += sales_amount
-                        if log.get('is_new_customer', False):
-                            day_new_customers += 1
+                for log in all_logs[date]:
+                    if not isinstance(log, dict):
+                        continue
+                    visit_status = log.get('visit_status', '')
+                    sales_status = log.get('sales_status', '')
+                    payment_method = log.get('payment_method', '')
+                    sales_amount = log.get('sales_amount', 0)
+                    units_sold = log.get('units_sold', 0)
+                    
+                    if visit_status == 'موفق':
+                        day_visits += 1
+                    if sales_status == 'موفق':
+                        day_invoices += 1
+                        day_units += units_sold
+                        day_sales += sales_amount
+                        if payment_method == 'نقد':
+                            day_cash += sales_amount
+                        elif payment_method == 'چک':
+                            day_check += sales_amount
+                    if log.get('is_new_customer', False):
+                        day_new_customers += 1
                 
                 row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(2))
                 
@@ -323,37 +492,37 @@ class ReportScreen(Screen):
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text=f"{int(summary.get('visited_customers_count', 0)):,}",
+                    text=f"{day_visits:,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text=f"{int(summary.get('successful_invoices_count', 0)):,}",
+                    text=f"{day_invoices:,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text=f"{int(summary.get('successful_units_count', 0)):,}",
+                    text=f"{day_units:,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 1, 1, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text="{:,}".format(int(summary.get('successful_sales_amount', '0'))),
+                    text=f"{day_sales:,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(1, 0.8, 0.2, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text="{:,}".format(day_cash),
+                    text=f"{day_cash:,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(0.2, 0.5, 0.8, 1)
                 ))
                 row.add_widget(RTLLabel(
-                    text="{:,}".format(day_check),
+                    text=f"{day_check:,}",
                     size_hint_x=1/len(headers),
                     font_size=sp(14),
                     color=(0.6, 0.3, 0.6, 1)
@@ -365,14 +534,56 @@ class ReportScreen(Screen):
                     color=(0.2, 0.8, 0.4, 1)
                 ))
                 
-                content.add_widget(row)
+                data_content.add_widget(row)
             
-            layout.add_widget(content)
-            self.content_area.add_widget(layout)
+            data_scroll.add_widget(data_content)
+            content_layout.add_widget(data_scroll)
+            
+            self.content_area.add_widget(content_layout)
             
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش عملکرد کلی: {e}", error_details)
+    
+    def _apply_performance_filter(self, instance):
+        try:
+            from_date = self.perf_from_input.text.strip()
+            to_date = self.perf_to_input.text.strip()
+            
+            if from_date:
+                self.performance_from_date = from_date
+            if to_date:
+                self.performance_to_date = to_date
+            
+            # ✅ تغییر: استفاده از refresh_stats به جای show_performance_tab
+            self.refresh_stats(None)
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در اعمال فیلتر: {e}")
+
+    def _clear_performance_filter(self, instance):
+        try:
+            # بازگشت به اول ماه تا امروز
+            self.performance_from_date = self._get_first_day_of_month()
+            self.performance_to_date = get_today_jalali()
+            self.perf_from_input.text = self.performance_from_date
+            self.perf_to_input.text = self.performance_to_date
+            
+            # ✅ تغییر: استفاده از refresh_stats
+            self.refresh_stats(None)
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در پاک کردن فیلتر: {e}")
+
+    def _set_performance_current_month(self, instance):
+        try:
+            self.performance_from_date = self._get_first_day_of_month()
+            self.performance_to_date = get_today_jalali()
+            self.perf_from_input.text = self.performance_from_date
+            self.perf_to_input.text = self.performance_to_date
+            
+            # ✅ تغییر: استفاده از refresh_stats
+            self.refresh_stats(None)
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در تنظیم ماه جاری: {e}")
     
     # ============================================================
     # تب ریز عملکرد
@@ -382,24 +593,135 @@ class ReportScreen(Screen):
         try:
             all_logs = get_daily_logs()
             
+            # تنظیم پیشفرض: امروز
+            today = get_today_jalali()
+            if not self.detail_from_date:
+                self.detail_from_date = today
+            if not self.detail_to_date:
+                self.detail_to_date = today
+            
+            # ✅ ساخت بخش فیلتر
+            filter_layout = BoxLayout(
+                orientation='vertical',
+                size_hint_y=None,
+                height=dp(120),
+                spacing=dp(5),
+                padding=dp(5)
+            )
+            filter_layout.add_widget(RTLLabel(
+                text='فیلتر بازه زمانی:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(0.4, 0.7, 1, 1),
+                bold=True
+            ))
+            
+            date_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(5))
+            
+            date_row.add_widget(RTLLabel(
+                text='از:',
+                size_hint_x=0.1,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            self.detail_from_input = RTLTextInput(
+                text=self.detail_from_date,
+                multiline=False,
+                size_hint_x=0.45,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18)
+            )
+            self.detail_from_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.detail_from_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.detail_from_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.detail_from_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            date_row.add_widget(self.detail_from_input)
+            
+            date_row.add_widget(RTLLabel(
+                text='تا:',
+                size_hint_x=0.1,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            self.detail_to_input = RTLTextInput(
+                text=self.detail_to_date,
+                multiline=False,
+                size_hint_x=0.45,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18)
+            )
+            self.detail_to_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.detail_to_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.detail_to_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.detail_to_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            date_row.add_widget(self.detail_to_input)
+            
+            filter_layout.add_widget(date_row)
+            
+            btn_row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(5))
+            
+            apply_btn = PersianButton(
+                text='اعمال فیلتر',
+                background_color=(0.2, 0.6, 0.2, 1),
+                size_hint_x=0.33,
+                size_hint_y=None,
+                height=dp(35),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            apply_btn.bind(on_press=self._apply_detail_filter)
+            btn_row.add_widget(apply_btn)
+            
+            today_btn = PersianButton(
+                text='امروز',
+                background_color=(0.2, 0.4, 0.8, 1),
+                size_hint_x=0.33,
+                size_hint_y=None,
+                height=dp(35),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            today_btn.bind(on_press=self._set_detail_today)
+            btn_row.add_widget(today_btn)
+            
+            clear_btn = PersianButton(
+                text='پاک کردن',
+                background_color=(0.8, 0.4, 0.1, 1),
+                size_hint_x=0.34,
+                size_hint_y=None,
+                height=dp(35),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
+            )
+            clear_btn.bind(on_press=self._clear_detail_filter)
+            btn_row.add_widget(clear_btn)
+            
+            filter_layout.add_widget(btn_row)
+            
+            # ✅ محتوای اصلی
+            content_layout = BoxLayout(orientation='vertical')
+            content_layout.add_widget(filter_layout)
+            
             layout = ScrollView()
-            content = GridLayout(cols=1, spacing=dp(4), size_hint_y=None, padding=dp(8))
-            content.bind(minimum_height=content.setter('height'))
+            data_content = GridLayout(cols=1, spacing=dp(4), size_hint_y=None, padding=dp(8))
+            data_content.bind(minimum_height=data_content.setter('height'))
             
-            if not all_logs:
-                content.add_widget(RTLLabel(
-                    text='هیچ ریز عملکردی ثبت نشده است',
-                    size_hint_y=None,
-                    height=dp(45),
-                    font_size=sp(18),
-                    color=(0.5, 0.5, 0.5, 1)
-                ))
-                layout.add_widget(content)
-                self.content_area.add_widget(layout)
-                return
-            
+            # ساخت لیست ویزیت‌ها
             visit_list = []
             for date, logs in all_logs.items():
+                # فیلتر بر اساس بازه
+                if self.detail_from_date and date < self.detail_from_date:
+                    continue
+                if self.detail_to_date and date > self.detail_to_date:
+                    continue
+                    
                 if not isinstance(logs, list):
                     continue
                 for log in logs:
@@ -420,8 +742,9 @@ class ReportScreen(Screen):
                         'is_new_customer': log.get('is_new_customer', False)
                     })
             
-            content.add_widget(RTLLabel(
-                text='ریز عملکرد (همه ویزیت‌ها)',
+            range_text = f"از {self.detail_from_date} تا {self.detail_to_date}" if self.detail_from_date and self.detail_to_date else today
+            data_content.add_widget(RTLLabel(
+                text=f'ریز عملکرد ({range_text})',
                 size_hint_y=None,
                 height=dp(40),
                 font_size=sp(22),
@@ -430,15 +753,16 @@ class ReportScreen(Screen):
             ))
             
             if not visit_list:
-                content.add_widget(RTLLabel(
-                    text='هیچ ویزیتی ثبت نشده است',
+                data_content.add_widget(RTLLabel(
+                    text='هیچ ویزیتی در بازه انتخابی یافت نشد',
                     size_hint_y=None,
                     height=dp(35),
                     font_size=sp(16),
                     color=(0.5, 0.5, 0.5, 1)
                 ))
-                layout.add_widget(content)
-                self.content_area.add_widget(layout)
+                layout.add_widget(data_content)
+                content_layout.add_widget(layout)
+                self.content_area.add_widget(content_layout)
                 return
             
             header_box = BoxLayout(size_hint_y=None, height=dp(37), spacing=dp(2))
@@ -454,7 +778,7 @@ class ReportScreen(Screen):
                     font_size=sp(15)
                 )
                 header_box.add_widget(btn)
-            content.add_widget(header_box)
+            data_content.add_widget(header_box)
             
             for item in sorted(visit_list, key=lambda x: (x['date'], x['time']), reverse=True):
                 row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(2))
@@ -518,14 +842,58 @@ class ReportScreen(Screen):
                     color=new_customer_color
                 ))
                 
-                content.add_widget(row)
+                data_content.add_widget(row)
             
-            layout.add_widget(content)
-            self.content_area.add_widget(layout)
+            layout.add_widget(data_content)
+            content_layout.add_widget(layout)
+            
+            self.content_area.add_widget(content_layout)
             
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش ریز عملکرد: {e}", error_details)
+    
+    def _apply_detail_filter(self, instance):
+        try:
+            from_date = self.detail_from_input.text.strip()
+            to_date = self.detail_to_input.text.strip()
+            
+            if from_date:
+                self.detail_from_date = from_date
+            if to_date:
+                self.detail_to_date = to_date
+            
+            # ✅ تغییر: استفاده از refresh_stats
+            self.refresh_stats(None)
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در اعمال فیلتر: {e}")
+
+    def _set_detail_today(self, instance):
+        try:
+            today = get_today_jalali()
+            self.detail_from_date = today
+            self.detail_to_date = today
+            self.detail_from_input.text = today
+            self.detail_to_input.text = today
+            
+            # ✅ تغییر: استفاده از refresh_stats
+            self.refresh_stats(None)
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در تنظیم امروز: {e}")
+
+    def _clear_detail_filter(self, instance):
+        try:
+            # بازگشت به امروز
+            today = get_today_jalali()
+            self.detail_from_date = today
+            self.detail_to_date = today
+            self.detail_from_input.text = today
+            self.detail_to_input.text = today
+            
+            # ✅ تغییر: استفاده از refresh_stats
+            self.refresh_stats(None)
+        except Exception as e:
+            ErrorPopup.show_error(f"خطا در پاک کردن فیلتر: {e}")
     
     # ============================================================
     # تب آمار و ارزیابی
@@ -593,6 +961,7 @@ class ReportScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش آمار و ارزیابی: {e}", error_details)
+    
     
     # ============================================================
     # دیالوگ تاریخچه گزارشات
@@ -699,7 +1068,7 @@ class ReportScreen(Screen):
             btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
             
             select_all_btn = PersianButton(
-                text='✓ انتخاب همه',
+                text=' انتخاب همه',
                 background_color=(0.2, 0.5, 0.8, 1),
                 size_hint_x=0.25,
                 size_hint_y=None,
@@ -711,7 +1080,7 @@ class ReportScreen(Screen):
             btn_layout.add_widget(select_all_btn)
             
             delete_selected_btn = PersianButton(
-                text='🗑 حذف انتخابی',
+                text=' حذف انتخابی',
                 background_color=(0.8, 0.2, 0.2, 1),
                 size_hint_x=0.25,
                 size_hint_y=None,
@@ -723,7 +1092,7 @@ class ReportScreen(Screen):
             btn_layout.add_widget(delete_selected_btn)
             
             clean_old_btn = PersianButton(
-                text='🧹 حذف قدیمی‌ها',
+                text=' حذف قدیمی‌ها',
                 background_color=(0.7, 0.4, 0.1, 1),
                 size_hint_x=0.25,
                 size_hint_y=None,
@@ -735,7 +1104,7 @@ class ReportScreen(Screen):
             btn_layout.add_widget(clean_old_btn)
             
             folder_btn = PersianButton(
-                text='📁 باز کردن',
+                text=' باز کردن',
                 background_color=(0.2, 0.5, 0.7, 1),
                 size_hint_x=0.25,
                 size_hint_y=None,
@@ -759,7 +1128,8 @@ class ReportScreen(Screen):
             content.add_widget(close_btn)
             
             popup = PersianPopup(
-                title='تاریخچه',
+                title='',  # ✅ حذف هدر
+                title_size=0,  # ✅ حذف هدر
                 content=content,
                 size_hint=(0.92, 0.75),
                 background_color=(0.08, 0.08, 0.08, 1),
@@ -883,7 +1253,8 @@ class ReportScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='تایید حذف',
+                title='',  # ✅ حذف هدر
+                title_size=0,  # ✅ حذف هدر
                 content=content,
                 size_hint=(0.85, 0.6),
                 auto_dismiss=True
@@ -977,7 +1348,8 @@ class ReportScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='پاکسازی فایل‌های قدیمی',
+                title='',  # ✅ حذف هدر
+                title_size=0,  # ✅ حذف هدر
                 content=content,
                 size_hint=(0.85, 0.5),
                 auto_dismiss=True
@@ -1045,13 +1417,18 @@ class ReportScreen(Screen):
                     Uri = autoclass('android.net.Uri')
                     File = autoclass('java.io.File')
                     
-                    intent = Intent()
-                    intent.setAction(Intent.ACTION_VIEW)
                     uri = Uri.fromFile(File(backup_path))
+                    intent = Intent(Intent.ACTION_VIEW)
                     intent.setDataAndType(uri, 'resource/folder')
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     mActivity.startActivity(intent)
+                    
                 except Exception as e:
-                    self.show_message('خطا', f'امکان باز کردن پوشه وجود ندارد:\n{e}')
+                    # نمایش پیام با مسیر پوشه
+                    self.show_message(
+                        'مسیر پوشه', 
+                        f'پوشه بکاپ:{backup_path}'
+                    )
             else:
                 import subprocess
                 if platform == 'win':
@@ -1060,7 +1437,7 @@ class ReportScreen(Screen):
                     subprocess.Popen(['xdg-open', backup_path])
                 elif platform == 'macosx':
                     subprocess.Popen(['open', backup_path])
-                
+                    
         except Exception as e:
             ErrorPopup.show_error(f"خطا در باز کردن پوشه: {e}")
     
@@ -1069,51 +1446,43 @@ class ReportScreen(Screen):
     # ============================================================
     
     def _share_file(self, file_path):
-        """ارسال فایل با استفاده از FileProvider در اندروید"""
+        """ارسال فایل با استفاده از plyer در اندروید"""
         try:
             from kivy.utils import platform
+            import os
             
             if platform == 'android':
+                # ✅ استفاده از plyer برای ارسال فایل
+                from plyer import filechooser
                 from android import mActivity
                 from jnius import autoclass
                 
-                Intent = autoclass('android.content.Intent')
-                File = autoclass('java.io.File')
-                
-                file = File(file_path)
-                
-                if not file.exists():
-                    ErrorPopup.show_error('فایل وجود ندارد')
-                    return
-                
-                # ✅ استفاده از FileProvider برای اندروید 7+
+                # روش ساده: باز کردن با Intent
                 try:
-                    FileProvider = autoclass('androidx.core.content.FileProvider')
-                    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                    Intent = autoclass('android.content.Intent')
+                    Uri = autoclass('android.net.Uri')
+                    File = autoclass('java.io.File')
                     
-                    authority = f"{PythonActivity.mActivity.getPackageName()}.fileprovider"
-                    uri = FileProvider.getUriForFile(
-                        PythonActivity.mActivity,
-                        authority,
-                        file
-                    )
-                    print(f"✅ URI created with FileProvider: {uri}")
+                    file = File(file_path)
+                    if not file.exists():
+                        ErrorPopup.show_error('فایل وجود ندارد')
+                        return
+                    
+                    uri = Uri.fromFile(file)
+                    intent = Intent(Intent.ACTION_VIEW)
+                    intent.setDataAndType(uri, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    
+                    mActivity.startActivity(intent)
                     
                 except Exception as e:
-                    # Fallback برای اندروید قدیمی‌تر
-                    print(f"FileProvider failed, using fallback: {e}")
-                    Uri = autoclass('android.net.Uri')
-                    uri = Uri.fromFile(file)
-                
-                intent = Intent(Intent.ACTION_VIEW)
-                intent.setDataAndType(uri, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                
-                mActivity.startActivity(intent)
-                
+                    print(f"Intent method failed: {e}")
+                    # روش جایگزین: نمایش پیام با مسیر فایل
+                    self.show_message('مسیر فایل', f'مسیر ذخیره: {file_path}')
+
+                    
             else:
                 # برای دسکتاپ - باز کردن پوشه
-                import os
                 import subprocess
                 folder_path = os.path.dirname(file_path)
                 
@@ -1124,13 +1493,15 @@ class ReportScreen(Screen):
                 elif platform == 'macosx':
                     subprocess.Popen(['open', folder_path])
                 else:
-                    self.show_message('مسیر فایل', f'فایل در مسیر زیر ذخیره شده است:\n{file_path}')
+                    self.show_message('مسیر فایل', f'مسیر ذخیره:{file_path}')
                     
         except Exception as e:
             print(f"خطا در ارسال فایل: {e}")
             import traceback
             traceback.print_exc()
-            ErrorPopup.show_error(f"خطا در ارسال فایل: {e}")
+            # نمایش پیام با مسیر فایل به جای خطا
+            self.show_message('مسیر فایل', f'مسیر ذخیره: {file_path}')
+
     
     # ============================================================
     # دیالوگ ارزیابی روز جاری
@@ -1240,7 +1611,8 @@ class ReportScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='ارزیابی دوره',
+                title='',  # ✅ حذف هدر
+                title_size=0,  # ✅ حذف هدر
                 content=content,
                 size_hint=(0.9, 0.5),
                 background_color=(0.08, 0.08, 0.08, 1),
@@ -1469,7 +1841,8 @@ class ReportScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='ارزیابی',
+                title='',  # ✅ حذف هدر
+                title_size=0,  # ✅ حذف هدر
                 content=content,
                 size_hint=(0.92, 0.82),
                 background_color=(0.08, 0.08, 0.08, 1),
@@ -1685,8 +2058,39 @@ class ReportScreen(Screen):
         try:
             self.loading_popup = self.show_message('در حال ساخت', 'لطفاً صبر کنید...')
             
+            # ✅ دریافت داده‌های فیلتر شده بر اساس تب فعلی
+            filtered_data = {}
+            
+            if self.current_tab == 0:  # تب عملکرد کلی
+                # از داده‌های فیلتر شده استفاده کن
+                if hasattr(self, '_current_performance_data') and self._current_performance_data:
+                    all_logs = get_daily_logs()
+                    for date in self._current_performance_data:
+                        if date in all_logs:
+                            filtered_data[date] = all_logs[date]
+                else:
+                    # اگر داده‌ای وجود نداشت، همه رو بگیر
+                    filtered_data = get_daily_logs()
+                    
+            elif self.current_tab == 1:  # تب ریز عملکرد
+                # از داده‌های فیلتر شده استفاده کن
+                all_logs = get_daily_logs()
+                for date, logs in all_logs.items():
+                    if self.detail_from_date and date < self.detail_from_date:
+                        continue
+                    if self.detail_to_date and date > self.detail_to_date:
+                        continue
+                    filtered_data[date] = logs
+            
+            else:  # تب آمار و ارزیابی - همه داده‌ها
+                filtered_data = get_daily_logs()
+            
+            # اگر داده‌ای فیلتر نشده، همه رو بگیر
+            if not filtered_data:
+                filtered_data = get_daily_logs()
+            
             def do_export():
-                success, result = export_to_excel()
+                success, result = export_to_excel(filtered_data)
                 
                 def show_result(dt):
                     if hasattr(self, 'loading_popup') and self.loading_popup:
@@ -1699,8 +2103,7 @@ class ReportScreen(Screen):
                     if success:
                         self.show_message(
                             'موفق', 
-                            'فایل اکسل با موفقیت ساخته شد!\n\n'
-                            'فایل در پوشه Downloads ذخیره شد.'
+                            'فایل اکسل با موفقیت در پوشه downloads .ذخیره شد'
                         )
                     else:
                         self.show_message('خطا', f'خطا در ساخت اکسل:\n{result}')

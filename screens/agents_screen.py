@@ -1,5 +1,5 @@
 # screens/agents_screen.py
-# ========== صفحه ثبت ویزیت بازاریابان با اسکرول دقیق ==========
+# ========== صفحه ثبت ویزیت بازاریابان با لیست مشتریان ==========
 
 import traceback
 from kivy.metrics import dp, sp
@@ -23,27 +23,29 @@ class AgentsScreen(Screen):
     def __init__(self, **kwargs):
         try:
             super().__init__(**kwargs)
-            # پس‌زمینه تیره
             with self.canvas.before:
                 Color(0.08, 0.08, 0.08, 1)
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
-            
-            # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
-            # تعریف متغیرهای کلاس
             self.amount_words_label = None
             self._last_reason_text = ''
-            self._last_search_text = ''
             self._last_route_text = ''
-            self._last_customer_text = ''
-            self.locked_route = None  # مسیر قفل‌شده
-            self.route_confirmed = False  # آیا مسیر تأیید شده؟
-            self.session_new_customers = []  # ✅ لیست مشتریان جدید در این جلسه
+            self.locked_route = None
+            self.route_confirmed = False
+            self.session_new_customers = []
+            
+            # ✅ تعریف customers_list_container قبل از build_ui
+            self.customers_list_container = GridLayout(
+                cols=1,
+                spacing=dp(6),
+                size_hint_y=None,
+                padding=dp(5)
+            )
+            self.customers_list_container.height = dp(50)  # ارتفاع اولیه
             
             self.settings = get_settings()
             self.selected_customer = None
@@ -51,10 +53,7 @@ class AgentsScreen(Screen):
             
             self.build_ui()
             
-            # اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
-            
-            # بررسی اینکه آیا امروز ویزیتی ثبت شده یا نه
             Clock.schedule_once(self._check_today_visits, 0.5)
             
         except Exception as e:
@@ -63,7 +62,6 @@ class AgentsScreen(Screen):
             raise
 
     def number_to_persian_words(self, number):
-        """تبدیل عدد به حروف فارسی + ریال"""
         try:
             if number == 0:
                 return "صفر ریال"
@@ -138,26 +136,17 @@ class AgentsScreen(Screen):
         self.bg_rect.pos = instance.pos
         self.bg_rect.size = instance.size
     
-    # ============================================================
-    # مدیریت فوکوس و انتخاب خودکار متن
-    # ============================================================
-    
     def _on_field_focus(self, instance, value):
-        """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
-            # اسکرول با تأخیر برای اطمینان از نمایش کیبورد
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
-        """انتخاب کل متن فیلد"""
         if instance and hasattr(instance, 'select_all'):
             instance.select_all()
     
     def _scroll_to_field(self, instance):
-        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
         try:
-            # پیدا کردن ScrollView
             scroll = None
             for child in self.children:
                 if isinstance(child, ScrollView):
@@ -175,53 +164,33 @@ class AgentsScreen(Screen):
             if not scroll:
                 return
             
-            # موقعیت فیلد در پنجره
             field_pos = instance.to_window(0, 0)
             field_y = field_pos[1]
-            
-            # ارتفاع کیبورد (تقریبی)
             keyboard_height = 250
-            
-            # ارتفاع قابل مشاهده صفحه
             window_height = Window.height
-            
-            # موقعیت هدف: بالای کیبورد با فاصله
             target_y = window_height - keyboard_height - dp(80)
             
-            # محتوای ScrollView
             content_height = scroll.children[0].height if scroll.children else 1
             scroll_height = scroll.height
             
             if content_height > scroll_height:
-                # اگر فیلد پایین‌تر از هدف بود، اسکرول کن
                 if field_y > target_y:
-                    # محاسبه نسبت اسکرول
                     field_ratio = (content_height - field_y) / content_height
                     scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
                     scroll.scroll_y = scroll_value
                 elif field_y < dp(50):
-                    # فیلد خیلی بالاست، اسکرول به پایین
                     scroll.scroll_y = 0.9
-                else:
-                    # فیلد در محدوده قابل قبول است
-                    pass
                     
         except Exception as e:
             print(f"خطا در اسکرول به فیلد: {e}")
     
-    # ============================================================
-    # مدیریت کلیدهای کیبورد
-    # ============================================================
-    
     def _on_keyboard(self, window, key, *args):
-        """مدیریت کلیدهای کیبورد"""
-        if key == 9:  # Tab
+        if key == 9:
             self._focus_next()
             return True
         return False
     
     def _focus_next(self):
-        """فوکوس به فیلد بعدی"""
         if not self.focusable_fields:
             return
         for i, field in enumerate(self.focusable_fields):
@@ -231,16 +200,12 @@ class AgentsScreen(Screen):
                 break
     
     def _check_today_visits(self, dt):
-        """بررسی اینکه آیا امروز ویزیتی ثبت شده یا نه"""
         try:
             today = get_today_jalali()
             logs = get_daily_logs()
             
-            # اگر امروز در لاگ‌ها هست و لیست خالی نیست
             if today in logs and logs[today] and len(logs[today]) > 0:
-                # مسیر قفل بشه
                 if hasattr(self, 'route_spinner'):
-                    # ✅ مسیر قفل‌شده را از آخرین لاگ بگیر
                     last_visit = logs[today][-1]
                     locked_route = last_visit.get('route', '')
                     
@@ -251,11 +216,9 @@ class AgentsScreen(Screen):
                         self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
                         self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
                         self.route_confirmed = True
-                        # ✅ به‌روزرسانی لیست مشتریان بر اساس مسیر قفل‌شده
                         Clock.schedule_once(lambda dt: self.update_customers_list(), 0.3)
                 
-                # نمایش پیام به کاربر
-                self.show_message('اطلاع', 'امروز قبلاً ویزیت ثبت شده است.مسیر قفل شد.')
+                self.show_message('اطلاع', 'برای امروز ویزیت ثبت شده و مسیر قفل است.')
         except Exception as e:
             print(f"خطا در بررسی ویزیت‌های امروز: {e}")
     
@@ -263,7 +226,6 @@ class AgentsScreen(Screen):
         try:
             main_layout = BoxLayout(orientation='vertical')
             
-            # ========== ScrollView برای محتوا ==========
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -280,7 +242,7 @@ class AgentsScreen(Screen):
             )
             content.bind(minimum_height=content.setter('height'))
             
-            # ========== عنوان صفحه ==========
+            # ========== عنوان ==========
             content.add_widget(RTLLabel(
                 text='ثبت ویزیت بازاریابان',
                 font_size=sp(22),
@@ -289,10 +251,9 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1),
                 bold=True
             ))
-            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== تاریخ (غیر قابل تغییر) ==========
+            # ========== تاریخ ==========
             content.add_widget(RTLLabel(
                 text='تاریخ:',
                 size_hint_y=None,
@@ -309,10 +270,9 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1)
             )
             content.add_widget(self.date_label)
-            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== ساعت (غیر قابل تغییر) ==========
+            # ========== ساعت ==========
             content.add_widget(RTLLabel(
                 text='ساعت:',
                 size_hint_y=None,
@@ -329,10 +289,9 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1)
             )
             content.add_widget(self.time_label)
-            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== مسیر (کمبوباکس - همیشه خالی شروع میشود) ==========
+            # ========== مسیر ==========
             content.add_widget(RTLLabel(
                 text='انتخاب مسیر:',
                 size_hint_y=None,
@@ -346,7 +305,7 @@ class AgentsScreen(Screen):
             route_names = [r.get('name', '') for r in routes] if routes else ['']
             
             self.route_spinner = PersianComboBox(
-                text='',  # ✅ خالی شروع میشود
+                text='',
                 values=route_names,
                 height=dp(70)
             )
@@ -354,7 +313,6 @@ class AgentsScreen(Screen):
             self.route_spinner.main_btn.color = (1, 1, 1, 1)
             self.route_spinner.main_btn.font_size = sp(18)
             
-            # ✅ اگر مسیر قفل‌شده وجود دارد و امروز ویزیت ثبت شده، مسیر را تنظیم و قفل کن
             today = get_today_jalali()
             logs = get_daily_logs()
             if self.locked_route and today in logs and logs[today] and len(logs[today]) > 0:
@@ -366,62 +324,12 @@ class AgentsScreen(Screen):
                     self.route_confirmed = True
             
             self._last_route_text = self.route_spinner.text
-            # ✅ تغییر Clock: وقتی مسیر تغییر کرد، دیالوگ تأیید نمایش داده شود
+            # ✅ اضافه کردن تایمر برای بررسی تغییر مسیر
             Clock.schedule_interval(self._check_route_change_with_confirm, 0.3)
             content.add_widget(self.route_spinner)
-            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== مشتری (کمبوباکس) ==========
-            content.add_widget(RTLLabel(
-                text='انتخاب مشتری:',
-                size_hint_y=None,
-                height=dp(30),
-                font_size=sp(16),
-                color=(0.4, 0.7, 1, 1),
-                bold=True
-            ))
-            
-            self.customer_spinner = PersianComboBox(
-                text='',
-                values=[''],
-                height=dp(70)
-            )
-            self.customer_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.customer_spinner.main_btn.color = (1, 1, 1, 1)
-            self.customer_spinner.main_btn.font_size = sp(18)
-            self._last_customer_text = self.customer_spinner.text
-            Clock.schedule_interval(self._check_customer_change, 0.3)
-            content.add_widget(self.customer_spinner)
-            
-            content.add_widget(Label(size_hint_y=None, height=dp(10)))
-
-            # ========== جستجوی مشتری ==========
-            content.add_widget(RTLLabel(
-                text='جستجوی مشتری:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(14),
-                color=(0.4, 0.7, 1, 1),
-                bold=True
-            ))
-
-            self.search_input = RTLTextInput(
-                hint_text='نام مشتری را وارد کنید...',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(75),
-                font_size=sp(32)
-            )
-            self.search_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.search_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.search_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.search_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.search_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.search_input._hidden_input)
-            content.add_widget(self.search_input)
-            
-            # ========== دکمه افزودن مشتری جدید ==========
+            # ========== دکمه افزودن مشتری ==========
             add_customer_btn = PersianButton(
                 text='افزودن مشتری جدید',
                 background_color=(0.2, 0.6, 0.2, 1),
@@ -433,9 +341,29 @@ class AgentsScreen(Screen):
             add_customer_btn.bind(on_press=self.show_add_customer_dialog)
             content.add_widget(add_customer_btn)
             
-            # بررسی تغییرات جستجو با Clock
-            self._last_search_text = ''
-            Clock.schedule_interval(self._check_search_change, 0.3)
+            # ========== دکمه انتخاب مشتری (جایگزین لیست قبلی) ==========
+            select_customer_btn = PersianButton(
+                text='انتخاب مشتری',
+                background_color=(0.2, 0.5, 0.9, 1),
+                size_hint_y=None,
+                height=dp(55),
+                color=(1, 1, 1, 1),
+                font_size=sp(20),
+                bold=True
+            )
+            select_customer_btn.bind(on_press=self.show_customer_selection_dialog)
+            content.add_widget(select_customer_btn)
+            
+            # ========== نمایش مشتری انتخاب شده ==========
+            self.selected_customer_label = RTLLabel(
+                text='مشتری انتخاب شده: هیچ',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18),
+                color=(0.5, 0.5, 0.5, 1),
+                bold=True
+            )
+            content.add_widget(self.selected_customer_label)
             
             # ========== دکمه بازگشت ==========
             back_btn = PersianButton(
@@ -453,9 +381,7 @@ class AgentsScreen(Screen):
             main_layout.add_widget(scroll)
             self.add_widget(main_layout)
             
-            # به‌روزرسانی لیست مشتریان با مسیر اولیه
-            Clock.schedule_once(lambda dt: self.update_customers_list(), 0.5)
-            # بروزرسانی ساعت هر دقیقه
+   
             Clock.schedule_interval(self.update_time, 60)
             
         except Exception as e:
@@ -463,107 +389,396 @@ class AgentsScreen(Screen):
             ErrorPopup.show_error(f"خطا در ساخت UI AgentsScreen: {e}", error_details)
             raise
     
-    def _check_search_change(self, dt):
-        """بررسی تغییر متن جستجو با Clock"""
-        if hasattr(self, 'search_input'):
-            current_text = self.search_input.text
-            if current_text != self._last_search_text:
-                self._last_search_text = current_text
-                self.filter_customers(current_text)
     
-    def filter_customers(self, search_text):
-        """فیلتر مشتریان بر اساس متن جستجو"""
-        try:
-            search_text = search_text.strip()
-            all_customers = get_customers()
-            selected_route = self.route_spinner.text
-            
-            # فیلتر بر اساس مسیر
-            route_customers = []
-            for c in all_customers:
-                if c.get('route_name', '').strip() == selected_route.strip():
-                    route_customers.append(c.get('name', ''))
-            
-            # فیلتر بر اساس متن جستجو
-            if search_text:
-                filtered = [c for c in route_customers if search_text in c]
-            else:
-                filtered = route_customers
-            
-            if filtered:
-                self.customer_spinner.values = filtered
-                self.customer_spinner.text = filtered[0] if filtered else ''
-            else:
-                self.customer_spinner.values = ['مشتری‌ای یافت نشد']
-                self.customer_spinner.text = 'مشتری‌ای یافت نشد'
-                
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در جستجوی مشتری: {e}", error_details)
-
     def _check_route_change_with_confirm(self, dt):
-        """بررسی تغییر مسیر و نمایش دیالوگ تأیید"""
         if hasattr(self, 'route_spinner') and not self.route_spinner.main_btn.disabled:
             current_text = self.route_spinner.text
             if current_text != self._last_route_text and current_text and current_text != '':
                 self._last_route_text = current_text
-                # ✅ نمایش دیالوگ تأیید مسیر
                 self.show_route_confirm_dialog(current_text)
     
-    def _check_customer_change(self, dt):
-        """بررسی تغییر مشتری با Clock"""
-        if hasattr(self, 'customer_spinner'):
-            current_text = self.customer_spinner.text
-            if current_text != self._last_customer_text:
-                self._last_customer_text = current_text
-                if current_text and current_text not in ['', 'مشتری‌ای یافت نشد']:
-                    self.on_customer_selected(current_text)
-    
     def update_time(self, dt):
-        """بروزرسانی ساعت"""
         self.time_label.text = get_current_time()
     
-    def on_route_selected(self, value):
-        """زمانی که مسیر انتخاب می‌شود"""
-        self.selected_route = value
-        self.update_customers_list()
-    
     def update_customers_list(self):
-        """به‌روزرسانی لیست مشتریان بر اساس مسیر انتخاب شده"""
+        """به‌روزرسانی لیست مشتریان"""
         try:
-            if not hasattr(self, 'customer_spinner'):
+            # ✅ اگر کانتینر والد ندارد، کاری نکن
+            if not hasattr(self, 'customers_list_container') or not self.customers_list_container.parent:
+                print("⚠️ customers_list_container والد ندارد، لیست به‌روز نمی‌شود")
                 return
-                
-            selected_route = self.route_spinner.text
-            all_customers = get_customers()
             
+            # ✅ پاک کردن لیست قبلی
+            self.customers_list_container.clear_widgets()
+            
+            selected_route = self.route_spinner.text
+            
+            # ✅ اگر مسیری انتخاب نشده
+            if not selected_route:
+                self.customers_list_container.add_widget(RTLLabel(
+                    text='لطفاً ابتدا یک مسیر انتخاب کنید',
+                    size_hint_y=None,
+                    height=dp(40),
+                    font_size=sp(16),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+                self.customers_list_container.height = dp(40)
+                if hasattr(self.customers_list_container, 'parent') and self.customers_list_container.parent:
+                    self.customers_list_container.parent.update_from_scroll()
+                return
+            
+            # ✅ دریافت مشتریان
+            all_customers = get_customers()
+            search_text = self.search_input.text.strip()
+            
+            # ✅ فیلتر مشتریان
             filtered = []
             for c in all_customers:
-                if c.get('route_name', '').strip() == selected_route.strip():
-                    filtered.append(c.get('name', ''))
+                route_name = c.get('route_name', '').strip()
+                customer_name = c.get('name', '')
+                if route_name == selected_route.strip():
+                    if search_text:
+                        if search_text in customer_name:
+                            filtered.append(customer_name)
+                    else:
+                        filtered.append(customer_name)
             
-            if filtered:
-                self.customer_spinner.values = filtered
-                self.customer_spinner.text = filtered[0] if filtered else ''
-            else:
-                self.customer_spinner.values = ['مشتری‌ای یافت نشد']
-                self.customer_spinner.text = 'مشتری‌ای یافت نشد'
+            # ✅ اگر مشتری‌ای وجود نداشت
+            if not filtered:
+                self.customers_list_container.add_widget(RTLLabel(
+                    text='هیچ مشتری‌ای در این مسیر یافت نشد',
+                    size_hint_y=None,
+                    height=dp(40),
+                    font_size=sp(16),
+                    color=(0.5, 0.5, 0.5, 1)
+                ))
+                self.customers_list_container.height = dp(40)
+                if hasattr(self.customers_list_container, 'parent') and self.customers_list_container.parent:
+                    self.customers_list_container.parent.update_from_scroll()
+                return
+            
+            # ✅ ایجاد دکمه‌های مشتریان
+            for customer_name in filtered:
+                customer_box = BoxLayout(
+                    size_hint_y=None,
+                    height=dp(50),
+                    spacing=dp(5),
+                    padding=[dp(8), dp(4), dp(8), dp(4)]
+                )
+                
+                with customer_box.canvas.before:
+                    Color(0.15, 0.15, 0.2, 1)
+                    rect = Rectangle(pos=customer_box.pos, size=customer_box.size)
+                    customer_box.bind(
+                        pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v)
+                    )
+                
+                customer_label = RTLLabel(
+                    text=customer_name,
+                    size_hint_x=0.7,
+                    size_hint_y=None,
+                    height=dp(45),
+                    font_size=sp(18),
+                    color=(1, 1, 1, 1),
+                    halign='right'
+                )
+                customer_box.add_widget(customer_label)
+                
+                visit_btn = PersianButton(
+                    text='ویزیت',
+                    size_hint_x=0.3,
+                    size_hint_y=None,
+                    height=dp(40),
+                    background_color=(0.2, 0.6, 0.8, 1),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(15)
+                )
+                visit_btn.bind(on_press=lambda x, name=customer_name: self.on_customer_selected(name))
+                customer_box.add_widget(visit_btn)
+                
+                self.customers_list_container.add_widget(customer_box)
+            
+            # ✅ تنظیم ارتفاع کل کانتینر
+            total_height = len(filtered) * dp(55) + dp(10)
+            self.customers_list_container.height = total_height
+            
+            # ✅ به‌روزرسانی اسکرول فقط اگر والد وجود داشته باشه
+            if hasattr(self.customers_list_container, 'parent') and self.customers_list_container.parent:
+                self.customers_list_container.parent.update_from_scroll()
+            
+            # ✅ دیباگ
+            print(f"✅ ارتفاع کانتینر تنظیم شد: {self.customers_list_container.height}")
+            print(f"✅ تعداد مشتریان نمایش داده شده: {len(filtered)}")
+            
         except Exception as e:
             error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در بروزرسانی لیست مشتریان: {e}", error_details)
-    
-    def on_customer_selected(self, value):
-        """زمانی که مشتری انتخاب می‌شود - نمایش دیالوگ تأیید"""
-        if value and value not in ['', 'مشتری‌ای یافت نشد']:
-            self.selected_customer = value
-            self.show_confirm_dialog(value)
+            # ✅ فقط لاگ کن، خطا نشون نده چون دیگه از این قابلیت استفاده نمیشه
+            print(f"⚠️ خطا در بروزرسانی لیست مشتریان (نادیده گرفته شد): {e}")
     
     # ============================================================
-    # دیالوگ افزودن مشتری جدید
+    # دیالوگ انتخاب مشتری (جدید)
+    # ============================================================
+    
+    def show_customer_selection_dialog(self, instance):
+        """نمایش دیالوگ انتخاب مشتری"""
+        try:
+            selected_route = self.route_spinner.text
+            
+            # ✅ اگر مسیری انتخاب نشده
+            if not selected_route:
+                self.show_message('خطا', 'لطفاً ابتدا یک مسیر انتخاب کنید')
+                return
+            
+            # ✅ دریافت مشتریان مسیر
+            all_customers = get_customers()
+            filtered_customers = []
+            for c in all_customers:
+                if c.get('route_name', '').strip() == selected_route.strip():
+                    filtered_customers.append(c.get('name', ''))
+            
+            if not filtered_customers:
+                self.show_message('توجه', 'هیچ مشتری‌ای در این مسیر یافت نشد')
+                return
+            
+            # ✅ دریافت لیست مشتریان ویزیت شده امروز
+            today = get_today_jalali()
+            logs = get_daily_logs()
+            visited_today = []
+            if today in logs and isinstance(logs[today], list):
+                for log in logs[today]:
+                    if isinstance(log, dict):
+                        visited_today.append(log.get('customer', ''))
+            
+            # ✅ ساخت محتوای دیالوگ
+            content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                            size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            # ✅ عنوان با توضیح هایلایت
+            title_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(60))
+            
+            title_layout.add_widget(RTLLabel(
+                text=f'انتخاب مشتری - {selected_route}',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(18),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            title_layout.add_widget(RTLLabel(
+                text=' مشتریان آبی رنگ امروز ویزیت شده‌اند',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(15),
+                color=(0.6, 0.6, 0.6, 1)
+            ))
+            
+            content.add_widget(title_layout)
+            
+            # ✅ جستجو
+            search_input = RTLTextInput(
+                hint_text='جستجوی مشتری...',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(24)
+            )
+            search_input.bg_color = (0.15, 0.15, 0.15, 1)
+            search_input.border_color = (0.3, 0.3, 0.3, 1)
+            search_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            search_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(search_input)
+            
+            # ✅ لیست مشتریان
+            customers_scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=0.65,
+                scroll_type=['bars', 'content'],
+                bar_width=dp(6)
+            )
+            
+            customers_grid = GridLayout(
+                cols=1,
+                spacing=dp(4),
+                size_hint_y=None,
+                padding=dp(5)
+            )
+            customers_grid.bind(minimum_height=customers_grid.setter('height'))
+            
+            # ✅ تابع فیلتر کردن
+            def filter_customers(text):
+                customers_grid.clear_widgets()
+                search_text = text.strip()
+                
+                for customer in filtered_customers:
+                    if search_text and search_text not in customer:
+                        continue
+                    
+                    # ✅ تشخیص ویزیت شده امروز
+                    is_visited = customer in visited_today
+                    
+                    customer_btn = PersianButton(
+                        text=customer,
+                        size_hint_y=None,
+                        height=dp(45),
+                        background_color=(0.2, 0.6, 1, 1) if is_visited else (0.2, 0.2, 0.2, 1),
+                        color=(1, 1, 1, 1),
+                        font_size=sp(18)
+                    )
+                    customer_btn.bind(
+                        on_press=lambda x, name=customer: self._handle_customer_selection(name, content)
+                    )
+                    customers_grid.add_widget(customer_btn)
+                
+                customers_grid.height = len(customers_grid.children) * dp(50) + dp(10)
+            
+            # ✅ اصلاح: استفاده از _hidden_input.text برای bind
+            search_input._hidden_input.bind(text=lambda i, v: filter_customers(v))
+            filter_customers('')
+            
+            customers_scroll.add_widget(customers_grid)
+            content.add_widget(customers_scroll)
+            
+            # ✅ دکمه بستن
+            close_btn = PersianButton(
+                text='بستن',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            content.add_widget(close_btn)
+            
+            popup = PersianPopup(
+                title='انتخاب مشتری',
+                content=content,
+                size_hint=(0.9, 0.75),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=True
+            )
+            
+            # ✅ ذخیره popup برای دسترسی بعدی
+            self.customer_selection_popup = popup
+            
+            close_btn.bind(on_press=popup.dismiss)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ انتخاب مشتری: {e}", error_details)
+    
+    def _handle_customer_selection(self, customer_name, dialog_content):
+        """مدیریت انتخاب مشتری از دیالوگ"""
+        try:
+            today = get_today_jalali()
+            logs = get_daily_logs()
+            
+            # ✅ بررسی اینکه مشتری امروز ویزیت شده؟
+            is_visited_today = False
+            if today in logs and isinstance(logs[today], list):
+                for log in logs[today]:
+                    if isinstance(log, dict) and log.get('customer') == customer_name:
+                        is_visited_today = True
+                        break
+            
+            # ✅ اگر ویزیت شده، سوال بپرس
+            if is_visited_today:
+                content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+                with content.canvas.before:
+                    Color(0.15, 0.15, 0.15, 1)
+                    content_rect = Rectangle(pos=content.pos, size=content.size)
+                    content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                                size=lambda i, v: setattr(content_rect, 'size', v))
+                
+                content.add_widget(RTLLabel(
+                    text=f'مشتری "{customer_name}" امروز ویزیت شده است.از تغییر وضعیت مطمئن هستید؟',
+                    size_hint_y=None,
+                    height=dp(60),
+                    font_size=sp(18),
+                    color=(1, 1, 1, 1)
+                ))
+                
+                btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+                
+                yes_btn = PersianButton(
+                    text='بله',
+                    background_color=(0.2, 0.7, 0.2, 1),
+                    size_hint_y=None,
+                    height=dp(45),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(16)
+                )
+                no_btn = PersianButton(
+                    text='خیر',
+                    background_color=(0.8, 0.2, 0.2, 1),
+                    size_hint_y=None,
+                    height=dp(45),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(16)
+                )
+                
+                btn_layout.add_widget(yes_btn)
+                btn_layout.add_widget(no_btn)
+                content.add_widget(btn_layout)
+                
+                confirm_popup = PersianPopup(
+                    title='تأیید تغییر',
+                    content=content,
+                    size_hint=(0.85, 0.4),
+                    background_color=(0.08, 0.08, 0.08, 1),
+                    auto_dismiss=False
+                )
+                
+                def on_yes(instance):
+                    confirm_popup.dismiss()
+                    # ✅ بستن popup انتخاب مشتری
+                    if hasattr(self, 'customer_selection_popup'):
+                        self.customer_selection_popup.dismiss()
+                    self.selected_customer = customer_name
+                    self.selected_customer_label.text = f'مشتری انتخاب شده: {customer_name}'
+                    self.selected_customer_label.color = (0.2, 0.8, 0.4, 1)
+                    self.show_confirm_dialog(customer_name)
+                
+                def on_no(instance):
+                    confirm_popup.dismiss()
+                
+                yes_btn.bind(on_press=on_yes)
+                no_btn.bind(on_press=on_no)
+                confirm_popup.open()
+                
+            else:
+                # ✅ ویزیت نشده، مستقیم برو به دیالوگ تأیید
+                # ✅ بستن popup انتخاب مشتری
+                if hasattr(self, 'customer_selection_popup'):
+                    self.customer_selection_popup.dismiss()
+                self.selected_customer = customer_name
+                self.selected_customer_label.text = f'مشتری انتخاب شده: {customer_name}'
+                self.selected_customer_label.color = (0.2, 0.8, 0.4, 1)
+                self.show_confirm_dialog(customer_name)
+                
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در انتخاب مشتری: {e}", error_details)
+    
+    def on_customer_selected(self, customer_name):
+        if customer_name and customer_name not in ['', 'مشتری‌ای یافت نشد', 'هیچ مشتری‌ای در این مسیر یافت نشد']:
+            self.selected_customer = customer_name
+            self.selected_customer_label.text = f'مشتری انتخاب شده: {customer_name}'
+            self.selected_customer_label.color = (0.2, 0.8, 0.4, 1)
+            self.show_confirm_dialog(customer_name)
+    
+    # ============================================================
+    # ادامه دیالوگ‌ها (همانند کد قبلی)
     # ============================================================
     
     def show_add_customer_dialog(self, instance):
-        """نمایش دیالوگ افزودن مشتری جدید (مشابه AdminScreen)"""
         try:
             from utils.file_manager import get_routes, get_customers, add_customer
             from utils.jalali_date import get_today_jalali
@@ -575,7 +790,6 @@ class AgentsScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                            size=lambda i, v: setattr(content_rect, 'size', v))
 
-            # عنوان
             content.add_widget(RTLLabel(
                 text='افزودن مشتری جدید',
                 size_hint_y=None,
@@ -585,7 +799,6 @@ class AgentsScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
 
-            # انتخاب مسیر
             content.add_widget(RTLLabel(
                 text='انتخاب مسیر:',
                 size_hint_y=None,
@@ -600,7 +813,6 @@ class AgentsScreen(Screen):
             else:
                 route_names = ['ابتدا مسیر ایجاد کنید']
 
-            # مسیر پیش‌فرض = مسیر انتخاب شده در صفحه
             default_route = self.route_spinner.text if self.route_spinner.text else route_names[0]
 
             customer_route_spinner = PersianComboBox(
@@ -613,7 +825,6 @@ class AgentsScreen(Screen):
             customer_route_spinner.main_btn.font_size = sp(16)
             content.add_widget(customer_route_spinner)
 
-            # نام مشتری (اجباری)
             content.add_widget(RTLLabel(
                 text='نام مشتری (الزامی):',
                 size_hint_y=None,
@@ -634,7 +845,6 @@ class AgentsScreen(Screen):
             customer_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(customer_name_input)
 
-            # نام فروشگاه (اختیاری)
             content.add_widget(RTLLabel(
                 text='نام فروشگاه:',
                 size_hint_y=None,
@@ -655,7 +865,6 @@ class AgentsScreen(Screen):
             customer_store_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(customer_store_input)
 
-            # موبایل (اجباری)
             content.add_widget(RTLLabel(
                 text='موبایل (الزامی):',
                 size_hint_y=None,
@@ -677,7 +886,6 @@ class AgentsScreen(Screen):
             customer_mobile_input._hidden_input.input_filter = 'int'
             content.add_widget(customer_mobile_input)
 
-            # آدرس (اختیاری)
             content.add_widget(RTLLabel(
                 text='آدرس:',
                 size_hint_y=None,
@@ -698,7 +906,6 @@ class AgentsScreen(Screen):
             customer_address_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(customer_address_input)
 
-            # دکمه‌ها
             btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(45))
 
             submit_btn = PersianButton(
@@ -737,21 +944,18 @@ class AgentsScreen(Screen):
                         self.show_message('خطا', 'لطفاً ابتدا یک مسیر ایجاد کنید')
                         return
 
-                    # اعتبارسنجی نام مشتری
                     name = customer_name_input.text.strip()
                     if not name:
                         self.show_message('خطا', 'نام مشتری الزامی است')
                         customer_name_input._hidden_input.focus = True
                         return
 
-                    # اعتبارسنجی شماره موبایل
                     mobile = customer_mobile_input.text.strip()
                     if not mobile:
                         self.show_message('خطا', 'شماره موبایل الزامی است')
                         customer_mobile_input._hidden_input.focus = True
                         return
 
-                    # اعتبارسنجی فرمت موبایل
                     mobile_clean = mobile.replace(' ', '').replace('-', '').replace('_', '')
                     if not mobile_clean.isdigit():
                         self.show_message('خطا', 'شماره موبایل باید فقط شامل عدد باشد')
@@ -768,7 +972,6 @@ class AgentsScreen(Screen):
                         customer_mobile_input._hidden_input.focus = True
                         return
 
-                    # بررسی تکراری بودن نام مشتری
                     all_customers = get_customers()
                     for c in all_customers:
                         if c.get('name', '').strip() == name:
@@ -776,7 +979,6 @@ class AgentsScreen(Screen):
                             customer_name_input._hidden_input.focus = True
                             return
                         
-                        # بررسی تکراری بودن شماره موبایل
                         existing_mobile = c.get('mobile', '').strip()
                         if existing_mobile and existing_mobile == mobile_clean:
                             self.show_message('خطا', f'شماره موبایل "{mobile_clean}" قبلاً برای مشتری "{c.get("name")}" ثبت شده است')
@@ -792,19 +994,14 @@ class AgentsScreen(Screen):
                     }
                     
                     add_customer(customer)
-                    
-                    # ✅ اضافه کردن نام مشتری به لیست مشتریان جدید جلسه
                     self.session_new_customers.append(name)
-                    
                     popup.dismiss()
                     
-                    # به‌روزرسانی لیست مشتریان
                     self.update_customers_list()
                     self.show_message('موفق', f'مشتری "{name}" با موفقیت اضافه شد')
                     
-                    # اگر مسیر انتخاب شده در دیالوگ با مسیر فعلی یکی بود، مشتری در لیست نمایش داده میشه
                     if route_name == self.route_spinner.text:
-                        self.filter_customers('')
+                        self.update_customers_list()
                     
                 except Exception as e:
                     error_details = traceback.format_exc()
@@ -821,12 +1018,7 @@ class AgentsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ افزودن مشتری: {e}", error_details)
 
-    # ============================================================
-    # دیالوگ‌های ویزیت
-    # ============================================================
-    
     def show_route_confirm_dialog(self, route_name):
-        """نمایش دیالوگ تأیید مسیر انتخاب شده"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -876,25 +1068,20 @@ class AgentsScreen(Screen):
             
             def on_yes(instance):
                 popup.dismiss()
-                # ✅ قفل کردن مسیر و ذخیره در locked_route
                 self.locked_route = route_name
                 self.route_confirmed = True
                 self.route_spinner.main_btn.disabled = True
                 self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
                 self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
-                # ✅ به‌روزرسانی لیست مشتریان بر اساس مسیر انتخاب شده
                 self.update_customers_list()
                 self.show_message('موفق', f'مسیر "{route_name}" با موفقیت انتخاب و قفل شد.')
             
             def on_no(instance):
                 popup.dismiss()
-                # ✅ برگرداندن کامبوباکس به حالت خالی
                 self.route_spinner.text = ''
                 self._last_route_text = ''
                 self.route_confirmed = False
-                # غیرفعال کردن مشتریان
-                self.customer_spinner.values = ['']
-                self.customer_spinner.text = ''
+                self.update_customers_list()
             
             yes_btn.bind(on_press=on_yes)
             no_btn.bind(on_press=on_no)
@@ -905,7 +1092,6 @@ class AgentsScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید مسیر: {e}", error_details)
 
     def show_confirm_dialog(self, customer_name):
-        """دیالوگ تأیید ویزیت برای مشتری"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -959,8 +1145,7 @@ class AgentsScreen(Screen):
             
             def on_no(instance):
                 popup.dismiss()
-                self.customer_spinner.text = ''
-                self._last_customer_text = ''
+                self.selected_customer = None
             
             yes_btn.bind(on_press=on_yes)
             no_btn.bind(on_press=on_no)
@@ -969,9 +1154,8 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
-    
+
     def show_visit_result_dialog(self, customer_name):
-        """دیالوگ نتیجه ویزیت (موفق/ناموفق)"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -1048,9 +1232,8 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ نتیجه ویزیت: {e}", error_details)
-    
+
     def show_fail_reason_dialog(self, customer_name):
-        """دیالوگ علت ویزیت ناموفق"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -1138,9 +1321,8 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ علت ناموفق: {e}", error_details)
-    
+
     def show_sales_result_dialog(self, customer_name):
-        """دیالوگ نتیجه فروش (موفق/ناموفق)"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -1218,9 +1400,8 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ نتیجه فروش: {e}", error_details)
-    
+
     def show_fail_sales_reason_dialog(self, customer_name):
-        """دیالوگ علت فروش ناموفق با کمبوباکس"""
         try:
             fail_reasons = [
                 'موکول به زمان دیگر',
@@ -1256,7 +1437,6 @@ class AgentsScreen(Screen):
             reason_spinner.main_btn.font_size = sp(18)
             content.add_widget(reason_spinner)
             
-            # فیلد توضیحات (برای سایر علل)
             description_input = RTLTextInput(
                 hint_text='توضیحات (در صورت انتخاب سایر علل)',
                 multiline=False,
@@ -1347,12 +1527,9 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ علت فروش ناموفق: {e}", error_details)
-    
-    
+
     def _update_amount_label(self, instance, value):
-        """به‌روزرسانی برچسب نمایش مبلغ به حروف"""
         try:
-            # اگر لیبل وجود ندارد، کاری نکن
             if not self.amount_words_label:
                 return
                 
@@ -1373,7 +1550,6 @@ class AgentsScreen(Screen):
                 self.amount_words_label.set_text('خطا در تبدیل')
 
     def show_success_sales_dialog(self, customer_name):
-        """دیالوگ فروش موفق با فیلدهای تعداد، مبلغ و نحوه تسویه"""
         try:
             payment_methods = ['نقد', 'چک', 'اعتباری']
             
@@ -1393,7 +1569,6 @@ class AgentsScreen(Screen):
                 bold=True
             ))
             
-            # تعداد واحد فروش
             content.add_widget(RTLLabel(
                 text='تعداد واحد فروش:',
                 size_hint_y=None,
@@ -1417,7 +1592,6 @@ class AgentsScreen(Screen):
             self.focusable_fields.append(units_input._hidden_input)
             content.add_widget(units_input)
             
-            # مبلغ فاکتور
             content.add_widget(RTLLabel(
                 text='مبلغ فاکتور (ریال):',
                 size_hint_y=None,
@@ -1443,7 +1617,6 @@ class AgentsScreen(Screen):
             self.focusable_fields.append(self.amount_input._hidden_input)
             content.add_widget(self.amount_input)
 
-            # برچسب نمایش عدد به حروف
             self.amount_words_label = RTLLabel(
                 text='صفر ریال',
                 size_hint_y=None,
@@ -1454,7 +1627,6 @@ class AgentsScreen(Screen):
             )
             content.add_widget(self.amount_words_label)
             
-            # نحوه تسویه
             content.add_widget(RTLLabel(
                 text='نحوه تسویه:',
                 size_hint_y=None,
@@ -1508,7 +1680,6 @@ class AgentsScreen(Screen):
                 amount = self.amount_input.text.strip()
                 payment = payment_spinner.text
                 
-                # اعتبارسنجی
                 if not units or units == '0':
                     ErrorPopup.show_error('لطفاً تعداد واحد فروش را وارد کنید')
                     return
@@ -1555,24 +1726,19 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ فروش موفق: {e}", error_details)
-    
+
     def save_visit_log(self, **kwargs):
-        """ذخیره لاگ ویزیت"""
         try:
             today = get_today_jalali()
             logs = get_daily_logs()
             
-            # اگر امروز در لاگ‌ها نیست، یک لیست خالی بساز
             if today not in logs:
                 logs[today] = []
             
-            # اگر لاگ‌های امروز لیست نیستند، تبدیل به لیست کن
             if not isinstance(logs[today], list):
                 logs[today] = []
             
             customer_name = kwargs.get('customer_name')
-            
-            # ✅ بررسی اینکه آیا مشتری در همین جلسه اضافه شده
             is_new_customer = customer_name in self.session_new_customers
             
             log_data = {
@@ -1581,10 +1747,9 @@ class AgentsScreen(Screen):
                 'customer': customer_name,
                 'visit_status': kwargs.get('visit_status'),
                 'time': get_current_time(),
-                'is_new_customer': is_new_customer  # ✅ ذخیره میشود
+                'is_new_customer': is_new_customer
             }
             
-            # اضافه کردن فیلدهای مختلف بر اساس وضعیت
             if kwargs.get('visit_status') == 'ناموفق':
                 log_data['fail_reason'] = kwargs.get('fail_reason', '')
             elif kwargs.get('visit_status') == 'موفق':
@@ -1597,39 +1762,30 @@ class AgentsScreen(Screen):
                     log_data['sales_amount'] = kwargs.get('sales_amount', 0)
                     log_data['payment_method'] = kwargs.get('payment_method', '')
             
-            # اضافه کردن به لیست
-            logs[today].append(log_data)
+            # ✅ حذف ویزیت قبلی این مشتری در امروز (برای جایگزینی)
+            logs[today] = [log for log in logs[today] if log.get('customer') != customer_name]
             
-            # ذخیره کل لاگ‌ها
+            logs[today].append(log_data)
             save_daily_log(today, logs[today])
             
-            # ذخیره مسیر قفل‌شده
             self.locked_route = self.route_spinner.text
             
-            # قفل کردن مسیر فقط بعد از ثبت موفق ویزیت
             if hasattr(self, 'route_spinner'):
                 self.route_spinner.main_btn.disabled = True
                 self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
                 self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
             
-            # قفل کردن مشتری هم بعد از ثبت ویزیت
-            if hasattr(self, 'customer_spinner'):
-                self.customer_spinner.main_btn.disabled = True
-                self.customer_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
-                self.customer_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
-            
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ذخیره لاگ ویزیت: {e}", error_details)
-    
+
     def reset_form(self):
-        """بازنشانی فرم بعد از ثبت"""
-        self.customer_spinner.text = ''
-        self._last_customer_text = ''
         self.selected_customer = None
-    
+        self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
+        self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
+        self.update_customers_list()
+
     def show_message(self, title, message):
-        """نمایش پیام موفقیت"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -1666,17 +1822,15 @@ class AgentsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
-    
+
     def go_back(self, instance):
         today = get_today_jalali()
         logs = get_daily_logs()
         
         if today in logs and logs[today] and len(logs[today]) > 0:
-            # ویزیت ثبت شده، مسیر را ذخیره کن
             if hasattr(self, 'route_spinner'):
                 self.locked_route = self.route_spinner.text
         else:
-            # ویزیت ثبت نشده، قفل را باز کن
             self.locked_route = None
             self.route_confirmed = False
             if hasattr(self, 'route_spinner'):
@@ -1685,10 +1839,5 @@ class AgentsScreen(Screen):
                 self.route_spinner.main_btn.color = (1, 1, 1, 1)
                 self.route_spinner.text = ''
                 self._last_route_text = ''
-            
-            if hasattr(self, 'customer_spinner'):
-                self.customer_spinner.main_btn.disabled = False
-                self.customer_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-                self.customer_spinner.main_btn.color = (1, 1, 1, 1)
         
         self.manager.current = 'user'
