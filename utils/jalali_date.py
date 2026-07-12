@@ -53,6 +53,11 @@ def get_today_jalali():
     return to_jalali(now.year, now.month, now.day)
 
 
+def get_current_jalali_date():
+    """دریافت تاریخ شمسی جاری (همان get_today_jalali)"""
+    return get_today_jalali()
+
+
 def get_current_time():
     """ساعت الان (فرمت: 14:30)"""
     return datetime.datetime.now().strftime('%H:%M')
