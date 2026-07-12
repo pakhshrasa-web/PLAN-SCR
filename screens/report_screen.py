@@ -2059,22 +2059,19 @@ class ReportScreen(Screen):
             self.loading_popup = self.show_message('در حال ساخت', 'لطفاً صبر کنید...')
             
             # ✅ دریافت داده‌های فیلتر شده بر اساس تب فعلی
-            filtered_data = {}
+            filtered_data = None
             
             if self.current_tab == 0:  # تب عملکرد کلی
-                # از داده‌های فیلتر شده استفاده کن
                 if hasattr(self, '_current_performance_data') and self._current_performance_data:
                     all_logs = get_daily_logs()
+                    filtered_data = {}
                     for date in self._current_performance_data:
                         if date in all_logs:
                             filtered_data[date] = all_logs[date]
-                else:
-                    # اگر داده‌ای وجود نداشت، همه رو بگیر
-                    filtered_data = get_daily_logs()
-                    
+            
             elif self.current_tab == 1:  # تب ریز عملکرد
-                # از داده‌های فیلتر شده استفاده کن
                 all_logs = get_daily_logs()
+                filtered_data = {}
                 for date, logs in all_logs.items():
                     if self.detail_from_date and date < self.detail_from_date:
                         continue
@@ -2082,12 +2079,9 @@ class ReportScreen(Screen):
                         continue
                     filtered_data[date] = logs
             
-            else:  # تب آمار و ارزیابی - همه داده‌ها
-                filtered_data = get_daily_logs()
-            
-            # اگر داده‌ای فیلتر نشده، همه رو بگیر
+            # اگر داده‌ای فیلتر نشده، None بفرست (همه داده‌ها)
             if not filtered_data:
-                filtered_data = get_daily_logs()
+                filtered_data = None
             
             def do_export():
                 success, result = export_to_excel(filtered_data)
@@ -2103,7 +2097,8 @@ class ReportScreen(Screen):
                     if success:
                         self.show_message(
                             'موفق', 
-                            'فایل اکسل با موفقیت در پوشه downloads .ذخیره شد'
+                            'فایل اکسل با موفقیت ساخته شد!\n\n'
+                            'فایل در پوشه Downloads ذخیره شد.'
                         )
                     else:
                         self.show_message('خطا', f'خطا در ساخت اکسل:\n{result}')
