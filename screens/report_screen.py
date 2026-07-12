@@ -19,7 +19,7 @@ from kivy.uix.checkbox import CheckBox
 
 from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInput
 from utils.persian_text import PersianLabel
-from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path, get_settings
+from utils.file_manager import get_daily_logs, load_json, save_json, get_data_path, get_settings, get_customers
 from utils.excel_exporter import export_to_excel
 from utils.jalali_date import get_today_jalali
 from utils.file_cleaner import (
@@ -44,13 +44,22 @@ class ReportScreen(Screen):
             self.settings = get_settings()
             self.selected_files = {}
             self.history_popup = None
-            
+            self.selected_score = None
+            self.score_buttons = []
+            self._self_assessment_popup = None
+            self._self_assessment_confirm = None
+            self.current_evaluation_date = None 
+
+            # ✅ فلگ‌های جدید برای جلوگیری از لوپ
+            self._is_processing = False
+            self._self_assessment_shown = False
+
             # متغیرهای فیلتر
             self.performance_from_date = ''
             self.performance_to_date = ''
             self.detail_from_date = ''
             self.detail_to_date = ''
-            
+
             self.build_ui()
         except Exception as e:
             error_details = traceback.format_exc()
@@ -435,7 +444,7 @@ class ReportScreen(Screen):
             ))
             
             header_box = BoxLayout(size_hint_y=None, height=dp(37), spacing=dp(2))
-            headers = ['تاریخ', 'ویزیت', 'فاکتور', 'واحد', 'فروش', 'نقدی', 'چکی', 'مشتری جدید']
+            headers = ['تاریخ', 'ویزیت', 'فاکتور', 'واحد', 'فروش', 'نقدی', 'چکی', 'مشتری جدید', 'خودآزمایی']
             for i, text in enumerate(headers):
                 btn = PersianButton(
                     text=text,
@@ -448,6 +457,16 @@ class ReportScreen(Screen):
                 )
                 header_box.add_widget(btn)
             data_content.add_widget(header_box)
+            
+            # دریافت نمرات خودآزمایی
+            summary_file = 'daily_summary.json'
+            summary_path = os.path.join(get_data_path(), summary_file)
+            self_scores = {}
+            if os.path.exists(summary_path):
+                all_summaries = load_json(summary_file)
+                for date, data in all_summaries.items():
+                    if 'self_score' in data:
+                        self_scores[date] = data['self_score']
             
             for date in sorted(filtered_dates, reverse=True):
                 if date not in all_logs or not isinstance(all_logs[date], list):
@@ -534,6 +553,17 @@ class ReportScreen(Screen):
                     color=(0.2, 0.8, 0.4, 1)
                 ))
                 
+                # ستون خودآزمایی
+                score = self_scores.get(date, '')
+                score_text = str(score) if score != '' else '—'
+                score_color = (0.2, 0.8, 0.4, 1) if score != '' else (0.3, 0.3, 0.3, 1)
+                row.add_widget(RTLLabel(
+                    text=score_text,
+                    size_hint_x=1/len(headers),
+                    font_size=sp(14),
+                    color=score_color
+                ))
+                
                 data_content.add_widget(row)
             
             data_scroll.add_widget(data_content)
@@ -555,20 +585,17 @@ class ReportScreen(Screen):
             if to_date:
                 self.performance_to_date = to_date
             
-            # ✅ تغییر: استفاده از refresh_stats به جای show_performance_tab
             self.refresh_stats(None)
         except Exception as e:
             ErrorPopup.show_error(f"خطا در اعمال فیلتر: {e}")
 
     def _clear_performance_filter(self, instance):
         try:
-            # بازگشت به اول ماه تا امروز
             self.performance_from_date = self._get_first_day_of_month()
             self.performance_to_date = get_today_jalali()
             self.perf_from_input.text = self.performance_from_date
             self.perf_to_input.text = self.performance_to_date
             
-            # ✅ تغییر: استفاده از refresh_stats
             self.refresh_stats(None)
         except Exception as e:
             ErrorPopup.show_error(f"خطا در پاک کردن فیلتر: {e}")
@@ -580,7 +607,6 @@ class ReportScreen(Screen):
             self.perf_from_input.text = self.performance_from_date
             self.perf_to_input.text = self.performance_to_date
             
-            # ✅ تغییر: استفاده از refresh_stats
             self.refresh_stats(None)
         except Exception as e:
             ErrorPopup.show_error(f"خطا در تنظیم ماه جاری: {e}")
@@ -593,14 +619,12 @@ class ReportScreen(Screen):
         try:
             all_logs = get_daily_logs()
             
-            # تنظیم پیشفرض: امروز
             today = get_today_jalali()
             if not self.detail_from_date:
                 self.detail_from_date = today
             if not self.detail_to_date:
                 self.detail_to_date = today
             
-            # ✅ ساخت بخش فیلتر
             filter_layout = BoxLayout(
                 orientation='vertical',
                 size_hint_y=None,
@@ -705,7 +729,6 @@ class ReportScreen(Screen):
             
             filter_layout.add_widget(btn_row)
             
-            # ✅ محتوای اصلی
             content_layout = BoxLayout(orientation='vertical')
             content_layout.add_widget(filter_layout)
             
@@ -713,10 +736,8 @@ class ReportScreen(Screen):
             data_content = GridLayout(cols=1, spacing=dp(4), size_hint_y=None, padding=dp(8))
             data_content.bind(minimum_height=data_content.setter('height'))
             
-            # ساخت لیست ویزیت‌ها
             visit_list = []
             for date, logs in all_logs.items():
-                # فیلتر بر اساس بازه
                 if self.detail_from_date and date < self.detail_from_date:
                     continue
                 if self.detail_to_date and date > self.detail_to_date:
@@ -863,7 +884,6 @@ class ReportScreen(Screen):
             if to_date:
                 self.detail_to_date = to_date
             
-            # ✅ تغییر: استفاده از refresh_stats
             self.refresh_stats(None)
         except Exception as e:
             ErrorPopup.show_error(f"خطا در اعمال فیلتر: {e}")
@@ -876,21 +896,18 @@ class ReportScreen(Screen):
             self.detail_from_input.text = today
             self.detail_to_input.text = today
             
-            # ✅ تغییر: استفاده از refresh_stats
             self.refresh_stats(None)
         except Exception as e:
             ErrorPopup.show_error(f"خطا در تنظیم امروز: {e}")
 
     def _clear_detail_filter(self, instance):
         try:
-            # بازگشت به امروز
             today = get_today_jalali()
             self.detail_from_date = today
             self.detail_to_date = today
             self.detail_from_input.text = today
             self.detail_to_input.text = today
             
-            # ✅ تغییر: استفاده از refresh_stats
             self.refresh_stats(None)
         except Exception as e:
             ErrorPopup.show_error(f"خطا در پاک کردن فیلتر: {e}")
@@ -961,7 +978,6 @@ class ReportScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش آمار و ارزیابی: {e}", error_details)
-    
     
     # ============================================================
     # دیالوگ تاریخچه گزارشات
@@ -1128,8 +1144,8 @@ class ReportScreen(Screen):
             content.add_widget(close_btn)
             
             popup = PersianPopup(
-                title='',  # ✅ حذف هدر
-                title_size=0,  # ✅ حذف هدر
+                title='',
+                title_size=0,
                 content=content,
                 size_hint=(0.92, 0.75),
                 background_color=(0.08, 0.08, 0.08, 1),
@@ -1150,12 +1166,10 @@ class ReportScreen(Screen):
     # ============================================================
     
     def _toggle_file_selection(self, file_path, value):
-        """تغییر وضعیت انتخاب فایل"""
         if hasattr(self, 'selected_files'):
             self.selected_files[file_path] = value
     
     def _select_all_files(self, instance):
-        """انتخاب همه فایل‌ها"""
         if not hasattr(self, 'selected_files') or not self.selected_files:
             self.show_message('توجه', 'هیچ فایلی برای انتخاب وجود ندارد')
             return
@@ -1168,7 +1182,6 @@ class ReportScreen(Screen):
         self.show_message('توجه', f'{len(self.selected_files)} فایل انتخاب شد')
     
     def _update_checkboxes(self, value):
-        """به‌روزرسانی وضعیت چک‌باکس‌ها"""
         try:
             if hasattr(self, 'history_popup') and self.history_popup:
                 popup = self.history_popup
@@ -1183,7 +1196,6 @@ class ReportScreen(Screen):
             print(f"خطا در به‌روزرسانی چک‌باکس‌ها: {e}")
     
     def _delete_selected_files(self, instance):
-        """حذف فایل‌های انتخاب شده"""
         try:
             selected = [path for path, selected in self.selected_files.items() if selected]
             
@@ -1253,8 +1265,8 @@ class ReportScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='',  # ✅ حذف هدر
-                title_size=0,  # ✅ حذف هدر
+                title='',
+                title_size=0,
                 content=content,
                 size_hint=(0.85, 0.6),
                 auto_dismiss=True
@@ -1279,7 +1291,6 @@ class ReportScreen(Screen):
             ErrorPopup.show_error(f"خطا در حذف فایل‌ها: {e}", error_details)
     
     def _on_delete_complete(self, deleted, failed):
-        """پس از اتمام حذف فایل‌ها"""
         try:
             message = f"{deleted} فایل با موفقیت حذف شد"
             if failed > 0:
@@ -1299,7 +1310,6 @@ class ReportScreen(Screen):
             print(f"خطا در نمایش نتیجه حذف: {e}")
     
     def _clean_old_files(self, instance):
-        """پاکسازی فایل‌های قدیمی‌تر از ۳۰ روز"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
@@ -1348,8 +1358,8 @@ class ReportScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='',  # ✅ حذف هدر
-                title_size=0,  # ✅ حذف هدر
+                title='',
+                title_size=0,
                 content=content,
                 size_hint=(0.85, 0.5),
                 auto_dismiss=True
@@ -1376,7 +1386,6 @@ class ReportScreen(Screen):
             ErrorPopup.show_error(f"خطا در پاکسازی: {e}", error_details)
     
     def _on_clean_complete(self, deleted, failed):
-        """پس از اتمام پاکسازی"""
         try:
             if deleted > 0:
                 message = f'{deleted} فایل قدیمی حذف شد'
@@ -1398,7 +1407,6 @@ class ReportScreen(Screen):
             print(f"خطا در نمایش نتیجه پاکسازی: {e}")
     
     def _open_backup_folder(self, instance):
-        """باز کردن پوشه بکاپ"""
         try:
             from utils.storage import get_backup_path
             from kivy.utils import platform
@@ -1424,11 +1432,7 @@ class ReportScreen(Screen):
                     mActivity.startActivity(intent)
                     
                 except Exception as e:
-                    # نمایش پیام با مسیر پوشه
-                    self.show_message(
-                        'مسیر پوشه', 
-                        f'پوشه بکاپ:{backup_path}'
-                    )
+                    self.show_message('مسیر پوشه', f'پوشه بکاپ:{backup_path}')
             else:
                 import subprocess
                 if platform == 'win':
@@ -1446,19 +1450,15 @@ class ReportScreen(Screen):
     # ============================================================
     
     def _share_file(self, file_path):
-        """ارسال فایل با استفاده از plyer در اندروید"""
         try:
             from kivy.utils import platform
             import os
             
             if platform == 'android':
-                # ✅ استفاده از plyer برای ارسال فایل
-                from plyer import filechooser
-                from android import mActivity
-                from jnius import autoclass
-                
-                # روش ساده: باز کردن با Intent
                 try:
+                    from android import mActivity
+                    from jnius import autoclass
+                    
                     Intent = autoclass('android.content.Intent')
                     Uri = autoclass('android.net.Uri')
                     File = autoclass('java.io.File')
@@ -1477,12 +1477,9 @@ class ReportScreen(Screen):
                     
                 except Exception as e:
                     print(f"Intent method failed: {e}")
-                    # روش جایگزین: نمایش پیام با مسیر فایل
                     self.show_message('مسیر فایل', f'مسیر ذخیره: {file_path}')
-
                     
             else:
-                # برای دسکتاپ - باز کردن پوشه
                 import subprocess
                 folder_path = os.path.dirname(file_path)
                 
@@ -1499,34 +1496,51 @@ class ReportScreen(Screen):
             print(f"خطا در ارسال فایل: {e}")
             import traceback
             traceback.print_exc()
-            # نمایش پیام با مسیر فایل به جای خطا
             self.show_message('مسیر فایل', f'مسیر ذخیره: {file_path}')
 
-    
     # ============================================================
     # دیالوگ ارزیابی روز جاری
     # ============================================================
     
     def show_daily_evaluation(self, instance):
         try:
+            # ✅ جلوگیری از اجرای همزمان
+            if self._is_processing:
+                return
+            
+            self._is_processing = True
+            
             today = get_today_jalali()
+            self.current_evaluation_date = today
+            
+            # ✅ بازنشانی فلگ خودآزمایی
+            self._self_assessment_shown = False
+            
             self._show_evaluation_dialog(today, today)
+            
+            # ✅ بازنشانی بعد از اتمام
+            Clock.schedule_once(lambda dt: setattr(self, '_is_processing', False), 1)
+            
         except Exception as e:
+            self._is_processing = False
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش ارزیابی روز: {e}", error_details)
-    
+        
     # ============================================================
     # دیالوگ ارزیابی دوره
     # ============================================================
-    
+        
     def show_period_evaluation(self, instance):
         try:
+            # ✅ تنظیم current_evaluation_date به None برای ارزیابی دوره
+            self.current_evaluation_date = None
+            
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
+                            size=lambda i, v: setattr(content_rect, 'size', v))
             
             content.add_widget(RTLLabel(
                 text='انتخاب بازه زمانی',
@@ -1610,14 +1624,16 @@ class ReportScreen(Screen):
             btn_layout.add_widget(cancel_btn)
             content.add_widget(btn_layout)
             
-            popup = PersianPopup(
-                title='',  # ✅ حذف هدر
-                title_size=0,  # ✅ حذف هدر
+            popup = Popup(
+                title='',
                 content=content,
                 size_hint=(0.9, 0.5),
-                background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
+                auto_dismiss=False,
+                background_color=(0.08, 0.08, 0.08, 1)
             )
+            popup.title_size = 0
+            popup.title_color = (0, 0, 0, 0)
+            popup.separator_height = 0
             
             def on_confirm(instance):
                 from_date = from_date_input.text.strip()
@@ -1638,16 +1654,67 @@ class ReportScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش ارزیابی دوره: {e}", error_details)
-    
+        
     # ============================================================
     # نمایش دیالوگ ارزیابی
     # ============================================================
     
     def _show_evaluation_dialog(self, from_date, to_date):
+        """نمایش دیالوگ ارزیابی با فرمول‌های جدید"""
         try:
             all_logs = get_daily_logs()
-            all_summaries = load_json('daily_summary.json') if os.path.exists(os.path.join(get_data_path(), 'daily_summary.json')) else {}
             settings = get_settings()
+            
+            supervision_rate = settings.get('supervision_rate', 70.0) / 100
+            conversion_rate = settings.get('conversion_rate', 75.0) / 100
+            min_daily_hours = settings.get('min_daily_hours', 7)
+            
+            target_new_customer = settings.get('target_new_customer_count', 0)
+            target_units = settings.get('target_count', 100)
+            target_sales = settings.get('target_amount', 50000000)
+            target_cash = settings.get('target_cash_sales', 30000000)
+            target_check = settings.get('target_credit_sales', 20000000)
+            
+            date_list = []
+            for date in all_logs.keys():
+                if from_date <= date <= to_date:
+                    date_list.append(date)
+            
+            if not date_list:
+                self.show_message('اطلاع', 'هیچ داده‌ای در بازه انتخابی وجود ندارد')
+                return
+            
+            routes_in_period = set()
+            for date in date_list:
+                if date in all_logs and isinstance(all_logs[date], list):
+                    for log in all_logs[date]:
+                        route = log.get('route', '')
+                        if route:
+                            routes_in_period.add(route)
+            
+            all_customers = get_customers()
+            total_customers_in_period = 0
+            
+            for route in routes_in_period:
+                count = 0
+                for c in all_customers:
+                    if c.get('route_name', '').strip() == route.strip():
+                        count += 1
+                total_customers_in_period += count
+            
+            target_visits = int(total_customers_in_period * supervision_rate)
+            target_invoices = int(target_visits * conversion_rate)
+            target_credit = target_sales - (target_cash + target_check)
+            
+            day_count = len(date_list)
+            target_visits_day = target_visits * day_count
+            target_invoices_day = target_invoices * day_count
+            target_units_day = target_units * day_count
+            target_sales_day = target_sales * day_count
+            target_cash_day = target_cash * day_count
+            target_check_day = target_check * day_count
+            target_credit_day = target_credit * day_count
+            target_new_customer_day = target_new_customer * day_count
             
             total_visits = 0
             total_invoices = 0
@@ -1658,37 +1725,12 @@ class ReportScreen(Screen):
             total_credit = 0
             total_new_customers = 0
             
-            day_count = 0
-            
-            date_list = []
-            for date in all_logs.keys():
-                if from_date <= date <= to_date:
-                    date_list.append(date)
-                    day_count += 1
-            
-            if day_count == 0:
-                self.show_message('اطلاع', 'هیچ داده‌ای در بازه انتخابی وجود ندارد')
-                return
-            
-            target_visits_per_day = settings.get('target_customer_count', 50)
-            target_invoices_per_day = settings.get('target_invoice_count', 20)
-            target_units_per_day = settings.get('target_count', 100)
-            target_sales_per_day = settings.get('target_amount', 50000000)
-            target_cash_per_day = settings.get('target_cash_sales', 30000000)
-            target_credit_per_day = settings.get('target_credit_sales', 20000000)
-            
-            target_visits = target_visits_per_day * day_count
-            target_invoices = target_invoices_per_day * day_count
-            target_units = target_units_per_day * day_count
-            target_sales = target_sales_per_day * day_count
-            target_cash = target_cash_per_day * day_count
-            target_credit = target_credit_per_day * day_count
-            
             for date in date_list:
                 if date in all_logs and isinstance(all_logs[date], list):
                     for log in all_logs[date]:
                         if not isinstance(log, dict):
                             continue
+                        
                         visit_status = log.get('visit_status', '')
                         sales_status = log.get('sales_status', '')
                         payment_method = log.get('payment_method', '')
@@ -1697,28 +1739,31 @@ class ReportScreen(Screen):
                         
                         if visit_status == 'موفق':
                             total_visits += 1
+                        
                         if sales_status == 'موفق':
                             total_invoices += 1
                             total_units += units_sold
                             total_sales += sales_amount
+                            
                             if payment_method == 'نقد':
                                 total_cash += sales_amount
                             elif payment_method == 'چک':
                                 total_check += sales_amount
                             elif payment_method == 'اعتباری':
                                 total_credit += sales_amount
+                        
                         if log.get('is_new_customer', False):
                             total_new_customers += 1
             
             items = [
-                {'name': 'تعداد ویزیت', 'target': target_visits, 'actual': total_visits},
-                {'name': 'تعداد فاکتور', 'target': target_invoices, 'actual': total_invoices},
-                {'name': 'واحد فروش', 'target': target_units, 'actual': total_units},
-                {'name': 'مبلغ فروش', 'target': target_sales, 'actual': total_sales},
-                {'name': 'فروش نقدی', 'target': target_cash, 'actual': total_cash},
-                {'name': 'فروش چکی', 'target': target_credit, 'actual': total_check},
-                {'name': 'فروش اعتباری', 'target': target_credit, 'actual': total_credit},
-                {'name': 'مشتری جدید', 'target': 0, 'actual': total_new_customers},
+                {'name': 'تعداد ویزیت', 'target': target_visits_day, 'actual': total_visits},
+                {'name': 'تعداد فاکتور', 'target': target_invoices_day, 'actual': total_invoices},
+                {'name': 'واحد فروش', 'target': target_units_day, 'actual': total_units},
+                {'name': 'مبلغ فروش', 'target': target_sales_day, 'actual': total_sales},
+                {'name': 'فروش نقدی', 'target': target_cash_day, 'actual': total_cash},
+                {'name': 'فروش چکی', 'target': target_check_day, 'actual': total_check},
+                {'name': 'فروش اعتباری', 'target': target_credit_day, 'actual': total_credit},
+                {'name': 'مشتری جدید', 'target': target_new_customer_day, 'actual': total_new_customers},
             ]
             
             content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
@@ -1726,17 +1771,18 @@ class ReportScreen(Screen):
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
+                            size=lambda i, v: setattr(content_rect, 'size', v))
+            
             
             table_container = BoxLayout(
                 orientation='vertical',
-                size_hint_y=0.9,
+                size_hint_y=0.75,
                 spacing=dp(2),
                 padding=dp(3)
             )
             
             header_box = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(2))
-            headers = ['آیتم', 'هدف', 'عملکرد', 'نتیجه']
+            headers = ['آيتم', 'هدف', 'عملكرد', 'نتیجه']
             for header in headers:
                 header_box.add_widget(RTLLabel(
                     text=header,
@@ -1815,17 +1861,15 @@ class ReportScreen(Screen):
             content.add_widget(table_container)
             
             eval_btn = PersianButton(
-                text='ارزیابی',
+                text='ارزيابي',
                 background_color=(0.2, 0.6, 1, 1),
                 size_hint_y=None,
-                height=dp(40),
+                height=dp(45),
                 color=(1, 1, 1, 1),
-                font_size=sp(15)
+                font_size=sp(18),
+                bold=True
             )
             content.add_widget(eval_btn)
-            
-            result_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(1))
-            content.add_widget(result_box)
             
             btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(10))
             close_btn = PersianButton(
@@ -1840,16 +1884,18 @@ class ReportScreen(Screen):
             btn_layout.add_widget(close_btn)
             content.add_widget(btn_layout)
             
-            popup = PersianPopup(
-                title='',  # ✅ حذف هدر
-                title_size=0,  # ✅ حذف هدر
+            popup = Popup(
+                title='',
                 content=content,
-                size_hint=(0.92, 0.82),
-                background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
+                size_hint=(0.92, 0.85),
+                auto_dismiss=False,
+                background_color=(0.08, 0.08, 0.08, 1)
             )
+            popup.title_size = 0
+            popup.title_color = (0, 0, 0, 0)
+            popup.separator_height = 0
             
-            eval_btn.bind(on_press=lambda x: self._show_evaluation_result(result_box, items, date_list, all_logs))
+            eval_btn.bind(on_press=lambda x: self._show_evaluation_result(items, date_list, all_logs, popup))
             close_btn.bind(on_press=lambda x: popup.dismiss())
             
             popup.open()
@@ -1862,54 +1908,78 @@ class ReportScreen(Screen):
     # نمایش نتیجه ارزیابی
     # ============================================================
     
-    def _show_evaluation_result(self, result_box, items, date_list, all_logs):
+    def _show_evaluation_result(self, items, date_list, all_logs, parent_popup=None):
+        """نمایش دیالوگ جداگانه برای جزئیات ارزیابی"""
         try:
-            total_target = 0
-            total_actual = 0
-            sale_items = ['مبلغ فروش', 'تعداد فاکتور', 'واحد فروش']
-            for item in items:
-                if item['name'] in sale_items:
-                    total_target += item['target']
-                    total_actual += item['actual']
+            # ✅ بستن پاپ‌آپ والد
+            if parent_popup and hasattr(parent_popup, 'dismiss'):
+                try:
+                    parent_popup.dismiss()
+                except:
+                    pass
+
+            from utils.jalali_date import get_today_jalali
+            settings = get_settings()
             
-            percent = (total_actual / total_target * 100) if total_target > 0 else 0
+            target_clock_in = settings.get('work_start_time', '08:00')
+            target_first_visit = settings.get('first_visit_time', '09:00')
+            min_daily_hours = settings.get('min_daily_hours', 7)
             
-            if percent < 65:
-                sales_msg = 'به اندازه کافی تلاش نکردم'
-                sales_color = (0.5, 0.5, 0.5, 1)
-            elif percent < 75:
-                sales_msg = 'باید بیشتر تلاش کنم'
-                sales_color = (1, 0.5, 0, 1)
-            elif percent < 85:
-                sales_msg = 'تلاشم داره نتیجه میده'
-                sales_color = (1, 0.8, 0, 1)
-            elif percent < 100:
-                sales_msg = 'تا موفقیت راهی نیست'
-                sales_color = (0.2, 0.5, 1, 1)
-            else:
-                sales_msg = 'به خودم افتخار میکنم'
-                sales_color = (0.2, 0.7, 0.2, 1)
-            
-            first_visit_target = '09:00'
-            work_start_target = '08:00'
-            min_hours = 6
+            actual_clock_in = None
+            actual_first_visit = None
+            actual_last_visit = None
+            actual_clock_out = None
             
             all_times = []
+            first_successful_time = None
+            last_successful_time = None
+            first_log_time = None
+            last_log_time = None
+            
             for date in date_list:
                 if date in all_logs and isinstance(all_logs[date], list):
                     for log in all_logs[date]:
                         if not isinstance(log, dict):
                             continue
-                        visit_status = log.get('visit_status', '')
+                        
                         log_time = log.get('time', '')
-                        if visit_status == 'موفق' and log_time:
-                            all_times.append(log_time)
+                        visit_status = log.get('visit_status', '')
+                        
+                        if log_time:
+                            if first_log_time is None:
+                                first_log_time = log_time
+                            last_log_time = log_time
+                            
+                            if visit_status == 'موفق':
+                                all_times.append(log_time)
+                                if first_successful_time is None:
+                                    first_successful_time = log_time
+                                last_successful_time = log_time
             
-            first_actual = all_times[0] if all_times else '--:--'
-            last_actual = all_times[-1] if all_times else '--:--'
+            actual_clock_in = first_log_time if first_log_time else target_clock_in
+            actual_first_visit = first_successful_time if first_successful_time else target_first_visit
+            actual_last_visit = last_successful_time if last_successful_time else '---'
+            actual_clock_out = last_log_time if last_log_time else '---'
+            
+            def add_hours(time_str, hours):
+                try:
+                    h, m = map(int, time_str.split(':'))
+                    total_min = h * 60 + m + (hours * 60)
+                    h_new = total_min // 60
+                    m_new = total_min % 60
+                    if h_new >= 24:
+                        h_new = h_new - 24
+                    return f"{h_new:02d}:{m_new:02d}"
+                except:
+                    return time_str
+            
+            target_last_visit = add_hours(target_first_visit, min_daily_hours)
+            target_clock_out = add_hours(target_clock_in, min_daily_hours + 1)
             
             def time_diff(t1, t2):
                 try:
+                    if t1 == '---' or t2 == '---':
+                        return 0
                     h1, m1 = map(int, t1.split(':'))
                     h2, m2 = map(int, t2.split(':'))
                     diff_minutes = (h2 * 60 + m2) - (h1 * 60 + m1)
@@ -1919,8 +1989,8 @@ class ReportScreen(Screen):
             
             work_hours = 0
             work_minutes = 0
-            if first_actual != '--:--' and last_actual != '--:--':
-                diff_min = time_diff(first_actual, last_actual)
+            if actual_first_visit != '---' and actual_last_visit != '---':
+                diff_min = time_diff(actual_first_visit, actual_last_visit)
                 work_hours = diff_min // 60
                 work_minutes = diff_min % 60
             
@@ -1934,84 +2004,826 @@ class ReportScreen(Screen):
                 work_msg = 'تمام تلاشم رو کردم امیدوارم نتیجه بگیرم'
                 work_color = (0.2, 0.7, 0.2, 1)
             
-            result_box.clear_widgets()
-            result_box.height = dp(1)
+            clock_in_diff = self._time_diff(target_clock_in, actual_clock_in)
+            if clock_in_diff <= 0:
+                clock_in_status = "به موقع"
+                clock_in_color = (0.2, 0.8, 0.2, 1)
+                clock_in_eval = "شروع به موقع"
+            else:
+                clock_in_status = f"{clock_in_diff} دقيقه تاخير"
+                clock_in_color = (0.8, 0.2, 0.2, 1)
+                clock_in_eval = f"{clock_in_diff} دقيقه تاخير در شروع"
             
-            result_content = BoxLayout(orientation='vertical', spacing=dp(5), size_hint_y=None)
+            first_visit_diff = self._time_diff(target_first_visit, actual_first_visit)
+            if first_visit_diff <= 0:
+                first_visit_status = "به موقع"
+                first_visit_color = (0.2, 0.8, 0.2, 1)
+                first_visit_eval = "اولين ويزيت به موقع"
+            else:
+                first_visit_status = f"{first_visit_diff} دقيقه تاخير"
+                first_visit_color = (0.8, 0.2, 0.2, 1)
+                first_visit_eval = f"{first_visit_diff} دقيقه تاخير در اولين ويزيت"
             
-            result_content.add_widget(RTLLabel(
-                text='نتیجه ارزیابی',
+            last_visit_diff = self._time_diff(actual_last_visit, target_last_visit) if actual_last_visit != '---' else 0
+            if last_visit_diff >= 0:
+                last_visit_status = "كامل"
+                last_visit_color = (0.2, 0.8, 0.2, 1)
+                last_visit_eval = work_msg
+            else:
+                last_visit_status = f"{abs(last_visit_diff)} دقيقه زودتر"
+                last_visit_color = (0.8, 0.2, 0.2, 1)
+                last_visit_eval = work_msg
+            
+            clock_out_diff = self._time_diff(actual_clock_out, target_clock_out) if actual_clock_out != '---' else 0
+            if clock_out_diff >= 0:
+                clock_out_status = "كامل"
+                clock_out_color = (0.2, 0.8, 0.2, 1)
+                clock_out_eval = work_msg
+            else:
+                clock_out_status = f"{abs(clock_out_diff)} دقيقه زودتر"
+                clock_out_color = (0.8, 0.2, 0.2, 1)
+                clock_out_eval = work_msg
+            
+            work_time_display = f"{work_hours} ساعت و {work_minutes} دقيقه"
+            
+            evaluation_items = []
+            total_percent = 0
+            item_count = 0
+            
+            for item in items:
+                if item['name'] not in ['ساعت شروع کار', 'ساعت اولین ویزیت', 'ساعت آخرین ویزیت', 'ساعت پایان کار']:
+                    if item['target'] > 0:
+                        percent = (item['actual'] / item['target']) * 100
+                    else:
+                        percent = 0
+                    
+                    evaluation_items.append({
+                        'name': item['name'],
+                        'target': item['target'],
+                        'actual': item['actual'],
+                        'percent': percent
+                    })
+                    total_percent += percent
+                    item_count += 1
+            
+            avg_percent = total_percent / item_count if item_count > 0 else 0
+            
+            if avg_percent < 50:
+                eval_text = "نياز به تلاش بيشتر دارم"
+                eval_color = (0.8, 0.2, 0.2, 1)
+            elif avg_percent < 70:
+                eval_text = "تلاشم كافي نيست"
+                eval_color = (1, 0.5, 0, 1)
+            elif avg_percent < 85:
+                eval_text = "در مسير درست هستم"
+                eval_color = (1, 0.8, 0, 1)
+            elif avg_percent < 100:
+                eval_text = "تا موفقيت راهي نيست"
+                eval_color = (0.2, 0.8, 0.2, 1)
+            else:
+                eval_text = "به خودم افتخار ميكنم"
+                eval_color = (0, 0.6, 0, 1)
+            
+            dialog_content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(8))
+            with dialog_content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=dialog_content.pos, size=dialog_content.size)
+                dialog_content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                                size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            detail_scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=1,
+                scroll_type=['bars', 'content'],
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 1),
+                bar_inactive_color=(0.2, 0.2, 0.2, 1)
+            )
+            
+            detail_content = BoxLayout(orientation='vertical', spacing=dp(8), size_hint_y=None)
+            detail_content.bind(minimum_height=detail_content.setter('height'))
+            
+            detail_content.add_widget(RTLLabel(
+                text='نتیجه ارزیابی عملکرد',
                 size_hint_y=None,
-                height=dp(30),
-                font_size=sp(24),
+                height=dp(45),
+                font_size=sp(28),
                 bold=True,
                 color=(0.4, 0.7, 1, 1)
             ))
             
-            result_content.add_widget(RTLLabel(
-                text=f'عملکرد فروش: {percent:.1f}% - {sales_msg}',
+            detail_content.add_widget(RTLLabel(
+                text=f'ميانگين تحقق اهداف: {avg_percent:.1f}%',
                 size_hint_y=None,
-                height=dp(30),
-                font_size=sp(22),
-                color=sales_color
-            ))
-            
-            result_content.add_widget(RTLLabel(
-                text='ارزیابی زمان:',
-                size_hint_y=None,
-                height=dp(25),
-                font_size=sp(22),
+                height=dp(45),
+                font_size=sp(26),
                 bold=True,
-                color=(1, 1, 1, 1)
+                color=eval_color
             ))
             
-            if first_actual != '--:--':
-                diff = time_diff(work_start_target, first_actual)
-                if diff > 0:
-                    result_content.add_widget(RTLLabel(
-                        text=f'{diff} دقیقه دیر کردم',
-                        size_hint_y=None,
-                        height=dp(25),
-                        font_size=sp(20),
-                        color=(1, 0.5, 0, 1)
-                    ))
+            detail_content.add_widget(RTLLabel(
+                text=f'ارزيابي عملكرد: {eval_text}',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(28),
+                bold=True,
+                color=eval_color
+            ))
+            
+            detail_content.add_widget(RTLLabel(
+                text='تفكيك عملكرد آيتم‌ها:',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(22),
+                color=(0.4, 0.7, 1, 1),
+                bold=True
+            ))
+            
+            header_box = BoxLayout(size_hint_y=None, height=dp(38), spacing=dp(2))
+            headers = ['آيتم', 'هدف', 'عملكرد', 'درصد']
+            for header in headers:
+                header_box.add_widget(RTLLabel(
+                    text=header,
+                    size_hint_x=1/len(headers),
+                    size_hint_y=None,
+                    height=dp(36),
+                    font_size=sp(20),
+                    bold=True,
+                    color=(0.4, 0.7, 1, 1),
+                    halign='center'
+                ))
+            detail_content.add_widget(header_box)
+            
+            for item in evaluation_items:
+                row = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(2))
+                
+                if item['percent'] < 50:
+                    percent_color = (0.8, 0.2, 0.2, 1)
+                elif item['percent'] < 70:
+                    percent_color = (1, 0.5, 0, 1)
+                elif item['percent'] < 85:
+                    percent_color = (1, 0.8, 0, 1)
+                elif item['percent'] < 100:
+                    percent_color = (0.2, 0.8, 0.2, 1)
                 else:
-                    result_content.add_widget(RTLLabel(
-                        text='در شروع کار تاخیر نداشتم',
-                        size_hint_y=None,
-                        height=dp(25),
-                        font_size=sp(20),
-                        color=(0.2, 0.7, 0.2, 1)
-                    ))
+                    percent_color = (0, 0.6, 0, 1)
+                
+                row.add_widget(RTLLabel(
+                    text=item['name'],
+                    size_hint_x=1/len(headers),
+                    size_hint_y=None,
+                    height=dp(34),
+                    font_size=sp(18),
+                    color=(1, 1, 1, 1),
+                    halign='right'
+                ))
+                row.add_widget(RTLLabel(
+                    text="{:,}".format(item['target']),
+                    size_hint_x=1/len(headers),
+                    size_hint_y=None,
+                    height=dp(34),
+                    font_size=sp(18),
+                    color=(1, 1, 1, 1),
+                    halign='center'
+                ))
+                row.add_widget(RTLLabel(
+                    text="{:,}".format(item['actual']),
+                    size_hint_x=1/len(headers),
+                    size_hint_y=None,
+                    height=dp(34),
+                    font_size=sp(18),
+                    color=(1, 1, 1, 1),
+                    halign='center'
+                ))
+                row.add_widget(RTLLabel(
+                    text=f"{item['percent']:.1f}%",
+                    size_hint_x=1/len(headers),
+                    size_hint_y=None,
+                    height=dp(34),
+                    font_size=sp(18),
+                    color=percent_color,
+                    halign='center'
+                ))
+                
+                detail_content.add_widget(row)
             
-            result_content.add_widget(RTLLabel(
-                text=f'کارکرد مفید: {work_hours} ساعت و {work_minutes} دقیقه',
+            detail_content.add_widget(RTLLabel(
+                text='ارزيابي زمان:',
                 size_hint_y=None,
-                height=dp(25),
+                height=dp(40),
                 font_size=sp(22),
-                color=(1, 1, 1, 1)
+                color=(0.4, 0.7, 1, 1),
+                bold=True
             ))
             
-            result_content.add_widget(RTLLabel(
-                text=work_msg,
+            detail_content.add_widget(RTLLabel(
+                text=f'كاركرد مفيد: {work_time_display}',
                 size_hint_y=None,
-                height=dp(30),
-                font_size=sp(22),
-                color=work_color
+                height=dp(38),
+                font_size=sp(20),
+                color=work_color,
+                bold=True
             ))
             
-            result_content.height = dp(200)
-            result_box.add_widget(result_content)
-            result_box.height = dp(200)
+            detail_content.add_widget(RTLLabel(
+                text=f'ارزيابي زمان: {work_msg}',
+                size_hint_y=None,
+                height=dp(38),
+                font_size=sp(20),
+                color=work_color,
+                bold=True
+            ))
+            
+            time_items = [
+                {'label': 'ساعت شروع كار', 'actual': actual_clock_in, 'target': target_clock_in, 
+                'status': clock_in_status, 'color': clock_in_color, 'eval': clock_in_eval},
+                {'label': 'ساعت اولين ويزيت', 'actual': actual_first_visit, 'target': target_first_visit, 
+                'status': first_visit_status, 'color': first_visit_color, 'eval': first_visit_eval},
+                {'label': 'ساعت آخرين ويزيت', 'actual': actual_last_visit, 'target': target_last_visit, 
+                'status': last_visit_status, 'color': last_visit_color, 'eval': last_visit_eval},
+                {'label': 'ساعت پايان كار', 'actual': actual_clock_out, 'target': target_clock_out, 
+                'status': clock_out_status, 'color': clock_out_color, 'eval': clock_out_eval},
+            ]
+            
+            time_header = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(2))
+            time_headers = ['آيتم', 'هدف | واقعي', 'وضعيت', 'ارزيابي']
+            for header in time_headers:
+                time_header.add_widget(RTLLabel(
+                    text=header,
+                    size_hint_x=1/len(time_headers),
+                    size_hint_y=None,
+                    height=dp(34),
+                    font_size=sp(18),
+                    bold=True,
+                    color=(0.4, 0.7, 1, 1),
+                    halign='center'
+                ))
+            detail_content.add_widget(time_header)
+            
+            for item in time_items:
+                row = BoxLayout(size_hint_y=None, height=dp(34), spacing=dp(2))
+                
+                row.add_widget(RTLLabel(
+                    text=item['label'],
+                    size_hint_x=1/len(time_headers),
+                    size_hint_y=None,
+                    height=dp(32),
+                    font_size=sp(17),
+                    color=(1, 1, 1, 1),
+                    halign='right'
+                ))
+                row.add_widget(RTLLabel(
+                    text=f"{item['target']} | {item['actual']}",
+                    size_hint_x=1/len(time_headers),
+                    size_hint_y=None,
+                    height=dp(32),
+                    font_size=sp(17),
+                    color=(1, 1, 1, 1),
+                    halign='center'
+                ))
+                row.add_widget(RTLLabel(
+                    text=item['status'],
+                    size_hint_x=1/len(time_headers),
+                    size_hint_y=None,
+                    height=dp(32),
+                    font_size=sp(17),
+                    color=item['color'],
+                    halign='center'
+                ))
+                row.add_widget(RTLLabel(
+                    text=item['eval'],
+                    size_hint_x=1/len(time_headers),
+                    size_hint_y=None,
+                    height=dp(32),
+                    font_size=sp(17),
+                    color=item['color'],
+                    halign='center'
+                ))
+                
+                detail_content.add_widget(row)
+            
+            total_height = 45 + 45 + 50 + 40 + 38 + len(evaluation_items) * 38 + 40 + 38 + 38 + 36 + len(time_items) * 36 + 20
+            detail_content.height = dp(total_height)
+            detail_scroll.add_widget(detail_content)
+            dialog_content.add_widget(detail_scroll)
+            
+            # ✅ دکمه‌های پایین دیالوگ
+            btn_layout = BoxLayout(
+                size_hint_y=None, 
+                height=dp(55), 
+                spacing=dp(10),
+                padding=dp(5)
+            )
+            
+            # ✅ دکمه خودآزمایی (فقط برای روز جاری)
+            today = get_today_jalali()
+            is_today = self.current_evaluation_date == today
+            
+            if is_today:
+                self_assessment_btn = PersianButton(
+                    text='ثبت خودآزمایی',
+                    background_color=(0.2, 0.6, 0.2, 1),
+                    size_hint_x=0.5,
+                    size_hint_y=None,
+                    height=dp(50),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(18),
+                    bold=True
+                )
+                btn_layout.add_widget(self_assessment_btn)
+            
+            close_btn = PersianButton(
+                text='بستن',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_x=0.5 if is_today else 1,
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+            btn_layout.add_widget(close_btn)
+            
+            dialog_content.add_widget(btn_layout)
+            
+            detail_popup = Popup(
+                title='',
+                content=dialog_content,
+                size_hint=(0.92, 0.88),
+                auto_dismiss=False,
+                background_color=(0.08, 0.08, 0.08, 1)
+            )
+            detail_popup.title_size = 0
+            detail_popup.title_color = (0, 0, 0, 0)
+            detail_popup.separator_height = 0
+            
+            # ✅ اتصال دکمه‌ها
+            if is_today:
+                self_assessment_btn.bind(
+                    on_press=lambda x: self._open_self_assessment_from_evaluation(
+                        detail_popup, items, date_list, all_logs
+                    )
+                )
+            
+            close_btn.bind(on_press=lambda x: detail_popup.dismiss())
+            detail_popup.open()
+
+        except Exception as e:
+            print(f"خطا در نمایش جزئیات ارزیابی: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _open_self_assessment_from_evaluation(self, popup, items=None, date_list=None, all_logs=None):
+        """باز کردن دیالوگ خودآزمایی از داخل دیالوگ ارزیابی"""
+        try:
+            # ✅ بستن پاپ‌آپ ارزیابی
+            if popup and hasattr(popup, 'dismiss'):
+                try:
+                    popup.dismiss()
+                except:
+                    pass
+            
+            # ✅ جلوگیری از اجرای همزمان
+            if self._is_processing:
+                return
+            
+            # ✅ جلوگیری از نمایش دوباره
+            if self._self_assessment_shown:
+                return
+            
+            # بررسی ثبت پایان کار
+            today = get_today_jalali()
+            summary_file = 'daily_summary.json'
+            summary_path = os.path.join(get_data_path(), summary_file)
+            
+            if not os.path.exists(summary_path):
+                self.show_message('توجه', 'برای ثبت خودآزمایی، ابتدا پایان کار را ثبت کنید.')
+                return
+            
+            all_summaries = load_json(summary_file)
+            if today not in all_summaries:
+                self.show_message('توجه', 'برای ثبت خودآزمایی، ابتدا پایان کار را ثبت کنید.')
+                return
+            
+            summary_data = all_summaries[today]
+            if 'clock_out' not in summary_data or not summary_data['clock_out']:
+                self.show_message('توجه', 'برای ثبت خودآزمایی، ابتدا پایان کار را ثبت کنید.')
+                return
+            
+            # ✅ همه چیز اوکی هست، خودآزمایی رو نمایش بده
+            self._self_assessment_shown = True
+            self.show_self_assessment_dialog(items, date_list, all_logs)
             
         except Exception as e:
-            print(f"خطا در نمایش نتیجه ارزیابی: {e}")
+            self._self_assessment_shown = False
+            print(f"خطا در باز کردن خودآزمایی: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _on_close_detail_dialog(self, popup, items=None, date_list=None, all_logs=None):
+        """مدیریت بستن دیالوگ جزئیات"""
+        try:
+            # ✅ فقط بستن پاپ‌آپ
+            if popup and hasattr(popup, 'dismiss'):
+                try:
+                    popup.dismiss()
+                except:
+                    pass
+            
+            # ✅ دیگه هیچ کاری انجام نمیده
+            
+        except Exception as e:
+            print(f"خطا در بستن دیالوگ جزئیات: {e}")
             import traceback
             traceback.print_exc()
     
     # ============================================================
+    # دیالوگ خودآزمایی
+    # ============================================================
+    
+    def show_self_assessment_dialog(self, items=None, date_list=None, all_logs=None):
+        """نمایش دیالوگ خودآزمایی اجباری با ارزیابی کلامی"""
+        try:
+            # ✅ جلوگیری از نمایش همزمان
+            if self._self_assessment_popup and self._self_assessment_popup._window:
+                return
+            
+            # ✅ جلوگیری از اجرای همزمان
+            if self._is_processing:
+                return
+            
+            self._is_processing = True
+
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                            size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text='واقعا به خودم از 100 چه امتیازی میدم؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(40),
+                bold=True,
+                color=(1, 1, 1, 1),
+                halign='center'
+            ))
+            
+            # دکمه‌های گرد
+            score_buttons = BoxLayout(
+                size_hint_y=None,
+                height=dp(60),
+                spacing=dp(10),
+                padding=dp(10)
+            )
+            
+            scores = [
+                {'value': 0, 'color': (0.8, 0.1, 0.1, 1), 'label': '0'},
+                {'value': 25, 'color': (1, 0.5, 0, 1), 'label': '25'},
+                {'value': 50, 'color': (1, 0.8, 0, 1), 'label': '50'},
+                {'value': 75, 'color': (0.2, 0.5, 0.9, 1), 'label': '75'},
+                {'value': 100, 'color': (0.2, 0.7, 0.2, 1), 'label': '100'},
+            ]
+            
+            self.selected_score = None
+            self.score_buttons = []
+            
+            for score_data in scores:
+                btn_layout = BoxLayout(orientation='vertical', size_hint_x=0.2, spacing=dp(2))
+                
+                score_btn = Button(
+                    size_hint_y=None,
+                    height=dp(40),
+                    width=dp(40),
+                    background_color=score_data['color'],
+                    background_normal='',
+                    border=(0, 0, 0, 0),
+                    pos_hint={'center_x': 0.5}
+                )
+                score_btn.bind(on_press=lambda x, val=score_data['value']: self._select_score(val))
+                
+                self.score_buttons.append({
+                    'btn': score_btn,
+                    'value': score_data['value'],
+                    'default_color': score_data['color']
+                })
+                
+                btn_layout.add_widget(score_btn)
+                
+                btn_layout.add_widget(RTLLabel(
+                    text=score_data['label'],
+                    size_hint_y=None,
+                    height=dp(28),
+                    font_size=sp(22),
+                    color=(1, 1, 1, 1),
+                    halign='center'
+                ))
+                
+                score_buttons.add_widget(btn_layout)
+            
+            content.add_widget(score_buttons)
+            
+            color_labels = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(10))
+            colors_text = ['0', '25', '50', '75', '100']
+            for text in colors_text:
+                color_labels.add_widget(RTLLabel(
+                    text=text,
+                    size_hint_x=0.2,
+                    size_hint_y=None,
+                    height=dp(36),
+                    font_size=sp(32),
+                    color=(0.6, 0.6, 0.6, 1),
+                    halign='center'
+                ))
+            content.add_widget(color_labels)
+            
+            # ===== ارزیابی کلامی =====
+            if items and date_list and all_logs:
+                # محاسبه مجدد ارزیابی کلامی
+                eval_text, eval_color, work_msg, work_color, avg_percent, work_time_display = self._calculate_evaluation(items, date_list, all_logs)
+                
+                content.add_widget(RTLLabel(
+                    text='ـــــــــــــــــــــــــــــــــــــــــ',
+                    size_hint_y=None,
+                    height=dp(36),
+                    font_size=sp(32),
+                    color=(0.3, 0.3, 0.3, 1),
+                    halign='center'
+                ))
+                
+                content.add_widget(RTLLabel(
+                    text=f'ميانگين تحقق اهداف: {avg_percent:.1f}%',
+                    size_hint_y=None,
+                    height=dp(52),
+                    font_size=sp(38),
+                    bold=True,
+                    color=eval_color,
+                    halign='center'
+                ))
+                
+                content.add_widget(RTLLabel(
+                    text=f'ارزيابي عملكرد: {eval_text}',
+                    size_hint_y=None,
+                    height=dp(52),
+                    font_size=sp(38),
+                    bold=True,
+                    color=eval_color,
+                    halign='center'
+                ))
+                
+                content.add_widget(RTLLabel(
+                    text=f'كاركرد مفيد: {work_time_display}',
+                    size_hint_y=None,
+                    height=dp(52),
+                    font_size=sp(38),
+                    bold=True,
+                    color=work_color,
+                    halign='center'
+                ))
+                
+                content.add_widget(RTLLabel(
+                    text=f'ارزيابي زمان: {work_msg}',
+                    size_hint_y=None,
+                    height=dp(52),
+                    font_size=sp(38),
+                    bold=True,
+                    color=work_color,
+                    halign='center'
+                ))
+            
+            confirm_btn = PersianButton(
+                text='تأیید',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(0.5, 0.5, 0.5, 1),
+                font_size=sp(18),
+                disabled=True
+            )
+            content.add_widget(confirm_btn)
+            
+            popup = Popup(
+                title='',
+                content=content,
+                size_hint=(0.85, 0.6),
+                auto_dismiss=False,
+                background_color=(0.08, 0.08, 0.08, 1)
+            )
+            popup.title_size = 0
+            popup.title_color = (0, 0, 0, 0)
+            popup.separator_height = 0
+            
+            # ✅ تابع تأیید با مدیریت کامل
+            def on_confirm(instance):
+                if self.selected_score is not None:
+                    # ✅ ذخیره نمره
+                    self.save_self_score(self.selected_score)
+                    
+                    # ✅ بستن پاپ‌آپ
+                    popup.dismiss()
+                    
+                    # ✅ بازنشانی فلگ‌ها
+                    self._self_assessment_shown = False
+                    self._is_processing = False
+                    
+                    # ✅ نمایش پیام موفقیت
+                    self.show_message('موفق', 'نمره خودآزمایی با موفقیت ثبت شد.')
+            
+            confirm_btn.bind(on_press=on_confirm)
+            self._self_assessment_popup = popup
+            self._self_assessment_confirm = confirm_btn
+            
+            popup.bind(on_dismiss=self._on_self_assessment_dismiss)
+            popup.open()
+            
+            # ✅ بازنشانی فلگ بعد از باز شدن
+            Clock.schedule_once(lambda dt: setattr(self, '_is_processing', False), 1)
+
+        except Exception as e:
+            self._is_processing = False
+            self._self_assessment_shown = False
+            print(f"خطا در نمایش دیالوگ خودآزمایی: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _on_self_assessment_dismiss(self, instance):
+        """مدیریت بسته شدن دیالوگ خودآزمایی"""
+        try:
+            # ✅ بازنشانی فلگ‌ها
+            self._self_assessment_shown = False
+            self._is_processing = False
+            self._self_assessment_popup = None
+            
+        except Exception as e:
+            print(f"خطا در بستن خودآزمایی: {e}")
+
+    def _calculate_evaluation(self, items, date_list, all_logs):
+        """محاسبه ارزیابی کلامی برای نمایش در خودآزمایی"""
+        try:
+            settings = get_settings()
+            
+            target_clock_in = settings.get('work_start_time', '08:00')
+            target_first_visit = settings.get('first_visit_time', '09:00')
+            min_daily_hours = settings.get('min_daily_hours', 7)
+            
+            actual_clock_in = None
+            actual_first_visit = None
+            actual_last_visit = None
+            actual_clock_out = None
+            
+            first_successful_time = None
+            last_successful_time = None
+            first_log_time = None
+            last_log_time = None
+            
+            for date in date_list:
+                if date in all_logs and isinstance(all_logs[date], list):
+                    for log in all_logs[date]:
+                        if not isinstance(log, dict):
+                            continue
+                        
+                        log_time = log.get('time', '')
+                        visit_status = log.get('visit_status', '')
+                        
+                        if log_time:
+                            if first_log_time is None:
+                                first_log_time = log_time
+                            last_log_time = log_time
+                            
+                            if visit_status == 'موفق':
+                                if first_successful_time is None:
+                                    first_successful_time = log_time
+                                last_successful_time = log_time
+            
+            actual_first_visit = first_successful_time if first_successful_time else target_first_visit
+            actual_last_visit = last_successful_time if last_successful_time else '---'
+            
+            def time_diff(t1, t2):
+                try:
+                    if t1 == '---' or t2 == '---':
+                        return 0
+                    h1, m1 = map(int, t1.split(':'))
+                    h2, m2 = map(int, t2.split(':'))
+                    diff_minutes = (h2 * 60 + m2) - (h1 * 60 + m1)
+                    return diff_minutes
+                except:
+                    return 0
+            
+            work_hours = 0
+            work_minutes = 0
+            if actual_first_visit != '---' and actual_last_visit != '---':
+                diff_min = time_diff(actual_first_visit, actual_last_visit)
+                work_hours = diff_min // 60
+                work_minutes = diff_min % 60
+            
+            if work_hours < 5:
+                work_msg = 'به اندازه کافی وقت نذاشتم باید جبران کنم'
+                work_color = (0.5, 0.5, 0.5, 1)
+            elif work_hours < 6:
+                work_msg = 'میتونستم وقت بیشتری برای کارم بذارم متاسفم'
+                work_color = (1, 0.8, 0, 1)
+            else:
+                work_msg = 'تمام تلاشم رو کردم امیدوارم نتیجه بگیرم'
+                work_color = (0.2, 0.7, 0.2, 1)
+            
+            work_time_display = f"{work_hours} ساعت و {work_minutes} دقيقه"
+            
+            # محاسبه درصد
+            total_percent = 0
+            item_count = 0
+            
+            for item in items:
+                if item['name'] not in ['ساعت شروع کار', 'ساعت اولین ویزیت', 'ساعت آخرین ویزیت', 'ساعت پایان کار']:
+                    if item['target'] > 0:
+                        percent = (item['actual'] / item['target']) * 100
+                    else:
+                        percent = 0
+                    total_percent += percent
+                    item_count += 1
+            
+            avg_percent = total_percent / item_count if item_count > 0 else 0
+            
+            if avg_percent < 50:
+                eval_text = "نياز به تلاش بيشتر دارم"
+                eval_color = (0.8, 0.2, 0.2, 1)
+            elif avg_percent < 70:
+                eval_text = "تلاشم كافي نيست"
+                eval_color = (1, 0.5, 0, 1)
+            elif avg_percent < 85:
+                eval_text = "در مسير درست هستم"
+                eval_color = (1, 0.8, 0, 1)
+            elif avg_percent < 100:
+                eval_text = "تا موفقيت راهي نيست"
+                eval_color = (0.2, 0.8, 0.2, 1)
+            else:
+                eval_text = "به خودم افتخار ميكنم"
+                eval_color = (0, 0.6, 0, 1)
+            
+            return eval_text, eval_color, work_msg, work_color, avg_percent, work_time_display
+            
+        except Exception as e:
+            print(f"خطا در محاسبه ارزیابی: {e}")
+            return "خطا در محاسبه", (0.5, 0.5, 0.5, 1), "خطا", (0.5, 0.5, 0.5, 1), 0, "۰"
+    
+    def _time_diff(self, time1, time2):
+        """محاسبه اختلاف دو زمان به دقیقه (time1 - time2)"""
+        try:
+            if time1 == '---' or time2 == '---':
+                return 0
+            h1, m1 = map(int, time1.split(':'))
+            h2, m2 = map(int, time2.split(':'))
+            diff = (h1 * 60 + m1) - (h2 * 60 + m2)
+            return diff
+        except:
+            return 0
+
+    # ============================================================
     # توابع کمکی
     # ============================================================
+    
+    def _select_score(self, value):
+        self.selected_score = value
+        
+        for btn_data in self.score_buttons:
+            if btn_data['value'] == value:
+                btn_data['btn'].background_color = (1, 1, 1, 1)
+            else:
+                btn_data['btn'].background_color = btn_data['default_color']
+        
+        if self._self_assessment_confirm:
+            self._self_assessment_confirm.disabled = False
+            self._self_assessment_confirm.background_color = (0.2, 0.7, 0.2, 1)
+            self._self_assessment_confirm.color = (1, 1, 1, 1)
+    
+    def save_self_score(self, score):
+        """ذخیره نمره خودآزمایی در daily_summary.json"""
+        try:
+            today = get_today_jalali()
+            summary_file = 'daily_summary.json'
+            summary_path = os.path.join(get_data_path(), summary_file)
+            
+            if os.path.exists(summary_path):
+                all_summaries = load_json(summary_file)
+            else:
+                all_summaries = {}
+            
+            if today in all_summaries:
+                all_summaries[today]['self_score'] = score
+            else:
+                all_summaries[today] = {'self_score': score}
+            
+            save_json(summary_file, all_summaries)
+            
+            # ✅ بازنشانی کامل فلگ‌ها
+            self._self_assessment_shown = False
+            self._is_processing = False
+            
+            return True
+        except Exception as e:
+            print(f"خطا در ذخیره نمره خودآزمایی: {e}")
+            return False
     
     def refresh_stats(self, instance):
         self.switch_tab(self.current_tab)
@@ -2058,10 +2870,9 @@ class ReportScreen(Screen):
         try:
             self.loading_popup = self.show_message('در حال ساخت', 'لطفاً صبر کنید...')
             
-            # ✅ دریافت داده‌های فیلتر شده بر اساس تب فعلی
             filtered_data = None
             
-            if self.current_tab == 0:  # تب عملکرد کلی
+            if self.current_tab == 0:
                 if hasattr(self, '_current_performance_data') and self._current_performance_data:
                     all_logs = get_daily_logs()
                     filtered_data = {}
@@ -2069,7 +2880,7 @@ class ReportScreen(Screen):
                         if date in all_logs:
                             filtered_data[date] = all_logs[date]
             
-            elif self.current_tab == 1:  # تب ریز عملکرد
+            elif self.current_tab == 1:
                 all_logs = get_daily_logs()
                 filtered_data = {}
                 for date, logs in all_logs.items():
@@ -2079,7 +2890,6 @@ class ReportScreen(Screen):
                         continue
                     filtered_data[date] = logs
             
-            # اگر داده‌ای فیلتر نشده، None بفرست (همه داده‌ها)
             if not filtered_data:
                 filtered_data = None
             
@@ -2117,6 +2927,11 @@ class ReportScreen(Screen):
     
     def show_message(self, title, message):
         try:
+            # ✅ جلوگیری از نمایش همزمان
+            if self._is_processing:
+                Clock.schedule_once(lambda dt: self.show_message(title, message), 1)
+                return
+            
             if len(message) > 200:
                 message = message[:200] + "..."
             
@@ -2151,13 +2966,20 @@ class ReportScreen(Screen):
                 size_hint=(0.8, 0.35),
                 auto_dismiss=True
             )
+            
+            # ✅ مدیریت بسته شدن پیام
+            def on_dismiss(instance):
+                self._is_processing = False
+            
+            popup.bind(on_dismiss=on_dismiss)
             btn.bind(on_press=popup.dismiss)
             
-            Clock.schedule_once(lambda dt: popup.open(), 0.1)
+            Clock.schedule_once(lambda dt: popup.open(), 0.5)
             
             return popup
             
         except Exception as e:
+            self._is_processing = False
             print(f"خطا در نمایش پیام: {e}")
             import traceback
             traceback.print_exc()
