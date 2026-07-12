@@ -1961,21 +1961,38 @@ class ReportScreen(Screen):
             actual_last_visit = last_successful_time if last_successful_time else '---'
             actual_clock_out = last_log_time if last_log_time else '---'
             
+            # ✅ تابع add_hours با محدودیت 23:59
             def add_hours(time_str, hours):
+                """اضافه کردن ساعت به زمان با محدودیت 23:59"""
                 try:
                     h, m = map(int, time_str.split(':'))
                     total_min = h * 60 + m + (hours * 60)
                     h_new = total_min // 60
                     m_new = total_min % 60
+                    
+                    # ✅ اگر از 23:59 بیشتر شد، به 23:59 محدود کن
                     if h_new >= 24:
-                        h_new = h_new - 24
+                        return "23:59"
+                    
                     return f"{h_new:02d}:{m_new:02d}"
                 except:
                     return time_str
             
-            target_last_visit = add_hours(target_first_visit, min_daily_hours)
-            target_clock_out = add_hours(target_clock_in, min_daily_hours + 1)
+            # ✅ ===== محاسبه هدف‌ها بر اساس زمان‌های واقعی =====
             
+            # ✅ هدف آخرین ویزیت: ساعت اولین ویزیت واقعی + ساعت کاری
+            if actual_first_visit != '---' and actual_first_visit != target_first_visit:
+                target_last_visit = add_hours(actual_first_visit, min_daily_hours)
+            else:
+                target_last_visit = add_hours(target_first_visit, min_daily_hours)
+            
+            # ✅ هدف پایان کار: ساعت شروع واقعی + (ساعت کاری + 1)
+            if actual_clock_in != '---' and actual_clock_in != target_clock_in:
+                target_clock_out = add_hours(actual_clock_in, min_daily_hours + 1)
+            else:
+                target_clock_out = add_hours(target_clock_in, min_daily_hours + 1)
+            
+            # ✅ محاسبه زمان کار مفید
             def time_diff(t1, t2):
                 try:
                     if t1 == '---' or t2 == '---':
@@ -2004,48 +2021,69 @@ class ReportScreen(Screen):
                 work_msg = 'تمام تلاشم رو کردم امیدوارم نتیجه بگیرم'
                 work_color = (0.2, 0.7, 0.2, 1)
             
-            clock_in_diff = self._time_diff(target_clock_in, actual_clock_in)
-            if clock_in_diff <= 0:
+            # ✅ ===== ارزیابی زمان با تاخیر مجاز =====
+            CLOCK_IN_TOLERANCE = 15   # ۱۵ دقیقه تاخیر مجاز برای شروع کار
+            FIRST_VISIT_TOLERANCE = 30  # ۳۰ دقیقه تاخیر مجاز برای اولین ویزیت
+            
+            # ✅ شروع کار (واقعی - هدف)
+            clock_in_diff = self._time_diff(actual_clock_in, target_clock_in)
+            if clock_in_diff <= CLOCK_IN_TOLERANCE:
                 clock_in_status = "به موقع"
                 clock_in_color = (0.2, 0.8, 0.2, 1)
-                clock_in_eval = "شروع به موقع"
+                if clock_in_diff <= 0:
+                    clock_in_eval = "شروع به موقع"
+                else:
+                    clock_in_eval = f"{clock_in_diff} دقيقه تاخير (مجاز)"
             else:
                 clock_in_status = f"{clock_in_diff} دقيقه تاخير"
                 clock_in_color = (0.8, 0.2, 0.2, 1)
-                clock_in_eval = f"{clock_in_diff} دقيقه تاخير در شروع"
+                clock_in_eval = f"{clock_in_diff} دقيقه تاخير غيرمجاز در شروع"
             
-            first_visit_diff = self._time_diff(target_first_visit, actual_first_visit)
-            if first_visit_diff <= 0:
+            # ✅ اولین ویزیت (واقعی - هدف)
+            first_visit_diff = self._time_diff(actual_first_visit, target_first_visit)
+            if first_visit_diff <= FIRST_VISIT_TOLERANCE:
                 first_visit_status = "به موقع"
                 first_visit_color = (0.2, 0.8, 0.2, 1)
-                first_visit_eval = "اولين ويزيت به موقع"
+                if first_visit_diff <= 0:
+                    first_visit_eval = "اولين ويزيت به موقع"
+                else:
+                    first_visit_eval = f"{first_visit_diff} دقيقه تاخير (مجاز)"
             else:
                 first_visit_status = f"{first_visit_diff} دقيقه تاخير"
                 first_visit_color = (0.8, 0.2, 0.2, 1)
-                first_visit_eval = f"{first_visit_diff} دقيقه تاخير در اولين ويزيت"
+                first_visit_eval = f"{first_visit_diff} دقيقه تاخير غيرمجاز در اولين ويزيت"
             
+            # ✅ آخرین ویزیت (واقعی - هدف)
             last_visit_diff = self._time_diff(actual_last_visit, target_last_visit) if actual_last_visit != '---' else 0
             if last_visit_diff >= 0:
                 last_visit_status = "كامل"
                 last_visit_color = (0.2, 0.8, 0.2, 1)
-                last_visit_eval = work_msg
+                if last_visit_diff <= 30:
+                    last_visit_eval = f"{work_msg} (دقیقاً به موقع)"
+                else:
+                    last_visit_eval = f"{work_msg} (با {last_visit_diff} دقيقه تاخير)"
             else:
                 last_visit_status = f"{abs(last_visit_diff)} دقيقه زودتر"
                 last_visit_color = (0.8, 0.2, 0.2, 1)
-                last_visit_eval = work_msg
+                last_visit_eval = f"{work_msg} (با {abs(last_visit_diff)} دقيقه زودتر)"
             
+            # ✅ پایان کار (واقعی - هدف)
             clock_out_diff = self._time_diff(actual_clock_out, target_clock_out) if actual_clock_out != '---' else 0
             if clock_out_diff >= 0:
                 clock_out_status = "كامل"
                 clock_out_color = (0.2, 0.8, 0.2, 1)
-                clock_out_eval = work_msg
+                if clock_out_diff <= 30:
+                    clock_out_eval = f"{work_msg} (دقیقاً به موقع)"
+                else:
+                    clock_out_eval = f"{work_msg} (با {clock_out_diff} دقيقه تاخير)"
             else:
                 clock_out_status = f"{abs(clock_out_diff)} دقيقه زودتر"
                 clock_out_color = (0.8, 0.2, 0.2, 1)
-                clock_out_eval = work_msg
+                clock_out_eval = f"{work_msg} (با {abs(clock_out_diff)} دقيقه زودتر)"
             
             work_time_display = f"{work_hours} ساعت و {work_minutes} دقيقه"
             
+            # ✅ محاسبه درصد تحقق اهداف
             evaluation_items = []
             total_percent = 0
             item_count = 0
@@ -2084,6 +2122,7 @@ class ReportScreen(Screen):
                 eval_text = "به خودم افتخار ميكنم"
                 eval_color = (0, 0.6, 0, 1)
             
+            # ✅ ساخت دیالوگ
             dialog_content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(8))
             with dialog_content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
@@ -2235,14 +2274,15 @@ class ReportScreen(Screen):
                 bold=True
             ))
             
+            # ✅ جدول زمان‌ها با وضعیت جدید
             time_items = [
                 {'label': 'ساعت شروع كار', 'actual': actual_clock_in, 'target': target_clock_in, 
                 'status': clock_in_status, 'color': clock_in_color, 'eval': clock_in_eval},
                 {'label': 'ساعت اولين ويزيت', 'actual': actual_first_visit, 'target': target_first_visit, 
                 'status': first_visit_status, 'color': first_visit_color, 'eval': first_visit_eval},
-                {'label': 'ساعت آخرين ويزيت', 'actual': actual_last_visit, 'target': target_last_visit, 
+                {'label': 'ساعت آخرين ويزيت (هدف)', 'actual': actual_last_visit, 'target': target_last_visit, 
                 'status': last_visit_status, 'color': last_visit_color, 'eval': last_visit_eval},
-                {'label': 'ساعت پايان كار', 'actual': actual_clock_out, 'target': target_clock_out, 
+                {'label': 'ساعت پايان كار (هدف)', 'actual': actual_clock_out, 'target': target_clock_out, 
                 'status': clock_out_status, 'color': clock_out_color, 'eval': clock_out_eval},
             ]
             
@@ -2697,8 +2737,38 @@ class ReportScreen(Screen):
                                     first_successful_time = log_time
                                 last_successful_time = log_time
             
+            actual_clock_in = first_log_time if first_log_time else target_clock_in
             actual_first_visit = first_successful_time if first_successful_time else target_first_visit
             actual_last_visit = last_successful_time if last_successful_time else '---'
+            actual_clock_out = last_log_time if last_log_time else '---'
+            
+            # ✅ تابع add_hours با محدودیت 23:59
+            def add_hours(time_str, hours):
+                """اضافه کردن ساعت به زمان با محدودیت 23:59"""
+                try:
+                    h, m = map(int, time_str.split(':'))
+                    total_min = h * 60 + m + (hours * 60)
+                    h_new = total_min // 60
+                    m_new = total_min % 60
+                    
+                    # ✅ اگر از 23:59 بیشتر شد، به 23:59 محدود کن
+                    if h_new >= 24:
+                        return "23:59"
+                    
+                    return f"{h_new:02d}:{m_new:02d}"
+                except:
+                    return time_str
+            
+            # ✅ محاسبه هدف‌ها بر اساس زمان‌های واقعی
+            if actual_first_visit != '---' and actual_first_visit != target_first_visit:
+                target_last_visit = add_hours(actual_first_visit, min_daily_hours)
+            else:
+                target_last_visit = add_hours(target_first_visit, min_daily_hours)
+            
+            if actual_clock_in != '---' and actual_clock_in != target_clock_in:
+                target_clock_out = add_hours(actual_clock_in, min_daily_hours + 1)
+            else:
+                target_clock_out = add_hours(target_clock_in, min_daily_hours + 1)
             
             def time_diff(t1, t2):
                 try:
@@ -2774,6 +2844,7 @@ class ReportScreen(Screen):
                 return 0
             h1, m1 = map(int, time1.split(':'))
             h2, m2 = map(int, time2.split(':'))
+            # ✅ time1 - time2 (درست)
             diff = (h1 * 60 + m1) - (h2 * 60 + m2)
             return diff
         except:
