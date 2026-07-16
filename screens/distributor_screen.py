@@ -1,4 +1,4 @@
-# screens/distributor_screen.py
+        self.manager.current = 'login'# screens/distributor_screen.py
 # ========== صفحه موزع ==========
 
 import traceback
@@ -1381,11 +1381,11 @@ class DistributorScreen(Screen):
             ErrorPopup.show_error(f"خطا: {e}", error_details)
     
     # ============================================================
-    # دیالوگ تسویه فاکتور (نسخه نهایی)
+    # دیالوگ تسویه فاکتور
     # ============================================================
     
     def show_settlement_dialog(self):
-        """دیالوگ تسویه فاکتور - نسخه نهایی با فیلدهای افقی"""
+        """دیالوگ تسویه فاکتور - نسخه نهایی با ۹ فیلد"""
         try:
             invoice_amount = self.temp_delivery_data.get('invoice_amount', 0)
             returned_amount = self.temp_delivery_data.get('returned_amount', 0)
@@ -1907,7 +1907,9 @@ class DistributorScreen(Screen):
                 else:
                     self.credit_btn.background_color = (0.3, 0.3, 0.3, 1)
             
+            # بروزرسانی وضعیت فیلدها و محاسبات
             self._update_field_states()
+            self._update_settlement_calculations()
             
         except Exception as e:
             print(f"خطا در تغییر وضعیت روش پرداخت: {e}")
@@ -1920,24 +1922,30 @@ class DistributorScreen(Screen):
             
             settlement_type = self._settlement_widgets['settlement_type'].text
             is_cash = self.payment_methods.get('نقد', False)
-            is_check = self.payment_methods.get('چک', False)
             is_credit = self.payment_methods.get('نسیه', False)
             is_full = settlement_type == 'تسویه کامل'
             
-            # درصد تخفیف نقدی: فقط در صورت نقد + تسویه کامل
-            self._settlement_widgets['discount_percent']._hidden_input.disabled = not (is_cash and is_full)
+            # درصد تخفیف نقدی: فقط در صورت نقد + تسویه کامل فعال
+            discount_input = self._settlement_widgets['discount_percent']._hidden_input
+            discount_input.disabled = not (is_cash and is_full)
+            if discount_input.disabled:
+                self._settlement_widgets['discount_percent'].text = '0'
             
             # سایر کسورات درصدی: در نسیه غیرفعال
-            self._settlement_widgets['other_deductions_percent']._hidden_input.disabled = is_credit
+            other_percent_input = self._settlement_widgets['other_deductions_percent']._hidden_input
+            other_percent_input.disabled = is_credit
+            if other_percent_input.disabled:
+                self._settlement_widgets['other_deductions_percent'].text = '0'
             
             # سایر کسورات عددی: همیشه فعال
             self._settlement_widgets['other_deductions_amount']._hidden_input.disabled = False
             
             # مبلغ نقد دریافتی: در تسویه کامل غیرفعال، در بخشی و نسیه فعال
+            cash_input = self._settlement_widgets['cash_amount']._hidden_input
             if is_full and is_cash:
-                self._settlement_widgets['cash_amount']._hidden_input.disabled = True
+                cash_input.disabled = True
             else:
-                self._settlement_widgets['cash_amount']._hidden_input.disabled = False
+                cash_input.disabled = False
             
         except Exception as e:
             print(f"خطا در بروزرسانی وضعیت فیلدها: {e}")
@@ -1960,22 +1968,39 @@ class DistributorScreen(Screen):
             if not hasattr(self, '_settlement_widgets'):
                 return
             
-            base_amount = self._settlement_widgets['base_amount']
+            # دریافت مقادیر پایه
+            base_amount = self._settlement_widgets.get('base_amount', 0)
             settlement_type = self._settlement_widgets['settlement_type'].text
             is_cash = self.payment_methods.get('نقد', False)
             
-            discount_str = self._settlement_widgets['discount_percent'].text.replace(',', '')
-            other_percent_str = self._settlement_widgets['other_deductions_percent'].text.replace(',', '')
-            other_amount_str = self._settlement_widgets['other_deductions_amount'].text.replace(',', '')
-            cash_str = self._settlement_widgets['cash_amount'].text.replace(',', '')
+            # دریافت مقادیر از فیلدها
+            try:
+                discount_str = self._settlement_widgets['discount_percent'].text.replace(',', '').strip()
+                discount = float(discount_str) if discount_str else 0
+            except:
+                discount = 0
             
             try:
-                discount = float(discount_str) if discount_str else 0
+                other_percent_str = self._settlement_widgets['other_deductions_percent'].text.replace(',', '').strip()
                 other_percent = float(other_percent_str) if other_percent_str else 0
+            except:
+                other_percent = 0
+            
+            try:
+                other_amount_str = self._settlement_widgets['other_deductions_amount'].text.replace(',', '').strip()
                 other_amount = float(other_amount_str) if other_amount_str else 0
+            except:
+                other_amount = 0
+            
+            try:
+                cash_str = self._settlement_widgets['cash_amount'].text.replace(',', '').strip()
                 cash = float(cash_str) if cash_str else 0
             except:
-                return
+                cash = 0
+            
+            # ============================================================
+            # اعتبارسنجی مقادیر
+            # ============================================================
             
             # بررسی درصد تخفیف نقدی (حداکثر 7%)
             if is_cash and settlement_type == 'تسویه کامل' and discount > 7:
@@ -1996,12 +2021,17 @@ class DistributorScreen(Screen):
                     self._settlement_widgets['other_deductions_amount'].text = '0'
                     return
             
+            # ============================================================
+            # محاسبات اصلی
+            # ============================================================
+            
             # محاسبه تخفیف نقدی (فقط در صورت نقد + تسویه کامل)
             if is_cash and settlement_type == 'تسویه کامل':
                 discount_amount = base_amount * (discount / 100)
             else:
                 discount_amount = 0
-                self._settlement_widgets['discount_percent'].text = '0'
+                if not (is_cash and settlement_type == 'تسویه کامل'):
+                    self._settlement_widgets['discount_percent'].text = '0'
             
             # محاسبه سایر کسورات
             other_deductions_total = base_amount * (other_percent / 100) + other_amount
@@ -2010,24 +2040,48 @@ class DistributorScreen(Screen):
             net_amount = base_amount - discount_amount - other_deductions_total
             
             # محاسبه کل مبلغ دریافتی
-            total_check = float(self._settlement_widgets['check_amount'].text.replace(',', '') or 0)
+            try:
+                check_str = self._settlement_widgets['check_amount'].text.replace(',', '').strip()
+                total_check = float(check_str) if check_str else 0
+            except:
+                total_check = 0
+            
             total_received = cash + total_check
             
-            # بروزرسانی جمع کل مبلغ دریافتی
-            self._settlement_widgets['total_received'].text = f'{total_received:,.0f}'
-            
-            # بروزرسانی مانده نهایی
+            # محاسبه مانده نهایی
             final_remaining = net_amount - total_received
-            self._settlement_widgets['remaining_label'].text = f'{final_remaining:,.0f} ریال'
+            
+            # ============================================================
+            # بروزرسانی نمایشگرها
+            # ============================================================
+            
+            # بروزرسانی جمع کل مبلغ دریافتی
+            if 'total_received' in self._settlement_widgets:
+                self._settlement_widgets['total_received'].text = f'{total_received:,.0f}'
+            
+            # بروزرسانی مانده بدهی فاکتور (فیلد 1)
+            if 'debt_label' in self._settlement_widgets:
+                self._settlement_widgets['debt_label'].text = f'{net_amount:,.0f} ریال'
+            
+            # بروزرسانی مانده نهایی (فیلد 9)
+            if 'remaining_label' in self._settlement_widgets:
+                self._settlement_widgets['remaining_label'].text = f'{final_remaining:,.0f} ریال'
             
             # در تسویه کامل نقدی، مبلغ نقد دریافتی خودکار پر میشه
             if is_cash and settlement_type == 'تسویه کامل':
                 received_amount = net_amount - total_check
                 if received_amount >= 0:
                     self._settlement_widgets['cash_amount'].text = f'{received_amount:,.0f}'
+                    self._settlement_widgets['cash_amount']._hidden_input.disabled = True
+                else:
+                    self._settlement_widgets['cash_amount'].text = '0'
+            else:
+                self._settlement_widgets['cash_amount']._hidden_input.disabled = False
             
         except Exception as e:
             print(f"خطا در بروزرسانی محاسبات تسویه: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _show_discount_warning(self, message):
         """نمایش هشدار تخفیف به صورت Message Box"""
@@ -2076,8 +2130,22 @@ class DistributorScreen(Screen):
             ))
             
             btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10))
-            yes_btn = PersianButton(text='بله', background_color=(0.2, 0.7, 0.2, 1), size_hint_y=None, height=dp(50), color=(1,1,1,1), font_size=sp(18))
-            no_btn = PersianButton(text='خیر', background_color=(0.8, 0.2, 0.2, 1), size_hint_y=None, height=dp(50), color=(1,1,1,1), font_size=sp(18))
+            yes_btn = PersianButton(
+                text='بله',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+            no_btn = PersianButton(
+                text='خیر',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
             btn_layout.add_widget(yes_btn)
             btn_layout.add_widget(no_btn)
             content.add_widget(btn_layout)
@@ -2099,6 +2167,8 @@ class DistributorScreen(Screen):
             def on_no(instance):
                 self._warning_response = False
                 popup.dismiss()
+                self._settlement_widgets['other_deductions_amount'].text = '0'
+                self._update_settlement_calculations()
             
             yes_btn.bind(on_press=on_yes)
             no_btn.bind(on_press=on_no)
@@ -2598,9 +2668,9 @@ class DistributorScreen(Screen):
             
             # دریافت مقادیر
             settle_type = settlement_type.text
-            discount_str = discount_percent.text.replace(',', '')
-            other_percent_str = other_deductions_percent.text.replace(',', '')
-            other_amount_str = other_deductions_amount.text.replace(',', '')
+            discount_str = discount_percent.text.replace(',', '').strip()
+            other_percent_str = other_deductions_percent.text.replace(',', '').strip()
+            other_amount_str = other_deductions_amount.text.replace(',', '').strip()
             
             try:
                 discount = float(discount_str) if discount_str else 0
@@ -2630,8 +2700,18 @@ class DistributorScreen(Screen):
             net_amount = base_amount - discount_amount - other_deductions_total
             
             # دریافت مبالغ پرداختی
-            cash = float(cash_input.text.replace(',', '') or 0)
-            total_check = float(check_display.text.replace(',', '') or 0)
+            try:
+                cash_str = cash_input.text.replace(',', '').strip()
+                cash = float(cash_str) if cash_str else 0
+            except:
+                cash = 0
+            
+            try:
+                check_str = check_display.text.replace(',', '').strip()
+                total_check = float(check_str) if check_str else 0
+            except:
+                total_check = 0
+            
             total_received = cash + total_check
             
             # محاسبه مانده نهایی
@@ -2712,7 +2792,7 @@ class DistributorScreen(Screen):
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
             
             content.add_widget(RTLLabel(
-                text='📋 خلاصه عملیات توزیع',
+                text='خلاصه عملیات توزیع',
                 size_hint_y=None,
                 height=dp(50),
                 font_size=sp(28),
