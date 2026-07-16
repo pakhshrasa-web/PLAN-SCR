@@ -1,3 +1,4 @@
+```python
 # screens/distributor_screen.py
 # ========== صفحه موزع ==========
 
@@ -53,6 +54,9 @@ class DistributorScreen(Screen):
                 'چک': False,
                 'نسیه': False
             }
+            
+            self._amount_warning_shown = False
+            self._warning_response = None
             
             self.build_ui()
             
@@ -2014,12 +2018,16 @@ class DistributorScreen(Screen):
                 self._settlement_widgets['other_deductions_percent'].text = '0'
                 return
             
-            # بررسی تخفیف مازاد در سایر کسورات عددی
+            # بررسی تخفیف مازاد در سایر کسورات عددی (فقط یک بار هشدار)
             if other_amount > 0:
-                self._show_amount_warning()
-                if hasattr(self, '_warning_response') and self._warning_response is False:
-                    self._settlement_widgets['other_deductions_amount'].text = '0'
-                    return
+                if not hasattr(self, '_amount_warning_shown') or not self._amount_warning_shown:
+                    self._show_amount_warning()
+                    if hasattr(self, '_warning_response') and self._warning_response is False:
+                        self._settlement_widgets['other_deductions_amount'].text = '0'
+                        return
+                else:
+                    # اگر هشدار قبلاً داده شده، اجازه ادامه بده
+                    pass
             
             # ============================================================
             # محاسبات اصلی
@@ -2118,8 +2126,14 @@ class DistributorScreen(Screen):
             print(f"خطا در نمایش هشدار تخفیف: {e}")
     
     def _show_amount_warning(self):
-        """نمایش هشدار تخفیف مازاد به صورت Message Box با تأیید"""
+        """نمایش هشدار تخفیف مازاد به صورت Message Box با تأیید (فقط یک بار)"""
         try:
+            # اگر قبلاً هشدار داده شده، دیگر نمایش نده
+            if hasattr(self, '_amount_warning_shown') and self._amount_warning_shown:
+                return
+            
+            self._amount_warning_shown = True
+            
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             content.add_widget(RTLLabel(
                 text='در صورت اعمال تخفیف مازاد امکان عدم محاسبه توسط حسابداری وجود دارد،\nآیا ادامه میدهید؟',
@@ -2162,12 +2176,14 @@ class DistributorScreen(Screen):
             def on_yes(instance):
                 self._warning_response = True
                 popup.dismiss()
+                self._amount_warning_shown = False
                 self._update_settlement_calculations()
             
             def on_no(instance):
                 self._warning_response = False
                 popup.dismiss()
                 self._settlement_widgets['other_deductions_amount'].text = '0'
+                self._amount_warning_shown = False
                 self._update_settlement_calculations()
             
             yes_btn.bind(on_press=on_yes)
@@ -2176,6 +2192,7 @@ class DistributorScreen(Screen):
             
         except Exception as e:
             print(f"خطا در نمایش هشدار مبلغ: {e}")
+            self._amount_warning_shown = False
     
     # ============================================================
     # دیالوگ ثبت چک
@@ -2631,7 +2648,9 @@ class DistributorScreen(Screen):
             total_check_amount = sum([c['amount'] for c in self.temp_checks])
             check_display.text = f'{total_check_amount:,.0f}'
             
+            # بروزرسانی محاسبات بعد از ثبت چک
             self._update_settlement_calculations()
+            
             self.show_message('موفق', f'{len(self.temp_checks)} چک با موفقیت ثبت شد')
             
         except Exception as e:
@@ -2960,3 +2979,4 @@ class DistributorScreen(Screen):
     def go_back(self, instance):
         """بازگشت به صفحه ورود"""
         self.manager.current = 'login'
+```
