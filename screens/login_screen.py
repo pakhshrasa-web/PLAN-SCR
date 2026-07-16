@@ -435,6 +435,8 @@ class LoginScreen(Screen):
                     self.manager.current = 'admin'
                 elif role == 'سوپروایزر':
                     self.manager.current = 'supervisor'
+                elif role == 'موزع':  # ✅ نقش موزع اضافه شد
+                    self.manager.current = 'distributor'
                 else:
                     self.manager.current = 'user'
             else:

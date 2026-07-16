@@ -11,6 +11,7 @@ from .settings_login_screen import SettingsLoginScreen
 from .debug_screen import DebugScreen
 from .agents_screen import AgentsScreen
 from .supervisor_screen import SupervisorScreen
+from .distributor_screen import DistributorScreen
 
 __all__ = [
     'LoginScreen',
@@ -22,5 +23,6 @@ __all__ = [
     'SettingsLoginScreen',
     'DebugScreen',
     'AgentsScreen',
-    'SupervisorScreen'
+    'SupervisorScreen',
+    'DistributorScreen'
 ]
