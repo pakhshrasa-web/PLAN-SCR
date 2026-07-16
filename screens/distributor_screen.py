@@ -1,4 +1,3 @@
-```python
 # screens/distributor_screen.py
 # ========== صفحه موزع ==========
 
@@ -2018,16 +2017,17 @@ class DistributorScreen(Screen):
                 self._settlement_widgets['other_deductions_percent'].text = '0'
                 return
             
-            # بررسی تخفیف مازاد در سایر کسورات عددی (فقط یک بار هشدار)
-            if other_amount > 0:
-                if not hasattr(self, '_amount_warning_shown') or not self._amount_warning_shown:
-                    self._show_amount_warning()
-                    if hasattr(self, '_warning_response') and self._warning_response is False:
-                        self._settlement_widgets['other_deductions_amount'].text = '0'
-                        return
+            # بررسی تخفیف مازاد در سایر کسورات عددی
+            if other_amount > 0 and not self._amount_warning_shown:
+                self._show_amount_warning()
+                if self._warning_response is False:
+                    self._settlement_widgets['other_deductions_amount'].text = '0'
+                    self._warning_response = None
+                    return
+                elif self._warning_response is True:
+                    self._warning_response = None
                 else:
-                    # اگر هشدار قبلاً داده شده، اجازه ادامه بده
-                    pass
+                    return
             
             # ============================================================
             # محاسبات اصلی
@@ -2129,7 +2129,7 @@ class DistributorScreen(Screen):
         """نمایش هشدار تخفیف مازاد به صورت Message Box با تأیید (فقط یک بار)"""
         try:
             # اگر قبلاً هشدار داده شده، دیگر نمایش نده
-            if hasattr(self, '_amount_warning_shown') and self._amount_warning_shown:
+            if self._amount_warning_shown:
                 return
             
             self._amount_warning_shown = True
@@ -2176,14 +2176,16 @@ class DistributorScreen(Screen):
             def on_yes(instance):
                 self._warning_response = True
                 popup.dismiss()
-                self._amount_warning_shown = False
+                # مقدار _amount_warning_shown رو به False برمیگردونیم تا هشدار دوباره نمایش داده نشه
+                # ولی اینجا نیازی نیست چون _amount_warning_shown قبلاً True شده
                 self._update_settlement_calculations()
             
             def on_no(instance):
                 self._warning_response = False
                 popup.dismiss()
                 self._settlement_widgets['other_deductions_amount'].text = '0'
-                self._amount_warning_shown = False
+                # مقدار _amount_warning_shown رو به False برمیگردونیم تا هشدار دوباره نمایش داده نشه
+                # ولی اینجا نیازی نیست چون _amount_warning_shown قبلاً True شده
                 self._update_settlement_calculations()
             
             yes_btn.bind(on_press=on_yes)
@@ -2979,4 +2981,3 @@ class DistributorScreen(Screen):
     def go_back(self, instance):
         """بازگشت به صفحه ورود"""
         self.manager.current = 'login'
-```
