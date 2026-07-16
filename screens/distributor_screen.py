@@ -1,4 +1,4 @@
-        self.manager.current = 'login'# screens/distributor_screen.py
+# screens/distributor_screen.py
 # ========== صفحه موزع ==========
 
 import traceback
