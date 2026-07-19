@@ -923,23 +923,35 @@ class DistributorScreen(Screen):
             self.invoice_amount_input._hidden_input.bind(focus=on_invoice_focus)
             content.add_widget(self.invoice_amount_input)
             
-            # نمایش مبلغ به حروف
-            self.invoice_amount_words_label = RTLLabel(
+            # ============================================================
+            # فیلد مبلغ به حروف (RTLTextInput غیرفعال)
+            # ============================================================
+            content.add_widget(RTLLabel(
+                text='مبلغ به حروف:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(18),
+                color=(0.4, 0.9, 0.4, 1),
+                bold=True
+            ))
+            
+            self.invoice_amount_words_field = RTLTextInput(
                 text='صفر ریال',
+                multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(22),
-                color=(0.4, 0.9, 0.4, 1),
-                halign='right',
-                bold=True
+                font_size=sp(32),
+                disabled=True
             )
-            content.add_widget(self.invoice_amount_words_label)
+            self.invoice_amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
+            self.invoice_amount_words_field.border_color = (0.2, 0.4, 0.2, 1)
+            content.add_widget(self.invoice_amount_words_field)
             
             def update_invoice_words(instance, value):
                 try:
                     amount = value.strip()
                     if not amount or amount == '0':
-                        self.invoice_amount_words_label.text = 'صفر ریال'
+                        self.invoice_amount_words_field.text = 'صفر ریال'
                         return
                     
                     clean_amount = amount.replace(',', '').strip()
@@ -947,12 +959,12 @@ class DistributorScreen(Screen):
                         number = float(clean_amount)
                         words = number_to_words(int(number))
                         if words:
-                            self.invoice_amount_words_label.text = words
+                            self.invoice_amount_words_field.text = words
                         else:
-                            self.invoice_amount_words_label.text = 'صفر ریال'
+                            self.invoice_amount_words_field.text = 'صفر ریال'
                 except Exception as e:
                     print(f"خطا در تبدیل مبلغ به حروف: {e}")
-                    self.invoice_amount_words_label.text = 'خطا در تبدیل'
+                    self.invoice_amount_words_field.text = 'خطا در تبدیل'
             
             self.invoice_amount_input._hidden_input.bind(text=update_invoice_words)
             Clock.schedule_once(lambda dt: update_invoice_words(None, '0'), 0.1)
@@ -988,7 +1000,7 @@ class DistributorScreen(Screen):
             popup = PersianPopup(
                 title='اطلاعات فاکتور',
                 content=main_container,
-                size_hint=(0.9, 0.7),
+                size_hint=(0.9, 0.75),
                 auto_dismiss=False
             )
             
@@ -1366,23 +1378,35 @@ class DistributorScreen(Screen):
             self.return_amount_input._hidden_input.bind(focus=on_return_focus)
             content.add_widget(self.return_amount_input)
             
-            # نمایش مبلغ برگشتی به حروف
-            self.return_amount_words_label = RTLLabel(
+            # ============================================================
+            # فیلد مبلغ برگشتی به حروف (RTLTextInput غیرفعال)
+            # ============================================================
+            content.add_widget(RTLLabel(
+                text='مبلغ برگشتی به حروف:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(18),
+                color=(0.4, 0.9, 0.4, 1),
+                bold=True
+            ))
+            
+            self.return_amount_words_field = RTLTextInput(
                 text='صفر ریال',
+                multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(22),
-                color=(0.4, 0.9, 0.4, 1),
-                halign='right',
-                bold=True
+                font_size=sp(32),
+                disabled=True
             )
-            content.add_widget(self.return_amount_words_label)
+            self.return_amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
+            self.return_amount_words_field.border_color = (0.2, 0.4, 0.2, 1)
+            content.add_widget(self.return_amount_words_field)
             
             def update_return_words(instance, value):
                 try:
                     amount = value.strip()
                     if not amount or amount == '0':
-                        self.return_amount_words_label.text = 'صفر ریال'
+                        self.return_amount_words_field.text = 'صفر ریال'
                         return
                     
                     clean_amount = amount.replace(',', '').strip()
@@ -1390,12 +1414,12 @@ class DistributorScreen(Screen):
                         number = float(clean_amount)
                         words = number_to_words(int(number))
                         if words:
-                            self.return_amount_words_label.text = words
+                            self.return_amount_words_field.text = words
                         else:
-                            self.return_amount_words_label.text = 'صفر ریال'
+                            self.return_amount_words_field.text = 'صفر ریال'
                 except Exception as e:
                     print(f"خطا در تبدیل مبلغ برگشتی به حروف: {e}")
-                    self.return_amount_words_label.text = 'خطا در تبدیل'
+                    self.return_amount_words_field.text = 'خطا در تبدیل'
             
             self.return_amount_input._hidden_input.bind(text=update_return_words)
             Clock.schedule_once(lambda dt: update_return_words(None, '0'), 0.1)
@@ -1937,17 +1961,32 @@ class DistributorScreen(Screen):
             content.add_widget(row9)
             
             # ============================================================
-            # نمایش مبلغ مانده نهایی به حروف
+            # فیلد مبلغ مانده نهایی به حروف (RTLTextInput غیرفعال)
             # ============================================================
-            remaining_words_label = RTLLabel(
-                text='',
+            remaining_words_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
+            remaining_words_row.add_widget(RTLLabel(
+                text='مانده نهایی به حروف:',
+                size_hint_x=0.35,
                 size_hint_y=None,
-                height=dp(30),
-                font_size=sp(16),
+                height=dp(45),
+                font_size=sp(18),
                 color=(0.4, 0.9, 0.4, 1),
-                halign='right'
+                halign='right',
+                bold=True
+            ))
+            self.remaining_words_field = RTLTextInput(
+                text='صفر ریال',
+                multiline=False,
+                size_hint_x=0.65,
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(32),
+                disabled=True
             )
-            content.add_widget(remaining_words_label)
+            self.remaining_words_field.bg_color = (0.08, 0.12, 0.08, 1)
+            self.remaining_words_field.border_color = (0.2, 0.4, 0.2, 1)
+            remaining_words_row.add_widget(self.remaining_words_field)
+            content.add_widget(remaining_words_row)
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
@@ -2011,7 +2050,7 @@ class DistributorScreen(Screen):
                 'returned_amount': returned_amount,
                 'invoice_number': invoice_number,
                 'customer_name': customer_name,
-                'remaining_words_label': remaining_words_label
+                'remaining_words_field': self.remaining_words_field
             }
             
             scroll.add_widget(content)
@@ -2297,20 +2336,21 @@ class DistributorScreen(Screen):
             if hasattr(self, 'remaining_label'):
                 self.remaining_label.text = f'{final_remaining:,.0f} ریال'
                 print(f"remaining_label.text updated to: {final_remaining:,.0f}")
-                
-                if 'remaining_words_label' in self._settlement_widgets:
-                    words_label = self._settlement_widgets['remaining_words_label']
-                    if words_label:
-                        if final_remaining != 0:
-                            words = number_to_words(abs(final_remaining))
-                            if final_remaining < 0:
-                                words = 'منفی ' + words if words else ''
-                            if words:
-                                words_label.text = f'مانده نهایی به حروف: {words}'
-                            else:
-                                words_label.text = ''
-                        else:
-                            words_label.text = 'مانده نهایی به حروف: صفر'
+            
+            # ============================================================
+            # به‌روزرسانی فیلد مبلغ مانده نهایی به حروف
+            # ============================================================
+            if hasattr(self, 'remaining_words_field'):
+                if final_remaining != 0:
+                    words = number_to_words(abs(final_remaining))
+                    if final_remaining < 0:
+                        words = 'منفی ' + words if words else ''
+                    if words:
+                        self.remaining_words_field.text = words
+                    else:
+                        self.remaining_words_field.text = 'صفر ریال'
+                else:
+                    self.remaining_words_field.text = 'صفر ریال'
             
             debt_widget = self._settlement_widgets.get('debt_label')
             if debt_widget:
