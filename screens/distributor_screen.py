@@ -3454,14 +3454,6 @@ class DistributorScreen(Screen):
                 height=dp(50)
             ))
             
-            # جداکننده
-            content.add_widget(make_field(
-                '─────────────────',
-                font_size=sp(22),
-                color=(0.3, 0.3, 0.3, 1),
-                height=dp(35)
-            ))
-            
             # مبالغ فاکتور
             content.add_widget(make_field(
                 f'مبلغ فاکتور: {invoice_amount:,.0f} ریال',
@@ -3477,14 +3469,6 @@ class DistributorScreen(Screen):
                 height=dp(50)
             ))
             
-            # جداکننده
-            content.add_widget(make_field(
-                '─────────────────',
-                font_size=sp(22),
-                color=(0.3, 0.3, 0.3, 1),
-                height=dp(35)
-            ))
-            
             # مانده بدهی
             content.add_widget(make_field(
                 f'مانده بدهی فاکتور: {base_amount:,.0f} ریال',
@@ -3492,14 +3476,6 @@ class DistributorScreen(Screen):
                 color=(0.2, 0.8, 0.2, 1),
                 height=dp(55),
                 bold=True
-            ))
-            
-            # جداکننده
-            content.add_widget(make_field(
-                '─────────────────',
-                font_size=sp(22),
-                color=(0.3, 0.3, 0.3, 1),
-                height=dp(35)
             ))
             
             # تخفیف و کسورات
@@ -3524,14 +3500,6 @@ class DistributorScreen(Screen):
                 height=dp(45)
             ))
             
-            # جداکننده
-            content.add_widget(make_field(
-                '─────────────────',
-                font_size=sp(22),
-                color=(0.3, 0.3, 0.3, 1),
-                height=dp(35)
-            ))
-            
             # مبالغ دریافتی
             content.add_widget(make_field(
                 f'مبلغ نقد دریافتی: {cash:,.0f} ریال',
@@ -3547,14 +3515,6 @@ class DistributorScreen(Screen):
                 height=dp(50)
             ))
             
-            # جداکننده
-            content.add_widget(make_field(
-                '─────────────────',
-                font_size=sp(22),
-                color=(0.3, 0.3, 0.3, 1),
-                height=dp(35)
-            ))
-            
             # جمع کل دریافتی
             content.add_widget(make_field(
                 f'جمع کل دریافتی: {total_received:,.0f} ریال',
@@ -3562,14 +3522,6 @@ class DistributorScreen(Screen):
                 color=(0.2, 0.7, 0.2, 1),
                 height=dp(55),
                 bold=True
-            ))
-            
-            # جداکننده
-            content.add_widget(make_field(
-                '─────────────────',
-                font_size=sp(22),
-                color=(0.3, 0.3, 0.3, 1),
-                height=dp(35)
             ))
             
             # مانده نهایی
