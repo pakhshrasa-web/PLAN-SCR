@@ -3582,7 +3582,7 @@ class DistributorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
     
-    def _save_and_close(self, popup, settle_type, discount, discount_amount,
+     def _save_and_close(self, popup, settle_type, discount, discount_amount,
                         other_percent, other_amount, other_deductions_total,
                         cash, total_check, total_received, final_remaining, description):
         """ذخیره نهایی و بستن"""
@@ -3614,13 +3614,14 @@ class DistributorScreen(Screen):
                 'checks': self.temp_checks.copy(),
                 'description': description
             }
-            
+        
             success, message, _ = save_delivery(data)
-            
+        
             if success:
                 popup.dismiss()
                 self.show_message('موفق', 'توزیع با موفقیت ثبت شد')
-                
+            
+                # پاک کردن داده‌های موقت
                 self.temp_delivery_data = {}
                 self.temp_checks = []
                 self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
@@ -3632,9 +3633,15 @@ class DistributorScreen(Screen):
                     'چک': False,
                     'نسیه': False
                 }
+            
+                # ============================================================
+                # رفتن به صفحه مشتریان
+                # ============================================================
+                Clock.schedule_once(lambda dt: setattr(self.manager, 'current', 'customers'), 0.5)
+            
             else:
                 self.show_message('خطا', message)
-            
+        
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
