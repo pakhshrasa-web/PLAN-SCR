@@ -1936,6 +1936,19 @@ class DistributorScreen(Screen):
             row9.add_widget(self.remaining_label)
             content.add_widget(row9)
             
+            # ============================================================
+            # نمایش مبلغ مانده نهایی به حروف
+            # ============================================================
+            remaining_words_label = RTLLabel(
+                text='',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                color=(0.4, 0.9, 0.4, 1),
+                halign='right'
+            )
+            content.add_widget(remaining_words_label)
+            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
             # ============================================================
@@ -1997,7 +2010,8 @@ class DistributorScreen(Screen):
                 'invoice_amount': invoice_amount,
                 'returned_amount': returned_amount,
                 'invoice_number': invoice_number,
-                'customer_name': customer_name
+                'customer_name': customer_name,
+                'remaining_words_label': remaining_words_label
             }
             
             scroll.add_widget(content)
@@ -2283,6 +2297,20 @@ class DistributorScreen(Screen):
             if hasattr(self, 'remaining_label'):
                 self.remaining_label.text = f'{final_remaining:,.0f} ریال'
                 print(f"remaining_label.text updated to: {final_remaining:,.0f}")
+                
+                if 'remaining_words_label' in self._settlement_widgets:
+                    words_label = self._settlement_widgets['remaining_words_label']
+                    if words_label:
+                        if final_remaining != 0:
+                            words = number_to_words(abs(final_remaining))
+                            if final_remaining < 0:
+                                words = 'منفی ' + words if words else ''
+                            if words:
+                                words_label.text = f'مانده نهایی به حروف: {words}'
+                            else:
+                                words_label.text = ''
+                        else:
+                            words_label.text = 'مانده نهایی به حروف: صفر'
             
             debt_widget = self._settlement_widgets.get('debt_label')
             if debt_widget:
@@ -3017,13 +3045,16 @@ class DistributorScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
+            # ============================================================
+            # فقط فیلدهای لازم - حذف فیلدهای اضافی
+            # ============================================================
             summary_text = f"""
 مشتری: {customer_name}
 شماره فاکتور: {invoice_number}
+─────────────────
 مبلغ فاکتور: {invoice_amount:,.0f} ریال
 مبلغ برگشتی: {returned_amount:,.0f} ریال
 ─────────────────
-مانده بدهی فاکتور: {base_amount:,.0f} ریال
 درصد تخفیف نقدی: {discount}%
 مبلغ تخفیف: {discount_amount:,.0f} ریال
 سایر کسورات (درصد): {other_percent}%
@@ -3031,8 +3062,8 @@ class DistributorScreen(Screen):
 ─────────────────
 مبلغ نقد دریافتی: {cash:,.0f} ریال
 مبلغ چک دریافتی: {total_check:,.0f} ریال
-جمع کل دریافتی: {total_received:,.0f} ریال
 ─────────────────
+جمع کل دریافتی: {total_received:,.0f} ریال
 مانده نهایی: {final_remaining:,.0f} ریال
             """
             
