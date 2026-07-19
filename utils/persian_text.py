@@ -26,6 +26,88 @@ except ImportError:
     print("⚠️ python-bidi در دسترس نیست")
 
 
+# ============================================================
+# تابع تبدیل عدد به حروف - خارج از کلاس
+# ============================================================
+# utils/persian_text.py
+
+def number_to_words(n):
+    """تبدیل عدد به حروف فارسی"""
+    if n is None:
+        return ""
+    
+    try:
+        n = int(n)
+    except:
+        return ""
+    
+    if n == 0:
+        return "صفر ریال"
+    
+    ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه']
+    tens = ['', 'ده', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود']
+    hundreds = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد']
+    groups = ['', 'هزار', 'میلیون', 'میلیارد']
+    
+    def convert_three_digits(num):
+        if num == 0:
+            return ''
+        h = num // 100
+        t = (num % 100) // 10
+        o = num % 10
+        result = []
+        if h > 0:
+            result.append(hundreds[h])
+        if t == 1:
+            if o == 0:
+                result.append('ده')
+            elif o == 1:
+                result.append('یازده')
+            elif o == 2:
+                result.append('دوازده')
+            elif o == 3:
+                result.append('سیزده')
+            elif o == 4:
+                result.append('چهارده')
+            elif o == 5:
+                result.append('پانزده')
+            elif o == 6:
+                result.append('شانزده')
+            elif o == 7:
+                result.append('هفده')
+            elif o == 8:
+                result.append('هجده')
+            elif o == 9:
+                result.append('نوزده')
+        else:
+            if t > 0:
+                result.append(tens[t])
+            if o > 0:
+                result.append(ones[o])
+        return ' و '.join(result)
+    
+    num_str = str(n)
+    group_list = []
+    for i in range(len(num_str), 0, -3):
+        start = max(0, i - 3)
+        group = int(num_str[start:i])
+        group_list.insert(0, group)
+    
+    result_parts = []
+    for i, group in enumerate(group_list):
+        if group == 0:
+            continue
+        group_words = convert_three_digits(group)
+        if group_words:
+            group_name = groups[len(group_list) - 1 - i]
+            if group_name:
+                result_parts.append(f"{group_words} {group_name}")
+            else:
+                result_parts.append(group_words)
+    
+    return " و ".join(result_parts) + " ریال"
+
+
 class PersianLabel(Image):
     def __init__(self, text="", font_size=24, color=(255, 255, 255, 255), **kwargs):
         # حذف پارامترهای غیرمجاز
