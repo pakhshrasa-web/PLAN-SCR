@@ -1,3 +1,5 @@
+چون توی گوشی هستی و نمیتونی تورفتگی رو رعایت کنی، کل فایل رو یکجا برات میفرستم. کافیه کپی کنی و جایگزین کنی.
+
 ```python
 # screens/distributor_screen.py
 # ========== صفحه موزع ==========
@@ -3232,9 +3234,6 @@ class DistributorScreen(Screen):
         try:
             confirm_popup.dismiss()
             
-            # ============================================================
-            # کانتینر اصلی با اسکرول
-            # ============================================================
             main_container = BoxLayout(orientation='vertical', spacing=dp(5), padding=dp(10))
             
             scroll = ScrollView(
