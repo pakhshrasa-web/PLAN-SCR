@@ -1,5 +1,3 @@
-چون توی گوشی هستی و نمیتونی تورفتگی رو رعایت کنی، کل فایل رو یکجا برات میفرستم. کافیه کپی کنی و جایگزین کنی.
-
 ```python
 # screens/distributor_screen.py
 # ========== صفحه موزع ==========
@@ -19,7 +17,7 @@ from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.core.window import Window
 
-from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInput, PersianComboBox
+from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInput, PersianComboBox, RTLMessageLabel
 from utils.persian_text import PersianLabel, number_to_words
 from utils.file_manager import get_customers, get_routes, get_agents, get_settings, get_daily_logs
 from utils.jalali_date import get_today_jalali, get_current_time
@@ -3230,10 +3228,13 @@ class DistributorScreen(Screen):
                             cash, total_check, total_received, final_remaining,
                             description, customer_name, invoice_number,
                             invoice_amount, returned_amount, base_amount):
-        """نمایش خلاصه نهایی عملیات - با RTLLabel"""
+        """نمایش خلاصه نهایی عملیات - با RTLTextInput"""
         try:
             confirm_popup.dismiss()
             
+            # ============================================================
+            # کانتینر اصلی با اسکرول
+            # ============================================================
             main_container = BoxLayout(orientation='vertical', spacing=dp(5), padding=dp(10))
             
             scroll = ScrollView(
@@ -3252,150 +3253,143 @@ class DistributorScreen(Screen):
             )
             content.bind(minimum_height=content.setter('height'))
             
+            # ============================================================
+            # ساخت هر خط به صورت یک RTLTextInput
+            # ============================================================
+            
+            def make_field(text, font_size=sp(26), color=(1, 1, 1, 1), height=dp(50), bold=False):
+                """ساخت یک فیلد غیرفعال برای نمایش متن"""
+                field = RTLTextInput(
+                    text=text,
+                    multiline=False,
+                    size_hint_y=None,
+                    height=height,
+                    font_size=font_size
+                )
+                field.bg_color = (0.05, 0.05, 0.08, 1)
+                field.border_color = (0.15, 0.15, 0.2, 1)
+                field._hidden_input.disabled = True
+                field._hidden_input.foreground_color = color
+                if bold:
+                    field._hidden_input.bold = True
+                return field
+            
             # عنوان
-            content.add_widget(RTLLabel(
-                text='خلاصه عملیات توزیع',
-                size_hint_y=None,
-                height=dp(60),
+            content.add_widget(make_field(
+                'خلاصه عملیات توزیع',
                 font_size=sp(34),
                 color=(0.4, 0.7, 1, 1),
-                bold=True,
-                halign='center'
+                height=dp(60),
+                bold=True
             ))
             
             # اطلاعات مشتری
-            content.add_widget(RTLLabel(
-                text=f'مشتری: {customer_name}',
-                size_hint_y=None,
-                height=dp(50),
+            content.add_widget(make_field(
+                f'مشتری: {customer_name}',
                 font_size=sp(28),
                 color=(1, 1, 1, 1),
-                halign='right'
+                height=dp(50)
             ))
             
-            content.add_widget(RTLLabel(
-                text=f'شماره فاکتور: {invoice_number}',
-                size_hint_y=None,
-                height=dp(50),
+            content.add_widget(make_field(
+                f'شماره فاکتور: {invoice_number}',
                 font_size=sp(28),
                 color=(1, 1, 1, 1),
-                halign='right'
+                height=dp(50)
             ))
             
             # مبلغ فاکتور
-            content.add_widget(RTLLabel(
-                text=f'مبلغ فاکتور: {invoice_amount:,.0f} ریال',
-                size_hint_y=None,
-                height=dp(50),
+            content.add_widget(make_field(
+                f'مبلغ فاکتور: {invoice_amount:,.0f} ریال',
                 font_size=sp(28),
                 color=(1, 0.8, 0.2, 1),
-                halign='right'
+                height=dp(50)
             ))
             
             # مبلغ برگشتی (فقط اگر > 0 باشد)
             if returned_amount > 0:
-                content.add_widget(RTLLabel(
-                    text=f'مبلغ برگشتی: {returned_amount:,.0f} ریال',
-                    size_hint_y=None,
-                    height=dp(50),
+                content.add_widget(make_field(
+                    f'مبلغ برگشتی: {returned_amount:,.0f} ریال',
                     font_size=sp(28),
                     color=(0.8, 0.2, 0.2, 1),
-                    halign='right'
+                    height=dp(50)
                 ))
             
             # مانده بدهی فاکتور
-            content.add_widget(RTLLabel(
-                text=f'مانده بدهی فاکتور: {base_amount:,.0f} ریال',
-                size_hint_y=None,
-                height=dp(55),
+            content.add_widget(make_field(
+                f'مانده بدهی فاکتور: {base_amount:,.0f} ریال',
                 font_size=sp(30),
                 color=(0.2, 0.8, 0.2, 1),
-                bold=True,
-                halign='right'
+                height=dp(55),
+                bold=True
             ))
             
             # تخفیف و کسورات (فقط در صورت وجود)
             if discount > 0 or discount_amount > 0:
-                content.add_widget(RTLLabel(
-                    text=f'درصد تخفیف نقدی: {discount}%',
-                    size_hint_y=None,
-                    height=dp(45),
+                content.add_widget(make_field(
+                    f'درصد تخفیف نقدی: {discount}%',
                     font_size=sp(26),
                     color=(1, 1, 1, 1),
-                    halign='right'
+                    height=dp(45)
                 ))
-                content.add_widget(RTLLabel(
-                    text=f'مبلغ تخفیف: {discount_amount:,.0f} ریال',
-                    size_hint_y=None,
-                    height=dp(45),
+                content.add_widget(make_field(
+                    f'مبلغ تخفیف: {discount_amount:,.0f} ریال',
                     font_size=sp(26),
                     color=(0.4, 0.7, 1, 1),
-                    halign='right'
+                    height=dp(45)
                 ))
             
             if other_percent > 0 or other_amount > 0:
-                content.add_widget(RTLLabel(
-                    text=f'سایر کسورات: {other_percent}% - {other_amount:,.0f} ریال',
-                    size_hint_y=None,
-                    height=dp(45),
+                content.add_widget(make_field(
+                    f'سایر کسورات: {other_percent}% - {other_amount:,.0f} ریال',
                     font_size=sp(26),
                     color=(1, 1, 1, 1),
-                    halign='right'
+                    height=dp(45)
                 ))
             
             # مبلغ نقد دریافتی
-            content.add_widget(RTLLabel(
-                text=f'مبلغ نقد دریافتی: {cash:,.0f} ریال',
-                size_hint_y=None,
-                height=dp(50),
+            content.add_widget(make_field(
+                f'مبلغ نقد دریافتی: {cash:,.0f} ریال',
                 font_size=sp(28),
                 color=(0.2, 0.6, 0.8, 1),
-                halign='right'
+                height=dp(50)
             ))
             
             # مبلغ چک دریافتی (فقط اگر > 0 باشد)
             if total_check > 0:
-                content.add_widget(RTLLabel(
-                    text=f'مبلغ چک دریافتی: {total_check:,.0f} ریال',
-                    size_hint_y=None,
-                    height=dp(50),
+                content.add_widget(make_field(
+                    f'مبلغ چک دریافتی: {total_check:,.0f} ریال',
                     font_size=sp(28),
                     color=(0.6, 0.3, 0.6, 1),
-                    halign='right'
+                    height=dp(50)
                 ))
             
             # جمع کل دریافتی
-            content.add_widget(RTLLabel(
-                text=f'جمع کل دریافتی: {total_received:,.0f} ریال',
-                size_hint_y=None,
-                height=dp(55),
+            content.add_widget(make_field(
+                f'جمع کل دریافتی: {total_received:,.0f} ریال',
                 font_size=sp(30),
                 color=(0.2, 0.7, 0.2, 1),
-                bold=True,
-                halign='right'
+                height=dp(55),
+                bold=True
             ))
             
             # مانده نهایی
             remaining_color = (0.2, 0.8, 0.2, 1) if final_remaining == 0 else (0.8, 0.3, 0.3, 1)
-            content.add_widget(RTLLabel(
-                text=f'مانده نهایی: {final_remaining:,.0f} ریال',
-                size_hint_y=None,
-                height=dp(60),
+            content.add_widget(make_field(
+                f'مانده نهایی: {final_remaining:,.0f} ریال',
                 font_size=sp(34),
                 color=remaining_color,
-                bold=True,
-                halign='right'
+                height=dp(60),
+                bold=True
             ))
             
             # توضیحات
             if description:
-                content.add_widget(RTLLabel(
-                    text=f'توضیحات: {description}',
-                    size_hint_y=None,
-                    height=dp(45),
+                content.add_widget(make_field(
+                    f'توضیحات: {description}',
                     font_size=sp(22),
                     color=(0.6, 0.6, 0.6, 1),
-                    halign='right'
+                    height=dp(45)
                 ))
             
             # فضای خالی
