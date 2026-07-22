@@ -1048,7 +1048,11 @@ class AdminScreen(Screen):
             )
             content.bind(minimum_height=content.setter('height'))
             
+            # ============================================================
+            # لیست کامل فیلدهای تنظیمات (با فیلدهای جدید توزیع)
+            # ============================================================
             fields = [
+                # تنظیمات عمومی ویزیت
                 ('supervision_rate', 'درصد سرکشی به مشتری', '0.3', 'float'),
                 ('conversion_rate', 'نرخ تبدیل سرکشی به فاکتور', '0.25', 'float'),
                 ('avg_invoice_amount', 'میانگین مبلغ فاکتور', '1000000', 'int'),
@@ -1062,6 +1066,16 @@ class AdminScreen(Screen):
                 ('work_start_time', 'ساعت شروع به کار', '08:00', 'time'),
                 ('first_visit_time', 'ساعت اولین ویزیت', '09:00', 'time'),
                 ('min_daily_hours', 'حداقل ساعت کاری روزانه', '6', 'int'),
+                
+                # ============================================================
+                # فیلدهای جدید توزیع
+                # ============================================================
+                ('distributor_target_customers', 'تارگت تعداد مشتری توزیع', '30', 'int'),
+                ('distributor_target_invoices', 'تارگت تعداد فاکتور توزیع', '15', 'int'),
+                ('distributor_target_amount', 'تارگت مبلغ توزیع (ریال)', '30000000', 'int'),
+                ('distributor_target_cash', 'تارگت فروش نقدی توزیع', '15000000', 'int'),
+                ('distributor_target_check', 'تارگت فروش چکی توزیع', '10000000', 'int'),
+                ('distributor_target_credit', 'تارگت فروش نسیه توزیع', '5000000', 'int'),
             ]
             
             inputs = {}
@@ -1079,7 +1093,7 @@ class AdminScreen(Screen):
                     input_filter = 'float' if field_type == 'float' else 'int'
                     input_field = self._create_text_input('')
                     input_field.text = str(value)
-                    input_field.input_filter = input_filter
+                    input_field._hidden_input.input_filter = input_filter
                 elif field_type == 'time':
                     input_field = self._create_text_input('HH:MM')
                     input_field.text = value
@@ -1114,18 +1128,24 @@ class AdminScreen(Screen):
             for key, input_field in inputs.items():
                 value = input_field.text.strip()
                 
+                # فیلدهای اعشاری
                 if key in ['supervision_rate', 'conversion_rate']:
                     try:
                         value = float(value)
                     except:
                         value = 0.0
+                # فیلدهای عدد صحیح (همه فیلدهای جدید هم شامل میشن)
                 elif key in ['avg_invoice_amount', 'target_amount', 'target_count', 'target_invoice_count', 
                             'target_customer_count', 'target_new_customer_count', 'target_cash_sales', 
-                            'target_credit_sales', 'min_daily_hours']:
+                            'target_credit_sales', 'min_daily_hours',
+                            'distributor_target_customers', 'distributor_target_invoices',
+                            'distributor_target_amount', 'distributor_target_cash',
+                            'distributor_target_check', 'distributor_target_credit']:
                     try:
                         value = int(value)
                     except:
                         value = 0
+                # فیلدهای زمان
                 elif key in ['work_start_time', 'first_visit_time']:
                     valid, msg = self._validate_time(value)
                     if not valid:

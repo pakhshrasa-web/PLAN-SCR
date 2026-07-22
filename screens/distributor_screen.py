@@ -15,8 +15,7 @@ from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.core.window import Window
-
-from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInput, PersianComboBox
+from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInput, PersianComboBox, RTLMessageLabel
 from utils.persian_text import PersianLabel, number_to_words
 from utils.file_manager import get_customers, get_routes, get_agents, get_settings, get_daily_logs
 from utils.jalali_date import get_today_jalali, get_current_time
@@ -55,7 +54,10 @@ class DistributorScreen(Screen):
             self._amount_warning_shown = False
             self._warning_response = None
             self.save_btn = None
-            
+            self._is_user_editing_cash = False
+            self._settlement_popup = None 
+
+
             self.build_ui()
             
         except Exception as e:
@@ -488,7 +490,7 @@ class DistributorScreen(Screen):
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
             content.add_widget(RTLLabel(
-                text=f'مشتری "{customer_name}" امروز توزیع شده است.\nآیا از تغییر وضعیت اطمینان دارید؟',
+                text=f'مشتری "{customer_name}" امروز توزیع شده است.آیا از تغییر وضعیت اطمینان دارید؟',
                 size_hint_y=None,
                 height=dp(70),
                 font_size=sp(20),
@@ -882,6 +884,7 @@ class DistributorScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
+            # شماره فاکتور
             content.add_widget(RTLLabel(
                 text='شماره فاکتور:',
                 size_hint_y=None,
@@ -899,6 +902,7 @@ class DistributorScreen(Screen):
             invoice_number.bg_color = (0.15, 0.15, 0.15, 1)
             content.add_widget(invoice_number)
             
+            # مبلغ فاکتور
             content.add_widget(RTLLabel(
                 text='مبلغ فاکتور (ریال):',
                 size_hint_y=None,
@@ -924,7 +928,7 @@ class DistributorScreen(Screen):
             content.add_widget(self.invoice_amount_input)
             
             # ============================================================
-            # فیلد مبلغ به حروف (RTLTextInput غیرفعال)
+            # فیلد مبلغ به حروف (به صورت یک فیلد جداگانه)
             # ============================================================
             content.add_widget(RTLLabel(
                 text='مبلغ به حروف:',
@@ -1336,6 +1340,7 @@ class DistributorScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
+            # تعداد برگشتی
             content.add_widget(RTLLabel(
                 text='تعداد برگشتی:',
                 size_hint_y=None,
@@ -1354,6 +1359,7 @@ class DistributorScreen(Screen):
             return_quantity.bg_color = (0.15, 0.15, 0.15, 1)
             content.add_widget(return_quantity)
             
+            # مبلغ برگشتی
             content.add_widget(RTLLabel(
                 text='مبلغ برگشتی (ریال):',
                 size_hint_y=None,
@@ -1379,7 +1385,7 @@ class DistributorScreen(Screen):
             content.add_widget(self.return_amount_input)
             
             # ============================================================
-            # فیلد مبلغ برگشتی به حروف (RTLTextInput غیرفعال)
+            # فیلد مبلغ برگشتی به حروف
             # ============================================================
             content.add_widget(RTLLabel(
                 text='مبلغ برگشتی به حروف:',
@@ -1424,6 +1430,7 @@ class DistributorScreen(Screen):
             self.return_amount_input._hidden_input.bind(text=update_return_words)
             Clock.schedule_once(lambda dt: update_return_words(None, '0'), 0.1)
             
+            # مبلغ مانده
             content.add_widget(RTLLabel(
                 text=f'مبلغ مانده: {invoice_amount:,.0f} ریال',
                 size_hint_y=None,
@@ -1433,6 +1440,7 @@ class DistributorScreen(Screen):
                 color=(0.2, 0.8, 0.2, 1)
             ))
             
+            # علت برگشتی
             content.add_widget(RTLLabel(
                 text='علت برگشتی:',
                 size_hint_y=None,
@@ -1525,11 +1533,11 @@ class DistributorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
-    
+
     # ============================================================
     # دیالوگ تسویه فاکتور
     # ============================================================
-    
+
     def show_settlement_dialog(self):
         """دیالوگ تسویه فاکتور با نمایش مبالغ به حروف"""
         try:
@@ -1732,18 +1740,11 @@ class DistributorScreen(Screen):
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
             # ============================================================
-            # فیلد 1: مانده بدهی فاکتور
+            # تغییر 1: جابجایی لیبل و فیلد (فیلد اول، لیبل دوم)
             # ============================================================
+            
+            # فیلد 1: مانده بدهی فاکتور
             row1 = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
-            row1.add_widget(RTLLabel(
-                text='1. مانده بدهی فاکتور:',
-                size_hint_x=0.35,
-                size_hint_y=None,
-                height=dp(40),
-                font_size=sp(18),
-                color=(0.4, 0.7, 1, 1),
-                halign='right'
-            ))
             debt_label = RTLTextInput(
                 text=f'{base_amount:,.0f} ریال',
                 size_hint_x=0.65,
@@ -1754,21 +1755,19 @@ class DistributorScreen(Screen):
             )
             debt_label.bg_color = (0.1, 0.1, 0.1, 1)
             row1.add_widget(debt_label)
-            content.add_widget(row1)
-            
-            # ============================================================
-            # فیلد 2: درصد تخفیف نقدی
-            # ============================================================
-            row2 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row2.add_widget(RTLLabel(
-                text='2. درصد تخفیف نقدی:',
+            row1.add_widget(RTLLabel(
+                text='مانده بدهی فاکتور:',
                 size_hint_x=0.35,
                 size_hint_y=None,
-                height=dp(45),
+                height=dp(40),
                 font_size=sp(18),
-                color=(1, 1, 1, 1),
+                color=(0.4, 0.7, 1, 1),
                 halign='right'
             ))
+            content.add_widget(row1)
+            
+            # فیلد 2: درصد تخفیف نقدی
+            row2 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
             discount_percent = RTLTextInput(
                 text='0',
                 multiline=False,
@@ -1779,15 +1778,15 @@ class DistributorScreen(Screen):
                 input_filter='float'
             )
             discount_percent.bg_color = (0.15, 0.15, 0.15, 1)
-            row2.add_widget(discount_percent)
-            content.add_widget(row2)
             
-            # ============================================================
-            # فیلد 3: سایر کسورات (درصد)
-            # ============================================================
-            row3 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row3.add_widget(RTLLabel(
-                text='3. سایر کسورات (درصد):',
+            def on_discount_focus(instance, value):
+                if value:
+                    Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
+            
+            discount_percent._hidden_input.bind(focus=on_discount_focus)
+            row2.add_widget(discount_percent)
+            row2.add_widget(RTLLabel(
+                text='درصد تخفیف نقدی:',
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
@@ -1795,6 +1794,10 @@ class DistributorScreen(Screen):
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
+            content.add_widget(row2)
+            
+            # فیلد 3: سایر کسورات (درصد)
+            row3 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
             other_deductions_percent = RTLTextInput(
                 text='0',
                 multiline=False,
@@ -1805,15 +1808,15 @@ class DistributorScreen(Screen):
                 input_filter='float'
             )
             other_deductions_percent.bg_color = (0.15, 0.15, 0.15, 1)
-            row3.add_widget(other_deductions_percent)
-            content.add_widget(row3)
             
-            # ============================================================
-            # فیلد 4: سایر کسورات (ریال)
-            # ============================================================
-            row4 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row4.add_widget(RTLLabel(
-                text='4. سایر کسورات (ریال):',
+            def on_other_percent_focus(instance, value):
+                if value:
+                    Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
+            
+            other_deductions_percent._hidden_input.bind(focus=on_other_percent_focus)
+            row3.add_widget(other_deductions_percent)
+            row3.add_widget(RTLLabel(
+                text='سایر کسورات (درصد):',
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
@@ -1821,6 +1824,10 @@ class DistributorScreen(Screen):
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
+            content.add_widget(row3)
+            
+            # فیلد 4: سایر کسورات (ریال)
+            row4 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
             other_deductions_amount = RTLTextInput(
                 text='0',
                 multiline=False,
@@ -1831,22 +1838,26 @@ class DistributorScreen(Screen):
                 input_filter='float'
             )
             other_deductions_amount.bg_color = (0.15, 0.15, 0.15, 1)
-            row4.add_widget(other_deductions_amount)
-            content.add_widget(row4)
             
-            # ============================================================
-            # فیلد 5: توضیحات
-            # ============================================================
-            row5 = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(8))
-            row5.add_widget(RTLLabel(
-                text='5. توضیحات:',
+            def on_other_amount_focus(instance, value):
+                if value:
+                    Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
+            
+            other_deductions_amount._hidden_input.bind(focus=on_other_amount_focus)
+            row4.add_widget(other_deductions_amount)
+            row4.add_widget(RTLLabel(
+                text='سایر کسورات (ریال):',
                 size_hint_x=0.35,
                 size_hint_y=None,
-                height=dp(65),
+                height=dp(45),
                 font_size=sp(18),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
+            content.add_widget(row4)
+            
+            # فیلد 5: توضیحات
+            row5 = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(8))
             description = RTLTextInput(
                 multiline=True,
                 size_hint_x=0.65,
@@ -1857,47 +1868,117 @@ class DistributorScreen(Screen):
             )
             description.bg_color = (0.15, 0.15, 0.15, 1)
             row5.add_widget(description)
+            row5.add_widget(RTLLabel(
+                text='توضیحات:',
+                size_hint_x=0.35,
+                size_hint_y=None,
+                height=dp(65),
+                font_size=sp(18),
+                color=(1, 1, 1, 1),
+                halign='right'
+            ))
             content.add_widget(row5)
             
             # ============================================================
             # فیلد 6: مبلغ نقد دریافتی
             # ============================================================
             row6 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row6.add_widget(RTLLabel(
-                text='6. مبلغ نقد دریافتی (ریال):',
-                size_hint_x=0.35,
-                size_hint_y=None,
-                height=dp(45),
-                font_size=sp(18),
-                color=(1, 1, 1, 1),
-                halign='right'
-            ))
             cash_amount = RTLTextInput(
                 text='0',
                 multiline=False,
-                size_hint_x=0.65,
+                size_hint_x=0.80,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
-                input_filter='float'
+                font_size=sp(48)
             )
             cash_amount.bg_color = (0.15, 0.15, 0.15, 1)
+
+            def on_cash_focus(instance, value):
+                if value:
+                    self._is_user_editing_cash = True
+                    Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
+                else:
+                    self._is_user_editing_cash = False
+
+            cash_amount._hidden_input.bind(focus=on_cash_focus)
+
+            def update_cash_words(instance, value):
+                try:
+                    from utils.persian_text import number_to_words
+                    
+                    if not hasattr(self, 'cash_amount_words_field'):
+                        return
+                    
+                    amount = value.strip()
+                    if not amount or amount == '0':
+                        self.cash_amount_words_field.text = 'صفر ریال'
+                        return
+                    
+                    clean_amount = amount.replace(',', '').strip()
+                    if clean_amount:
+                        number = float(clean_amount)
+                        words = number_to_words(int(number))
+                        if words:
+                            self.cash_amount_words_field.text = words
+                        else:
+                            self.cash_amount_words_field.text = 'صفر ریال'
+                    
+                    self._update_display_fields()
+                    self._update_save_button_state()
+                    
+                except Exception as e:
+                    print(f"خطا در تبدیل مبلغ نقد به حروف: {e}")
+
+            cash_amount._hidden_input.bind(text=update_cash_words)
+
             row6.add_widget(cash_amount)
+
+            row6.add_widget(RTLLabel(
+                text='مبلغ نقد (ریال):',
+                size_hint_x=0.10,
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(12),
+                color=(1, 1, 1, 1),
+                halign='right'
+            ))
+
+            calc_btn = PersianButton(
+                text='محاسبه',
+                size_hint_x=0.15,
+                size_hint_y=None,
+                height=dp(35),
+                background_color=(0.2, 0.5, 0.9, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(14),
+                bold=True
+            )
+            calc_btn.bind(on_press=lambda x: self._calculate_cash_amount())
+            row6.add_widget(calc_btn)
+
             content.add_widget(row6)
+
+            # ============================================================
+            # تغییر 2: حذف لیبل "مبلغ نقد به حروف:" و بزرگ کردن فیلد
+            # ============================================================
+            self.cash_amount_words_field = RTLTextInput(
+                text='صفر ریال',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(38),
+                disabled=True
+            )
+            self.cash_amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
+            self.cash_amount_words_field.border_color = (0.2, 0.4, 0.2, 1)
+            content.add_widget(self.cash_amount_words_field)
+
+            Clock.schedule_once(lambda dt: update_cash_words(None, '0'), 0.1)
             
             # ============================================================
             # فیلد 7: مبلغ چک دریافتی
             # ============================================================
             row7 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row7.add_widget(RTLLabel(
-                text='7. مبلغ چک دریافتی (ریال):',
-                size_hint_x=0.35,
-                size_hint_y=None,
-                height=dp(45),
-                font_size=sp(18),
-                color=(1, 1, 1, 1),
-                halign='right'
-            ))
             self.check_amount_display = RTLTextInput(
                 text='0',
                 size_hint_x=0.65,
@@ -1908,14 +1989,8 @@ class DistributorScreen(Screen):
             )
             self.check_amount_display.bg_color = (0.1, 0.1, 0.1, 1)
             row7.add_widget(self.check_amount_display)
-            content.add_widget(row7)
-            
-            # ============================================================
-            # فیلد 8: جمع کل مبلغ دریافتی
-            # ============================================================
-            row8 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row8.add_widget(RTLLabel(
-                text='8. جمع کل مبلغ دریافتی (ریال):',
+            row7.add_widget(RTLLabel(
+                text='مبلغ چک دریافتی (ریال):',
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
@@ -1923,6 +1998,12 @@ class DistributorScreen(Screen):
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
+            content.add_widget(row7)
+            
+            # ============================================================
+            # فیلد 8: جمع کل مبلغ دریافتی
+            # ============================================================
+            row8 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
             self.total_received_display = RTLTextInput(
                 text='0',
                 size_hint_x=0.65,
@@ -1933,21 +2014,21 @@ class DistributorScreen(Screen):
             )
             self.total_received_display.bg_color = (0.1, 0.1, 0.1, 1)
             row8.add_widget(self.total_received_display)
+            row8.add_widget(RTLLabel(
+                text='جمع کل مبلغ دریافتی (ریال):',
+                size_hint_x=0.35,
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(18),
+                color=(1, 1, 1, 1),
+                halign='right'
+            ))
             content.add_widget(row8)
             
             # ============================================================
             # فیلد 9: مبلغ مانده نهایی
             # ============================================================
             row9 = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            row9.add_widget(RTLLabel(
-                text='9. مبلغ مانده نهایی:',
-                size_hint_x=0.35,
-                size_hint_y=None,
-                height=dp(45),
-                font_size=sp(18),
-                color=(0.4, 0.7, 1, 1),
-                halign='right'
-            ))
             self.remaining_label = RTLTextInput(
                 text=f'{base_amount:,.0f} ریال',
                 size_hint_x=0.65,
@@ -1958,35 +2039,29 @@ class DistributorScreen(Screen):
             )
             self.remaining_label.bg_color = (0.1, 0.1, 0.1, 1)
             row9.add_widget(self.remaining_label)
-            content.add_widget(row9)
-            
-            # ============================================================
-            # فیلد مبلغ مانده نهایی به حروف (RTLTextInput غیرفعال)
-            # ============================================================
-            remaining_words_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
-            remaining_words_row.add_widget(RTLLabel(
-                text='مانده نهایی به حروف:',
+            row9.add_widget(RTLLabel(
+                text='مبلغ مانده نهایی:',
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
                 font_size=sp(18),
-                color=(0.4, 0.9, 0.4, 1),
-                halign='right',
-                bold=True
+                color=(0.4, 0.7, 1, 1),
+                halign='right'
             ))
-            self.remaining_words_field = RTLTextInput(
-                text='صفر ریال',
-                multiline=False,
-                size_hint_x=0.65,
+            content.add_widget(row9)
+            
+            # ============================================================
+            # نمایش مبلغ مانده نهایی به حروف
+            # ============================================================
+            remaining_words_label = RTLLabel(
+                text='',
                 size_hint_y=None,
-                height=dp(45),
-                font_size=sp(32),
-                disabled=True
+                height=dp(30),
+                font_size=sp(16),
+                color=(0.4, 0.9, 0.4, 1),
+                halign='right'
             )
-            self.remaining_words_field.bg_color = (0.08, 0.12, 0.08, 1)
-            self.remaining_words_field.border_color = (0.2, 0.4, 0.2, 1)
-            remaining_words_row.add_widget(self.remaining_words_field)
-            content.add_widget(remaining_words_row)
+            content.add_widget(remaining_words_label)
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
@@ -2050,8 +2125,19 @@ class DistributorScreen(Screen):
                 'returned_amount': returned_amount,
                 'invoice_number': invoice_number,
                 'customer_name': customer_name,
-                'remaining_words_field': self.remaining_words_field
+                'remaining_words_label': remaining_words_label
             }
+            
+            # ============================================================
+            # اتصال رویدادهای تغییر فیلدها به توابع محاسبه
+            # ============================================================
+            discount_percent._hidden_input.bind(focus=lambda i, v: Clock.schedule_once(lambda dt: self._select_all_text(i), 0.1) if v else None)
+            other_deductions_percent._hidden_input.bind(focus=lambda i, v: Clock.schedule_once(lambda dt: self._select_all_text(i), 0.1) if v else None)
+            other_deductions_amount._hidden_input.bind(focus=lambda i, v: Clock.schedule_once(lambda dt: self._select_all_text(i), 0.1) if v else None)
+
+            discount_percent._hidden_input.bind(text=self._on_discount_change)
+            other_deductions_percent._hidden_input.bind(text=self._on_deduction_change)
+            other_deductions_amount._hidden_input.bind(text=self._on_deduction_change)
             
             scroll.add_widget(content)
             main_container.add_widget(scroll)
@@ -2067,22 +2153,261 @@ class DistributorScreen(Screen):
                 auto_dismiss=False
             )
             
+            self._settlement_popup = popup
+            
             save_btn.bind(on_press=lambda x: self._finalize_settlement(
                 popup, settlement_type, discount_percent,
                 other_deductions_percent, other_deductions_amount,
                 cash_amount, self.check_amount_display, self.total_received_display,
                 description, self.remaining_label
             ))
-            cancel_btn.bind(on_press=popup.dismiss)
+            cancel_btn.bind(on_press=self._on_settlement_cancel)
             
             popup.open()
             
-            Clock.schedule_once(lambda dt: self._update_settlement_calculations(), 0.5)
-            
+            Clock.schedule_once(lambda dt: self._calculate_cash_amount(), 0.5)
+            Clock.schedule_once(lambda dt: self._calculate_cash_amount(), 1.5)
+
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
-    
+
+
+    def _on_cash_text_change(self, instance, value):
+        pass
+
+
+    def _on_discount_change(self, instance, value):
+        try:
+            self._update_settlement_calculations()
+        except Exception as e:
+            print(f"خطا در تغییر تخفیف: {e}")
+
+
+    def _on_deduction_change(self, instance, value):
+        try:
+            self._update_settlement_calculations()
+        except Exception as e:
+            print(f"خطا در تغییر کسورات: {e}")
+
+
+    def _calculate_cash_amount(self):
+        """محاسبه مبلغ نقد دریافتی"""
+        try:
+            if not hasattr(self, '_settlement_widgets'):
+                return
+            
+            base_amount = self._settlement_widgets.get('base_amount', 0)
+            settlement_type = self._settlement_widgets['settlement_type'].text
+            is_cash = self.payment_methods.get('نقد', False)
+            is_credit = self.payment_methods.get('نسیه', False)
+            
+            try:
+                discount_str = self._settlement_widgets['discount_percent'].text.replace(',', '').strip()
+                discount = float(discount_str) if discount_str else 0
+            except:
+                discount = 0
+            
+            try:
+                other_percent_str = self._settlement_widgets['other_deductions_percent'].text.replace(',', '').strip()
+                other_percent = float(other_percent_str) if other_percent_str else 0
+            except:
+                other_percent = 0
+            
+            try:
+                other_amount_str = self._settlement_widgets['other_deductions_amount'].text.replace(',', '').strip()
+                other_amount = float(other_amount_str) if other_amount_str else 0
+            except:
+                other_amount = 0
+            
+            total_check = sum([c.get('amount', 0) for c in self.temp_checks])
+            
+            if discount > 7:
+                self._show_discount_warning('سقف تخفیف نقدی ۷ درصد می باشد')
+                self._settlement_widgets['discount_percent'].text = '7'
+                discount = 7
+            elif discount < 0:
+                self._settlement_widgets['discount_percent'].text = '0'
+                discount = 0
+            
+            if other_percent > 3:
+                self._show_discount_warning('سقف سایر کسورات درصدی ۳ درصد می باشد')
+                self._settlement_widgets['other_deductions_percent'].text = '3'
+                other_percent = 3
+            elif other_percent < 0:
+                self._settlement_widgets['other_deductions_percent'].text = '0'
+                other_percent = 0
+            
+            if other_amount < 0:
+                self._settlement_widgets['other_deductions_amount'].text = '0'
+                other_amount = 0
+            
+            if is_cash and settlement_type == 'تسویه کامل':
+                discount_amount = base_amount * (discount / 100)
+            else:
+                discount_amount = 0
+                if not (is_cash and settlement_type == 'تسویه کامل'):
+                    self._settlement_widgets['discount_percent'].text = '0'
+            
+            if is_credit:
+                other_percent_amount = 0
+                self._settlement_widgets['other_deductions_percent'].text = '0'
+            else:
+                other_percent_amount = base_amount * (other_percent / 100)
+            
+            total_deductions = discount_amount + other_percent_amount + other_amount
+            
+            if settlement_type == 'تسویه کامل':
+                calculated_cash = base_amount - total_deductions - total_check
+                
+                if calculated_cash < 0:
+                    self.show_message('هشدار', 'مبلغ چک‌ها بیشتر از مبلغ قابل پرداخت است')
+                    if not self._is_user_editing_cash:
+                        self._settlement_widgets['cash_amount'].text = '0'
+                else:
+                    if not self._is_user_editing_cash:
+                        self._settlement_widgets['cash_amount'].text = f'{calculated_cash:,.0f}'
+            
+            self._update_display_fields()
+            self._update_save_button_state()
+            
+        except Exception as e:
+            print(f"خطا در محاسبه مبلغ نقد: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    def _update_display_fields(self):
+        """به‌روزرسانی فیلدهای نمایشی (چک، جمع کل، مانده نهایی)"""
+        try:
+            from utils.persian_text import number_to_words
+            
+            if not hasattr(self, '_settlement_widgets'):
+                return
+            
+            base_amount = self._settlement_widgets.get('base_amount', 0)
+            settlement_type = self._settlement_widgets['settlement_type'].text
+            is_cash = self.payment_methods.get('نقد', False)
+            is_credit = self.payment_methods.get('نسیه', False)
+            
+            try:
+                discount_str = self._settlement_widgets['discount_percent'].text.replace(',', '').strip()
+                discount = float(discount_str) if discount_str else 0
+            except:
+                discount = 0
+            
+            try:
+                other_percent_str = self._settlement_widgets['other_deductions_percent'].text.replace(',', '').strip()
+                other_percent = float(other_percent_str) if other_percent_str else 0
+            except:
+                other_percent = 0
+            
+            try:
+                other_amount_str = self._settlement_widgets['other_deductions_amount'].text.replace(',', '').strip()
+                other_amount = float(other_amount_str) if other_amount_str else 0
+            except:
+                other_amount = 0
+            
+            try:
+                cash_str = self._settlement_widgets['cash_amount'].text.replace(',', '').strip()
+                cash = float(cash_str) if cash_str else 0
+            except:
+                cash = 0
+            
+            total_check = sum([c.get('amount', 0) for c in self.temp_checks])
+            
+            if is_cash and settlement_type == 'تسویه کامل':
+                discount_amount = base_amount * (discount / 100)
+            else:
+                discount_amount = 0
+            
+            if is_credit:
+                other_percent_amount = 0
+            else:
+                other_percent_amount = base_amount * (other_percent / 100)
+            
+            total_deductions = discount_amount + other_percent_amount + other_amount
+            total_received = cash + total_check
+            final_remaining = base_amount - total_deductions - total_received
+            
+            if hasattr(self, 'check_amount_display'):
+                self.check_amount_display.text = f'{total_check:,.0f}'
+            
+            if hasattr(self, 'total_received_display'):
+                self.total_received_display.text = f'{total_received:,.0f}'
+            
+            if hasattr(self, 'remaining_label'):
+                self.remaining_label.text = f'{final_remaining:,.0f} ریال'
+                
+                if 'remaining_words_label' in self._settlement_widgets:
+                    words_label = self._settlement_widgets['remaining_words_label']
+                    if words_label:
+                        if final_remaining != 0:
+                            words = number_to_words(abs(final_remaining))
+                            if final_remaining < 0:
+                                words = 'منفی ' + words if words else ''
+                            if words:
+                                words_label.text = f'مانده نهایی به حروف: {words}'
+                            else:
+                                words_label.text = ''
+                        else:
+                            words_label.text = 'مانده نهایی به حروف: صفر'
+            
+            debt_widget = self._settlement_widgets.get('debt_label')
+            if debt_widget:
+                net_amount = base_amount - total_deductions
+                debt_widget.text = f'{net_amount:,.0f} ریال'
+            
+            self._update_save_button_state()
+            
+        except Exception as e:
+            print(f"خطا در به‌روزرسانی فیلدهای نمایشی: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    def _update_save_button_state(self):
+        """بروزرسانی وضعیت دکمه ثبت بر اساس شرایط"""
+        try:
+            if not hasattr(self, 'save_btn'):
+                return
+            
+            if not hasattr(self, '_settlement_widgets'):
+                return
+            
+            settlement_type = self._settlement_widgets['settlement_type'].text
+            is_full = settlement_type == 'تسویه کامل'
+            
+            try:
+                remaining_str = self.remaining_label.text.replace(',', '').replace('ریال', '').strip()
+                final_remaining = float(remaining_str) if remaining_str else 0
+            except:
+                final_remaining = 0
+            
+            if is_full:
+                try:
+                    cash_str = self._settlement_widgets['cash_amount'].text.replace(',', '').strip()
+                    cash = float(cash_str) if cash_str else 0
+                except:
+                    cash = 0
+                
+                if final_remaining > 0 or cash <= 0:
+                    self.save_btn.disabled = True
+                    self.save_btn.background_color = (0.3, 0.3, 0.3, 1)
+                    self.save_btn.color = (0.5, 0.5, 0.5, 1)
+                else:
+                    self.save_btn.disabled = False
+                    self.save_btn.background_color = (0.2, 0.7, 0.2, 1)
+                    self.save_btn.color = (1, 1, 1, 1)
+            else:
+                self.save_btn.disabled = False
+                self.save_btn.background_color = (0.2, 0.7, 0.2, 1)
+                self.save_btn.color = (1, 1, 1, 1)
+                
+        except Exception as e:
+            print(f"خطا در بروزرسانی وضعیت دکمه ثبت: {e}")
+
+
     def _toggle_payment_btn(self, method):
         """تغییر وضعیت دکمه روش پرداخت"""
         try:
@@ -2107,16 +2432,40 @@ class DistributorScreen(Screen):
             elif method == 'نسیه':
                 if self.payment_methods[method]:
                     self.credit_btn.background_color = (0.2, 0.6, 0.2, 1)
+                    
+                    # ============================================================
+                    # وقتی نسیه انتخاب شد، شرط تسویه را روی "تسویه بخشی از بدهی" بگذار
+                    # ============================================================
+                    if hasattr(self, '_settlement_widgets') and 'settlement_type' in self._settlement_widgets:
+                        # لیست مقادیر کامبوباکس را بررسی کن
+                        values = self._settlement_widgets['settlement_type'].values
+                        if 'تسویه بخشی از بدهی' in values:
+                            self._settlement_widgets['settlement_type'].text = 'تسویه بخشی از بدهی'
+                            self._settlement_type_last = 'تسویه بخشی از بدهی'
+                            print("شرط تسویه به 'تسویه بخشی از بدهی' تغییر یافت")
                 else:
                     self.credit_btn.background_color = (0.3, 0.3, 0.3, 1)
             
             self._update_field_states()
-            self._update_settlement_calculations()
-            self._update_save_button_state()
+            self._calculate_cash_amount()
             
         except Exception as e:
             print(f"خطا در تغییر وضعیت روش پرداخت: {e}")
-    
+
+
+    def _check_settlement_type_change(self, dt):
+        """بررسی تغییر شرایط تسویه با تایمر"""
+        try:
+            if hasattr(self, '_settlement_widgets') and 'settlement_type' in self._settlement_widgets:
+                current = self._settlement_widgets['settlement_type'].text
+                if current != self._settlement_type_last:
+                    self._settlement_type_last = current
+                    self._update_field_states()
+                    self._calculate_cash_amount()
+        except Exception as e:
+            print(f"خطا در بررسی تغییر شرایط تسویه: {e}")
+
+
     def _update_field_states(self):
         """بروزرسانی وضعیت فعال/غیرفعال فیلدها بر اساس حالت تسویه"""
         try:
@@ -2145,10 +2494,7 @@ class DistributorScreen(Screen):
             self._settlement_widgets['other_deductions_amount']._hidden_input.disabled = False
             
             cash_input = self._settlement_widgets['cash_amount']._hidden_input
-            if is_full:
-                cash_input.disabled = True
-            else:
-                cash_input.disabled = False
+            cash_input.disabled = False
             
             if hasattr(self, 'check_register_btn'):
                 if self.payment_methods.get('چک', False):
@@ -2166,55 +2512,8 @@ class DistributorScreen(Screen):
             print(f"خطا در بروزرسانی وضعیت فیلدها: {e}")
             import traceback
             traceback.print_exc()
-    
-    def _update_save_button_state(self):
-        """بروزرسانی وضعیت دکمه ثبت بر اساس شرایط"""
-        try:
-            if not hasattr(self, 'save_btn'):
-                return
-            
-            if not hasattr(self, '_settlement_widgets'):
-                return
-            
-            settlement_type = self._settlement_widgets['settlement_type'].text
-            is_full = settlement_type == 'تسویه کامل'
-            
-            if is_full:
-                try:
-                    cash_str = self._settlement_widgets['cash_amount'].text.replace(',', '').strip()
-                    cash = float(cash_str) if cash_str else 0
-                except:
-                    cash = 0
-                
-                if cash > 0:
-                    self.save_btn.disabled = False
-                    self.save_btn.background_color = (0.2, 0.7, 0.2, 1)
-                    self.save_btn.color = (1, 1, 1, 1)
-                else:
-                    self.save_btn.disabled = True
-                    self.save_btn.background_color = (0.3, 0.3, 0.3, 1)
-                    self.save_btn.color = (0.5, 0.5, 0.5, 1)
-            else:
-                self.save_btn.disabled = False
-                self.save_btn.background_color = (0.2, 0.7, 0.2, 1)
-                self.save_btn.color = (1, 1, 1, 1)
-                
-        except Exception as e:
-            print(f"خطا در بروزرسانی وضعیت دکمه ثبت: {e}")
-    
-    def _check_settlement_type_change(self, dt):
-        """بررسی تغییر شرایط تسویه با تایمر"""
-        try:
-            if hasattr(self, '_settlement_widgets') and 'settlement_type' in self._settlement_widgets:
-                current = self._settlement_widgets['settlement_type'].text
-                if current != self._settlement_type_last:
-                    self._settlement_type_last = current
-                    self._update_field_states()
-                    self._update_settlement_calculations()
-                    self._update_save_button_state()
-        except Exception as e:
-            print(f"خطا در بررسی تغییر شرایط تسویه: {e}")
-    
+
+
     def _update_settlement_calculations(self):
         """بروزرسانی محاسبات تسویه با به‌روزرسانی مبلغ به حروف"""
         try:
@@ -2292,17 +2591,6 @@ class DistributorScreen(Screen):
             else:
                 other_percent_amount = base_amount * (other_percent / 100)
             
-            if other_amount > 0 and not self._amount_warning_shown:
-                self._show_amount_warning()
-                if self._warning_response is False:
-                    self._settlement_widgets['other_deductions_amount'].text = '0'
-                    other_amount = 0
-                    self._warning_response = None
-                elif self._warning_response is True:
-                    self._warning_response = None
-                else:
-                    return
-            
             total_deductions = discount_amount + other_percent_amount + other_amount
             
             if settlement_type == 'تسویه کامل':
@@ -2310,10 +2598,12 @@ class DistributorScreen(Screen):
                 
                 if calculated_cash < 0:
                     self.show_message('هشدار', 'مبلغ چک‌ها بیشتر از مبلغ قابل پرداخت است')
-                    self._settlement_widgets['cash_amount'].text = '0'
+                    if not self._is_user_editing_cash:
+                        self._settlement_widgets['cash_amount'].text = '0'
                     cash = 0
                 else:
-                    self._settlement_widgets['cash_amount'].text = f'{calculated_cash:,.0f}'
+                    if not self._is_user_editing_cash:
+                        self._settlement_widgets['cash_amount'].text = f'{calculated_cash:,.0f}'
                     cash = calculated_cash
             else:
                 try:
@@ -2327,39 +2617,46 @@ class DistributorScreen(Screen):
             
             if hasattr(self, 'check_amount_display'):
                 self.check_amount_display.text = f'{total_check:,.0f}'
-                print(f"check_amount_display.text updated to: {total_check:,.0f}")
             
             if hasattr(self, 'total_received_display'):
                 self.total_received_display.text = f'{total_received:,.0f}'
-                print(f"total_received_display.text updated to: {total_received:,.0f}")
             
             if hasattr(self, 'remaining_label'):
                 self.remaining_label.text = f'{final_remaining:,.0f} ریال'
-                print(f"remaining_label.text updated to: {final_remaining:,.0f}")
-            
-            # ============================================================
-            # به‌روزرسانی فیلد مبلغ مانده نهایی به حروف
-            # ============================================================
-            if hasattr(self, 'remaining_words_field'):
-                if final_remaining != 0:
-                    words = number_to_words(abs(final_remaining))
-                    if final_remaining < 0:
-                        words = 'منفی ' + words if words else ''
-                    if words:
-                        self.remaining_words_field.text = words
-                    else:
-                        self.remaining_words_field.text = 'صفر ریال'
-                else:
-                    self.remaining_words_field.text = 'صفر ریال'
+                
+                if 'remaining_words_label' in self._settlement_widgets:
+                    words_label = self._settlement_widgets['remaining_words_label']
+                    if words_label:
+                        if final_remaining != 0:
+                            words = number_to_words(abs(final_remaining))
+                            if final_remaining < 0:
+                                words = 'منفی ' + words if words else ''
+                            if words:
+                                words_label.text = f'مانده نهایی به حروف: {words}'
+                            else:
+                                words_label.text = ''
+                        else:
+                            words_label.text = 'مانده نهایی به حروف: صفر'
             
             debt_widget = self._settlement_widgets.get('debt_label')
             if debt_widget:
                 net_amount = base_amount - total_deductions
                 debt_widget.text = f'{net_amount:,.0f} ریال'
-                print(f"debt_label.text updated to: {net_amount:,.0f}")
+            
+            if hasattr(self, 'cash_amount_words_field'):
+                if cash == 0:
+                    self.cash_amount_words_field.text = 'صفر ریال'
+                else:
+                    words = number_to_words(int(cash))
+                    if words:
+                        self.cash_amount_words_field.text = words
+                    else:
+                        self.cash_amount_words_field.text = 'صفر ریال'
             
             self._update_field_states()
             self._update_save_button_state()
+            
+            self._is_user_editing_cash = False
             
         except Exception as e:
             print(f"خطا در بروزرسانی محاسبات تسویه: {e}")
@@ -2574,6 +2871,11 @@ class DistributorScreen(Screen):
                 color=(0.4, 0.7, 1, 1)
             ))
             
+            # ============================================================
+            # تغییر: اضافه کردن فیلد مبلغ به حروف
+            # ============================================================
+            
+            # مبلغ چک
             content.add_widget(RTLLabel(
                 text='مبلغ چک (ریال):',
                 size_hint_y=None,
@@ -2592,6 +2894,27 @@ class DistributorScreen(Screen):
             check_amount.bg_color = (0.15, 0.15, 0.15, 1)
             content.add_widget(check_amount)
             
+            # فیلد مبلغ به حروف (جدید)
+            content.add_widget(RTLLabel(
+                text='مبلغ به حروف:',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(16),
+                color=(0.4, 0.9, 0.4, 1)
+            ))
+            amount_words_field = RTLTextInput(
+                text='صفر ریال',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(32),
+                disabled=True
+            )
+            amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
+            amount_words_field.border_color = (0.2, 0.4, 0.2, 1)
+            content.add_widget(amount_words_field)
+            
+            # تاریخ چک
             content.add_widget(RTLLabel(
                 text='تاریخ چک:',
                 size_hint_y=None,
@@ -2609,6 +2932,7 @@ class DistributorScreen(Screen):
             check_date.bg_color = (0.15, 0.15, 0.15, 1)
             content.add_widget(check_date)
             
+            # وضعیت صیادی
             content.add_widget(RTLLabel(
                 text='وضعیت ثبت صیادی:',
                 size_hint_y=None,
@@ -2625,6 +2949,33 @@ class DistributorScreen(Screen):
             sayadi_status.main_btn.color = (1, 1, 1, 1)
             sayadi_status.main_btn.font_size = sp(20)
             content.add_widget(sayadi_status)
+            
+            # ============================================================
+            # تابع به‌روزرسانی مبلغ به حروف
+            # ============================================================
+            def update_check_words(instance, value):
+                try:
+                    from utils.persian_text import number_to_words
+                    
+                    amount = value.strip()
+                    if not amount or amount == '0':
+                        amount_words_field.text = 'صفر ریال'
+                        return
+                    
+                    clean_amount = amount.replace(',', '').strip()
+                    if clean_amount:
+                        number = float(clean_amount)
+                        words = number_to_words(int(number))
+                        if words:
+                            amount_words_field.text = words
+                        else:
+                            amount_words_field.text = 'صفر ریال'
+                except Exception as e:
+                    print(f"خطا در تبدیل مبلغ چک به حروف: {e}")
+                    amount_words_field.text = 'خطا در تبدیل'
+            
+            check_amount._hidden_input.bind(text=update_check_words)
+            Clock.schedule_once(lambda dt: update_check_words(None, '0'), 0.1)
             
             btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10))
             
@@ -2652,13 +3003,14 @@ class DistributorScreen(Screen):
             popup = PersianPopup(
                 title='ثبت چک',
                 content=content,
-                size_hint=(0.85, 0.6),
+                size_hint=(0.85, 0.7),  # افزایش ارتفاع برای فیلد جدید
                 auto_dismiss=False
             )
             
             save_btn.bind(on_press=lambda x: self._save_check(
                 popup, index, total, check_amount.text, check_date.text,
-                sayadi_status.text, parent_popup, cash_input, check_display, total_received_label, remaining_label
+                sayadi_status.text, parent_popup, cash_input, check_display, 
+                total_received_label, remaining_label
             ))
             cancel_btn.bind(on_press=lambda x: self._cancel_check_registration(popup))
             
@@ -2685,7 +3037,7 @@ class DistributorScreen(Screen):
             if status == 'ثبت نشده':
                 confirm_content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
                 confirm_content.add_widget(RTLLabel(
-                    text='گرفتن چک ثبت نشده مجاز نیست و شامل جریمه خواهد بود،\nآیا ادامه می‌دهید؟',
+                    text='گرفتن چک ثبت نشده مجاز نبوده و شامل جریمه میگردد،آیا ادامه می‌دهید؟',
                     size_hint_y=None,
                     height=dp(70),
                     font_size=sp(20),
@@ -2802,7 +3154,7 @@ class DistributorScreen(Screen):
             if total_check_amount > base_amount:
                 content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
                 content.add_widget(RTLLabel(
-                    text=f'جمع مبالغ دریافتی ({total_check_amount:,.0f}) بیشتر از مبلغ فاکتور ({base_amount:,.0f}) است،\nادامه می‌دهید؟',
+                    text=f'جمع مبالغ دریافتی ({total_check_amount:,.0f}) بیشتر از مبلغ فاکتور ({base_amount:,.0f}) است،ادامه می‌دهید؟',
                     size_hint_y=None,
                     height=dp(70),
                     font_size=sp(20),
@@ -2885,7 +3237,7 @@ class DistributorScreen(Screen):
                 font_size=sp(18)
             )
             edit_btn = PersianButton(
-                text='اصلاح',
+                text='انصراف',
                 background_color=(0.8, 0.5, 0.2, 1),
                 size_hint_y=None,
                 height=dp(50),
@@ -2956,12 +3308,10 @@ class DistributorScreen(Screen):
                             description, remaining_label):
         """نهایی‌سازی تسویه و نمایش تأیید نهایی"""
         try:
-            popup.dismiss()
-            
-            try:
-                Clock.unschedule(self._check_settlement_type_change)
-            except:
-                pass
+            # ============================================================
+            # popup رو در self ذخیره کن تا بتونیم دوباره بازش کنیم
+            # ============================================================
+            self._settlement_popup = popup
             
             settle_type = settlement_type.text
             discount_str = discount_percent.text.replace(',', '').strip()
@@ -2973,7 +3323,7 @@ class DistributorScreen(Screen):
                 other_percent = float(other_percent_str) if other_percent_str else 0
                 other_amount = float(other_amount_str) if other_amount_str else 0
             except:
-                self.show_message('خطا', 'مقادیر وارد شده معتبر نیستند')
+                self.show_message_with_return('خطا', 'مقادیر وارد شده معتبر نیستند')
                 return
             
             invoice_amount = self.temp_delivery_data.get('invoice_amount', 0)
@@ -3006,9 +3356,26 @@ class DistributorScreen(Screen):
             total_received = cash + total_check
             final_remaining = net_amount - total_received
             
-            if final_remaining < 0:
-                self.show_message('خطا', 'مبلغ دریافتی بیشتر از مبلغ فاکتور است')
+            # ============================================================
+            # بررسی مانده نهایی در تسویه کامل - فقط پیام خطا نمایش بده و برگرد
+            # ============================================================
+            if settle_type == 'تسویه کامل' and final_remaining > 0:
+                self.show_message_with_return('خطا', 'امکان ثبت تسویه کامل با داشتن مانده وجود ندارد. لطفاً مبلغ مانده را تسویه نمایید و یا شرایط تسویه را تغییر دهید.')
                 return
+            
+            if final_remaining < 0:
+                self.show_message_with_return('خطا', 'مبلغ دریافتی بیشتر از مبلغ فاکتور است')
+                return
+            
+            # ============================================================
+            # اگر همه چیز درست بود، popup رو ببند و ادامه بده
+            # ============================================================
+            popup.dismiss()
+            
+            try:
+                Clock.unschedule(self._check_settlement_type_change)
+            except:
+                pass
             
             confirm_content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             
@@ -3070,70 +3437,190 @@ class DistributorScreen(Screen):
                             cash, total_check, total_received, final_remaining,
                             description, customer_name, invoice_number,
                             invoice_amount, returned_amount, base_amount):
-        """نمایش خلاصه نهایی عملیات"""
+        """نمایش خلاصه نهایی عملیات - با RTLTextInput"""
         try:
             confirm_popup.dismiss()
             
-            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
+            # ============================================================
+            # کانتینر اصلی با اسکرول
+            # ============================================================
+            main_container = BoxLayout(orientation='vertical', spacing=dp(5), padding=dp(10))
             
-            content.add_widget(RTLLabel(
-                text='خلاصه عملیات توزیع',
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint=(1, 1),
+                scroll_type=['bars', 'content'],
+                bar_width=dp(6)
+            )
+            
+            content = BoxLayout(
+                orientation='vertical',
                 size_hint_y=None,
-                height=dp(50),
-                font_size=sp(28),
-                bold=True,
-                color=(0.4, 0.7, 1, 1)
+                spacing=dp(6),
+                padding=dp(8)
+            )
+            content.bind(minimum_height=content.setter('height'))
+            
+            # ============================================================
+            # ساخت هر خط به صورت یک RTLTextInput
+            # ============================================================
+            
+            def make_field(text, font_size=sp(26), color=(1, 1, 1, 1), height=dp(50), bold=False):
+                """ساخت یک فیلد غیرفعال برای نمایش متن"""
+                field = RTLTextInput(
+                    text=text,
+                    multiline=False,
+                    size_hint_y=None,
+                    height=height,
+                    font_size=font_size
+                )
+                field.bg_color = (0.05, 0.05, 0.08, 1)
+                field.border_color = (0.15, 0.15, 0.2, 1)
+                field._hidden_input.disabled = True
+                field._hidden_input.foreground_color = color
+                if bold:
+                    field._hidden_input.bold = True
+                return field
+            
+            # عنوان
+            content.add_widget(make_field(
+                'خلاصه عملیات توزیع',
+                font_size=sp(34),
+                color=(0.4, 0.7, 1, 1),
+                height=dp(60),
+                bold=True
             ))
             
-            # ============================================================
-            # خلاصه با حذف فیلدهای جداکننده اضافی
-            # ============================================================
-            summary_text = f"""
-مشتری: {customer_name}
-شماره فاکتور: {invoice_number}
-─────────────────
-مبلغ فاکتور: {invoice_amount:,.0f} ریال
-مبلغ برگشتی: {returned_amount:,.0f} ریال
-─────────────────
-درصد تخفیف نقدی: {discount}%
-مبلغ تخفیف: {discount_amount:,.0f} ریال
-سایر کسورات (درصد): {other_percent}%
-سایر کسورات (ریال): {other_amount:,.0f} ریال
-─────────────────
-مبلغ نقد دریافتی: {cash:,.0f} ریال
-مبلغ چک دریافتی: {total_check:,.0f} ریال
-─────────────────
-جمع کل دریافتی: {total_received:,.0f} ریال
-مانده نهایی: {final_remaining:,.0f} ریال
-            """
+            # اطلاعات مشتری
+            content.add_widget(make_field(
+                f'مشتری: {customer_name}',
+                font_size=sp(28),
+                color=(1, 1, 1, 1),
+                height=dp(50)
+            ))
             
-            summary_label = PersianLabel(
-                text=summary_text,
-                size_hint_y=None,
-                height=dp(380),
-                font_size=sp(24),
-                color=(1, 1, 1, 255),
-                halign='right',
-                valign='top'
-            )
-            summary_label.text_size = (dp(500), None)
-            content.add_widget(summary_label)
+            content.add_widget(make_field(
+                f'شماره فاکتور: {invoice_number}',
+                font_size=sp(28),
+                color=(1, 1, 1, 1),
+                height=dp(50)
+            ))
             
+            # مبالغ فاکتور
+            content.add_widget(make_field(
+                f'مبلغ فاکتور: {invoice_amount:,.0f} ریال',
+                font_size=sp(28),
+                color=(1, 0.8, 0.2, 1),
+                height=dp(50)
+            ))
+            
+            content.add_widget(make_field(
+                f'مبلغ برگشتی: {returned_amount:,.0f} ریال',
+                font_size=sp(28),
+                color=(0.8, 0.2, 0.2, 1),
+                height=dp(50)
+            ))
+            
+            # مانده بدهی
+            content.add_widget(make_field(
+                f'مانده بدهی فاکتور: {base_amount:,.0f} ریال',
+                font_size=sp(30),
+                color=(0.2, 0.8, 0.2, 1),
+                height=dp(55),
+                bold=True
+            ))
+            
+            # تخفیف و کسورات
+            content.add_widget(make_field(
+                f'درصد تخفیف نقدی: {discount}%',
+                font_size=sp(26),
+                color=(1, 1, 1, 1),
+                height=dp(45)
+            ))
+            
+            content.add_widget(make_field(
+                f'مبلغ تخفیف: {discount_amount:,.0f} ریال',
+                font_size=sp(26),
+                color=(0.4, 0.7, 1, 1),
+                height=dp(45)
+            ))
+            
+            content.add_widget(make_field(
+                f'سایر کسورات: {other_percent}% - {other_amount:,.0f} ریال',
+                font_size=sp(26),
+                color=(1, 1, 1, 1),
+                height=dp(45)
+            ))
+            
+            # مبالغ دریافتی
+            content.add_widget(make_field(
+                f'مبلغ نقد دریافتی: {cash:,.0f} ریال',
+                font_size=sp(28),
+                color=(0.2, 0.6, 0.8, 1),
+                height=dp(50)
+            ))
+            
+            content.add_widget(make_field(
+                f'مبلغ چک دریافتی: {total_check:,.0f} ریال',
+                font_size=sp(28),
+                color=(0.6, 0.3, 0.6, 1),
+                height=dp(50)
+            ))
+            
+            # جمع کل دریافتی
+            content.add_widget(make_field(
+                f'جمع کل دریافتی: {total_received:,.0f} ریال',
+                font_size=sp(30),
+                color=(0.2, 0.7, 0.2, 1),
+                height=dp(55),
+                bold=True
+            ))
+           
+            # مانده نهایی
+            remaining_color = (0.2, 0.8, 0.2, 1) if final_remaining == 0 else (0.8, 0.3, 0.3, 1)
+            content.add_widget(make_field(
+                f'مانده نهایی: {final_remaining:,.0f} ریال',
+                font_size=sp(34),
+                color=remaining_color,
+                height=dp(60),
+                bold=True
+            ))
+            
+            # توضیحات
+            if description:
+                content.add_widget(make_field(
+                    f'توضیحات: {description}',
+                    font_size=sp(22),
+                    color=(0.6, 0.6, 0.6, 1),
+                    height=dp(45)
+                ))
+            
+            # فضای خالی
+            content.add_widget(Label(size_hint_y=None, height=dp(10)))
+            
+            scroll.add_widget(content)
+            main_container.add_widget(scroll)
+            
+            # ============================================================
+            # دکمه بستن (خارج از اسکرول)
+            # ============================================================
             close_btn = PersianButton(
                 text='بستن',
                 background_color=(0.2, 0.6, 1, 1),
                 size_hint_y=None,
-                height=dp(55),
+                height=dp(60),
                 color=(1, 1, 1, 1),
-                font_size=sp(22)
+                font_size=sp(26)
             )
-            content.add_widget(close_btn)
+            main_container.add_widget(close_btn)
             
             final_popup = PersianPopup(
-                title='عملیات موفق',
-                content=content,
-                size_hint=(0.92, 0.82),
-                auto_dismiss=False
+                title='',
+                content=main_container,
+                size_hint=(0.92, 0.85),
+                auto_dismiss=False,
+                background_color=(0.08, 0.08, 0.08, 1)
             )
             
             close_btn.bind(on_press=lambda x: self._save_and_close(final_popup, 
@@ -3147,11 +3634,33 @@ class DistributorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
-    
+
+
+    def _on_settlement_cancel(self, instance):
+        """انصراف از تسویه"""
+        try:
+            if hasattr(self, '_settlement_popup'):
+                self._settlement_popup.dismiss()
+            
+            self.temp_delivery_data = {}
+            self.temp_checks = []
+            self.payment_methods = {
+                'نقد': False,
+                'چک': False,
+                'نسیه': False
+            }
+            
+            self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
+            self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
+            
+        except Exception as e:
+            print(f"خطا در انصراف از تسویه: {e}")
+
+
     def _save_and_close(self, popup, settle_type, discount, discount_amount,
                         other_percent, other_amount, other_deductions_total,
                         cash, total_check, total_received, final_remaining, description):
-        """ذخیره نهایی و بستن"""
+        """ذخیره نهایی و بستن تمام دیالوگ‌ها"""
         try:
             data = {
                 'agent_name': '',
@@ -3184,29 +3693,44 @@ class DistributorScreen(Screen):
             success, message, _ = save_delivery(data)
             
             if success:
+                # ============================================================
+                # تغییر: بستن تمام دیالوگ‌ها
+                # ============================================================
+                # بستن دیالوگ خلاصه
                 popup.dismiss()
+                
+                # بستن دیالوگ تسویه
+                if hasattr(self, '_settlement_popup'):
+                    self._settlement_popup.dismiss()
+                    self._settlement_popup = None
+                
+                # نمایش پیام موفقیت
                 self.show_message('موفق', 'توزیع با موفقیت ثبت شد')
                 
+                # پاک کردن داده‌های موقت
                 self.temp_delivery_data = {}
                 self.temp_checks = []
-                self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
-                self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
-                if hasattr(self, '_settlement_widgets'):
-                    self._settlement_widgets = {}
+                self._settlement_widgets = {}
                 self.payment_methods = {
                     'نقد': False,
                     'چک': False,
                     'نسیه': False
                 }
                 
-                # ============================================================
-                # رفتن به صفحه مشتریان
-                # ============================================================
-                Clock.schedule_once(lambda dt: setattr(self.manager, 'current', 'customers'), 0.5)
+                # بازگشت به حالت اولیه
+                self.selected_customer = None
+                self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
+                self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
+                
+                # غیرفعال کردن تایمرها
+                try:
+                    Clock.unschedule(self._check_settlement_type_change)
+                except:
+                    pass
                 
             else:
                 self.show_message('خطا', message)
-            
+                
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
@@ -3249,6 +3773,71 @@ class DistributorScreen(Screen):
         except Exception as e:
             print(f"خطا در نمایش پیام: {e}")
     
+
+    def show_message_with_return(self, title, message):
+        """نمایش پیام خطا و بازگشت به دیالوگ تسویه"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                            size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text=message,
+                size_hint_y=None,
+                height=dp(80),
+                font_size=sp(18),
+                color=(1, 0.8, 0.2, 1),
+                halign='right'
+            ))
+            
+            btn = PersianButton(
+                text='باشه',
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(20),
+                color=(1, 1, 1, 1),
+                background_color=(0.2, 0.6, 1, 1)
+            )
+            content.add_widget(btn)
+            
+            popup = PersianPopup(
+                title=title,
+                content=content,
+                size_hint=(0.85, 0.4),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def on_btn_press(instance):
+                popup.dismiss()
+                # بعد از بستن پیام خطا، دیالوگ تسویه رو دوباره باز کن
+                if hasattr(self, '_settlement_popup'):
+                    self.show_settlement_dialog()
+            
+            btn.bind(on_press=on_btn_press)
+            popup.open()
+            
+        except Exception as e:
+            print(f"خطا در نمایش پیام: {e}")
+
+
+
     def go_back(self, instance):
-        """بازگشت به صفحه ورود"""
-        self.manager.current = 'login'
+        """بازگشت به صفحه مناسب"""
+        try:
+            from kivy.app import App
+            app = App.get_running_app()
+            if app and hasattr(app, 'current_user_role'):
+                role = app.current_user_role
+                if role == 'موزع':
+                    self.manager.current = 'user'
+                else:
+                    self.manager.current = 'login'
+            else:
+                self.manager.current = 'user'
+        except Exception as e:
+            print(f"خطا در بازگشت: {e}")
+            self.manager.current = 'user'
