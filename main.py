@@ -5,6 +5,7 @@ import os
 import json
 import sys
 import traceback
+
 os.environ['KIVY_HOME'] = os.path.dirname(__file__)
 
 from kivy.config import Config
@@ -19,6 +20,7 @@ from kivy.metrics import dp, sp
 # ========== ایمپورت ماژول‌های جدید ==========
 from constants import ROLES, ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD
 from error_handler import ErrorPopup, exception_handler
+
 
 # ========== ایمپورت صفحات ==========
 from screens import (
@@ -254,7 +256,8 @@ class MainApp(App):
                 'users.json': {'users': []},
                 'codes.json': {'codes': []},
                 'admin_password.json': {'hashed_password': hashed_default},
-                'targets.json': []
+                'targets.json': {'targets': []}
+
             }
             
             from utils.storage import get_data_path
