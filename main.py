@@ -5,6 +5,8 @@ import os
 import json
 import sys
 import traceback
+os.environ['KIVY_HOME'] = os.path.dirname(__file__)
+
 from kivy.config import Config
 from kivy.core.text import LabelBase
 from kivy.app import App
@@ -30,7 +32,9 @@ from screens import (
     DebugScreen,
     AgentsScreen,
     SupervisorScreen,
-    DistributorScreen 
+    DistributorScreen,
+    DistributorReportScreen
+ 
 
 )
 
@@ -147,6 +151,11 @@ class ScreenManagement(ScreenManager):
 
 
 class MainApp(App):
+    # ============================================================
+    # اضافه شده: متغیر برای ذخیره نقش کاربر فعلی
+    # ============================================================
+    current_user_role = ''
+    
     def build(self):
         try:
             self.data_path = init_data_path()
@@ -166,6 +175,7 @@ class MainApp(App):
             sm.add_widget(AgentsScreen(name='agents'))
             sm.add_widget(SupervisorScreen(name='supervisor'))
             sm.add_widget(DistributorScreen(name='distributor')) 
+            sm.add_widget(DistributorReportScreen(name='distributor_report'))
 
             Window.bind(on_keyboard=self.on_keyboard)
             
