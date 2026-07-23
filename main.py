@@ -2,13 +2,48 @@
 # ========== فایل اصلی برنامه ==========
 
 import os
-import json
 import sys
-import traceback
+import shutil
 
-os.environ['KIVY_HOME'] = os.path.dirname(__file__)
+# ============================================================
+# 1. ابتدا فونت Roboto رو تنظیم کن
+# ============================================================
+fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
 
+# اطمینان از وجود فایل Roboto.ttf
+roboto_path = os.path.join(fonts_dir, 'Roboto.ttf')
+if not os.path.exists(roboto_path):
+    amiri_path = os.path.join(fonts_dir, 'Amiri-Regular.ttf')
+    if os.path.exists(amiri_path):
+        shutil.copy2(amiri_path, roboto_path)
+        print("Roboto.ttf از Amiri ساخته شد")
+
+# همچنین در مسیر Kivy هم کپی کن
+try:
+    import kivy
+    kivy_fonts_dir = os.path.join(os.path.dirname(kivy.__file__), 'data', 'fonts')
+    kivy_roboto_path = os.path.join(kivy_fonts_dir, 'Roboto.ttf')
+    if not os.path.exists(kivy_roboto_path) and os.path.exists(roboto_path):
+        os.makedirs(kivy_fonts_dir, exist_ok=True)
+        shutil.copy2(roboto_path, kivy_roboto_path)
+        print(f"Roboto.ttf کپی شد به: {kivy_roboto_path}")
+except:
+    pass
+
+# ============================================================
+# 2. سپس Kivy رو import کن
+# ============================================================
 from kivy.config import Config
+
+# تنظیم فونت پیش‌فرض قبل از هر چیز
+Config.set('kivy', 'default_font', [
+    os.path.join(fonts_dir, 'Roboto.ttf'),
+    os.path.join(fonts_dir, 'Amiri-Regular.ttf')
+])
+
+# ============================================================
+# 3. حالا بقیه import‌ها
+# ============================================================
 from kivy.core.text import LabelBase
 from kivy.app import App
 from kivy.core.window import Window
@@ -36,8 +71,6 @@ from screens import (
     SupervisorScreen,
     DistributorScreen,
     DistributorReportScreen
- 
-
 )
 
 # ========== تنظیم فونت ==========
@@ -74,6 +107,15 @@ def setup_font():
         os.path.join(os.path.dirname(__file__), "fonts", "NotoNasrArabic-Regular.ttf"),
         os.path.join(os.path.dirname(__file__), "fonts", "Vazirmatn-Regular.ttf"),
     ]
+
+    # در اندروید از فونت سیستمی استفاده کن
+    if platform == 'android':
+        font_paths.extend([
+            '/system/fonts/NotoNaskhArabic-Regular.ttf',
+            '/system/fonts/NotoSansArabic-Regular.ttf',
+            '/system/fonts/DroidNaskh-Regular.ttf',
+            '/system/fonts/DroidSansFallback.ttf',
+        ])
 
     font_path = None
 
@@ -154,7 +196,7 @@ class ScreenManagement(ScreenManager):
 
 class MainApp(App):
     # ============================================================
-    # اضافه شده: متغیر برای ذخیره نقش کاربر فعلی
+    # متغیر برای ذخیره نقش کاربر فعلی
     # ============================================================
     current_user_role = ''
     
@@ -176,7 +218,7 @@ class MainApp(App):
             sm.add_widget(DebugScreen(name='debug'))
             sm.add_widget(AgentsScreen(name='agents'))
             sm.add_widget(SupervisorScreen(name='supervisor'))
-            sm.add_widget(DistributorScreen(name='distributor')) 
+            sm.add_widget(DistributorScreen(name='distributor'))
             sm.add_widget(DistributorReportScreen(name='distributor_report'))
 
             Window.bind(on_keyboard=self.on_keyboard)
@@ -250,14 +292,19 @@ class MainApp(App):
                     'work_start_time': '08:00',
                     'first_visit_time': '09:00',
                     'min_daily_hours': 6,
-                    'first_customer_of_route': ''
+                    'first_customer_of_route': '',
+                    'distributor_target_customers': 30,
+                    'distributor_target_invoices': 15,
+                    'distributor_target_amount': 30000000,
+                    'distributor_target_cash': 15000000,
+                    'distributor_target_check': 10000000,
+                    'distributor_target_credit': 5000000
                 },
                 'daily_log.json': {},
                 'users.json': {'users': []},
                 'codes.json': {'codes': []},
                 'admin_password.json': {'hashed_password': hashed_default},
                 'targets.json': {'targets': []}
-
             }
             
             from utils.storage import get_data_path
