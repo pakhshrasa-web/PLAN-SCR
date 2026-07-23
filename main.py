@@ -4,6 +4,8 @@
 import os
 import sys
 import shutil
+import json         
+import traceback    
 
 # ============================================================
 # 1. ابتدا فونت Roboto رو تنظیم کن
