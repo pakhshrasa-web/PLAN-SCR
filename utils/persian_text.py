@@ -1,6 +1,6 @@
 """
 تبدیل متن فارسی به تصویر با استفاده از Pillow
-✅ با پشتیبانی کامل از RTL (با bidi + reshape)
+با پشتیبانی کامل از RTL (با bidi + reshape)
 """
 
 from kivy.graphics.texture import Texture
@@ -12,24 +12,23 @@ import os
 try:
     import arabic_reshaper
     HAS_RESHAPER = True
-    print("✅ arabic_reshaper بارگذاری شد")
+    print("arabic_reshaper بارگذاری شد")
 except ImportError:
     HAS_RESHAPER = False
-    print("⚠️ arabic_reshaper در دسترس نیست")
+    print("arabic_reshaper در دسترس نیست")
 
 try:
     from bidi.algorithm import get_display
     HAS_BIDI = True
-    print("✅ python-bidi بارگذاری شد")
+    print("python-bidi بارگذاری شد")
 except ImportError:
     HAS_BIDI = False
-    print("⚠️ python-bidi در دسترس نیست")
+    print("python-bidi در دسترس نیست")
 
 
 # ============================================================
 # تابع تبدیل عدد به حروف - خارج از کلاس
 # ============================================================
-# utils/persian_text.py
 
 def number_to_words(n):
     """تبدیل عدد به حروف فارسی"""
@@ -124,14 +123,14 @@ class PersianLabel(Image):
         self._text = text
         self._font_size = font_size
         
-        # ✅ تبدیل رنگ به int
+        # تبدیل رنگ به int
         if isinstance(color, (tuple, list)):
             self._color = tuple(int(c) for c in color)
         else:
             self._color = (255, 255, 255, 255)
         
         self._font_path = self._find_font()
-        print(f"🔍 فونت انتخاب شده برای PersianLabel: {self._font_path}")
+        print(f"فونت انتخاب شده برای PersianLabel: {self._font_path}")
         self._update_texture()
     
     def _update_texture(self):
@@ -147,33 +146,61 @@ class PersianLabel(Image):
             if HAS_RESHAPER and self._is_rtl(self._text):
                 try:
                     reshaped = arabic_reshaper.reshape(self._text)
-                    print(f"✅ reshape شد: '{self._text}' -> '{reshaped}'")
+                    print(f"reshape شد: '{self._text}' -> '{reshaped}'")
                     
                     if HAS_BIDI:
                         display_text = get_display(reshaped)
-                        print(f"✅ bidi اعمال شد: '{reshaped}' -> '{display_text}'")
+                        print(f"bidi اعمال شد: '{reshaped}' -> '{display_text}'")
                     else:
                         display_text = reshaped
-                        print("⚠️ bidi در دسترس نیست")
+                        print("bidi در دسترس نیست")
                         
                 except Exception as e:
-                    print(f"⚠️ خطا در reshape/bidi: {e}")
+                    print(f"خطا در reshape/bidi: {e}")
                     display_text = self._text
             else:
                 display_text = self._text
             
             # ========== 2. بارگذاری فونت ==========
             font = None
+            
+            # ============================================================
+            # اصلاح: چک کردن اینکه _font_path None نباشه
+            # ============================================================
             if self._font_path and os.path.exists(self._font_path):
                 try:
                     font = ImageFont.truetype(self._font_path, self._font_size)
-                    print(f"✅ فونت بارگذاری شد: {self._font_path}")
+                    print(f"فونت بارگذاری شد: {self._font_path}")
                 except Exception as e:
-                    print(f"⚠️ خطا در بارگذاری فونت: {e}")
+                    print(f"خطا در بارگذاری فونت: {e}")
             
+            # ============================================================
+            # اگر فونت پیدا نشد، از فونت پیش‌فرض استفاده کن
+            # ============================================================
             if font is None:
-                font = ImageFont.load_default()
-                print("⚠️ استفاده از فونت پیش‌فرض")
+                # سعی کن از فونت سیستمی استفاده کنی
+                system_fonts = [
+                    '/system/fonts/NotoNaskhArabic-Regular.ttf',
+                    '/system/fonts/NotoSansArabic-Regular.ttf',
+                    '/system/fonts/DroidNaskh-Regular.ttf',
+                    '/system/fonts/DroidSansFallback.ttf',
+                    'C:/Windows/Fonts/arial.ttf',
+                    'C:/Windows/Fonts/tahoma.ttf',
+                    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+                ]
+                for sys_font in system_fonts:
+                    if os.path.exists(sys_font):
+                        try:
+                            font = ImageFont.truetype(sys_font, self._font_size)
+                            print(f"فونت سیستمی بارگذاری شد: {sys_font}")
+                            break
+                        except:
+                            continue
+                
+                # اگر هیچ فونتی پیدا نشد، از فونت پیش‌فرض Pillow استفاده کن
+                if font is None:
+                    font = ImageFont.load_default()
+                    print("استفاده از فونت پیش‌فرض Pillow")
             
             # ========== 3. اندازه‌گیری دقیق متن ==========
             try:
@@ -182,7 +209,7 @@ class PersianLabel(Image):
                     left, top, right, bottom = bbox
                     text_width = right - left
                     text_height = bottom - top
-                    print(f"📏 getbbox: {text_width}x{text_height}")
+                    print(f"getbbox: {text_width}x{text_height}")
                 else:
                     raise Exception("getbbox failed")
             except:
@@ -192,14 +219,14 @@ class PersianLabel(Image):
                 left, top, right, bottom = bbox
                 text_width = right - left
                 text_height = bottom - top
-                print(f"📏 textbbox: {text_width}x{text_height}")
+                print(f"textbbox: {text_width}x{text_height}")
             
             # ========== 4. ایجاد تصویر با اندازه مناسب ==========
             padding = 20
             width = max(text_width + (padding * 2), 50)
             height = max(text_height + (padding * 2), 30)
             
-            print(f"📐 اندازه نهایی: {width}x{height}")
+            print(f"اندازه نهایی: {width}x{height}")
             
             img = PILImage.new('RGBA', (width, height), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
@@ -208,7 +235,6 @@ class PersianLabel(Image):
             offset_x = padding - min(left, 0)
             offset_y = padding - min(top, 0)
             
-            # ✅ اطمینان از int بودن رنگ
             if isinstance(self._color, (tuple, list)):
                 color = tuple(int(c) for c in self._color)
             else:
@@ -238,10 +264,10 @@ class PersianLabel(Image):
             self.texture = texture
             self.size = texture.size
             
-            print(f"✅ Texture ساخته شد: {self.size}")
+            print(f"Texture ساخته شد: {self.size}")
             
         except Exception as e:
-            print(f"❌ خطا در ایجاد متن: {e}")
+            print(f"خطا در ایجاد متن: {e}")
             import traceback
             traceback.print_exc()
             self.texture = None
@@ -268,18 +294,14 @@ class PersianLabel(Image):
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'Lateef-Regular.ttf'),
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'NotoNasrArabic-Regular.ttf'),
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'Vazirmatn-Regular.ttf'),
-            '/system/fonts/NotoNaskhArabic-Regular.ttf',
-            '/system/fonts/NotoSansArabic-Regular.ttf',
-            '/system/fonts/DroidNaskh-Regular.ttf',
-            '/system/fonts/DroidSansFallback.ttf',
         ]
         
         for path in font_list:
             if os.path.exists(path):
-                print(f"🔍 فونت پیدا شد: {path}")
+                print(f"فونت پیدا شد: {path}")
                 return path
         
-        print("⚠️ هیچ فونت فارسی پیدا نشد!")
+        print("هیچ فونت فارسی پیدا نشد!")
         return None
     
     def set_text(self, text):
