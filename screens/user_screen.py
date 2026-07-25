@@ -79,27 +79,25 @@ class UserScreen(Screen):
             print("ورود به UserScreen")
             print("=" * 50)
             
-            # بارگذاری مجدد نقش (در صورت تغییر)
+            # 1. بارگذاری نقش
             self._load_user_role()
             print(f" نقش کاربر پس از بارگذاری: {self.user_role}")
             
-            # ============================================================
-            # بروزرسانی دکمه‌ها با تاخیر کوتاه
-            # ============================================================
-            Clock.schedule_once(lambda dt: self._update_buttons(), 0.1)
-            
-            # دریافت مجدد تنظیمات
+            # 2. دریافت تنظیمات
             self.settings = get_settings()
             
-            # بارگذاری مجدد داده‌ها بر اساس تب فعلی
+            # 3. بروزرسانی دکمه‌ها
+            Clock.schedule_once(lambda dt: self._update_buttons(), 0.1)
+            
+            # 4. بارگذاری داده‌ها بر اساس نقش
             if self.user_role == 'موزع':
                 self.load_distributor_data()
             else:
                 self.load_data_from_agents()
                 self.update_route_info()
             
-            # بررسی قفل بودن صفحه (بعد از تعیین نقش)
-            Clock.schedule_once(lambda dt: self.check_if_locked(), 0.2)
+            # 5. بررسی قفل (بعد از تعیین نقش و بارگذاری داده‌ها)
+            Clock.schedule_once(lambda dt: self.check_if_locked(), 0.3)
             
             print("=" * 50)
             
@@ -1614,18 +1612,21 @@ class UserScreen(Screen):
                 self.distributor_btn.background_color = (0.3, 0.3, 0.3, 1)
                 self.distributor_btn.color = (0.5, 0.5, 0.5, 1)
             
-            # غیرفعال کردن همه فیلدها
+            # غیرفعال کردن همه فیلدهای ویزیت
             for key, input_field in self.visit_inputs.items():
                 if hasattr(input_field, 'disabled') and hasattr(input_field, '_hidden_input'):
                     input_field._hidden_input.disabled = True
             
+            # غیرفعال کردن همه فیلدهای توزیع
             for key, input_field in self.distributor_inputs.items():
                 if hasattr(input_field, 'disabled') and hasattr(input_field, '_hidden_input'):
                     input_field._hidden_input.disabled = True
             
+            print(f"🔒 صفحه قفل شد برای نقش: {self.user_role}")
+            
         except Exception as e:
             print(f"خطا در قفل کردن صفحه: {e}")
-    
+
     def unlock_page(self):
         """باز کردن صفحه (فعال کردن دکمه‌ها و فیلدها)"""
         try:
@@ -1650,7 +1651,7 @@ class UserScreen(Screen):
                         self.visit_btn.disabled = True
                         self.visit_btn.background_color = (0.2, 0.2, 0.2, 1)
                         self.visit_btn.color = (0.4, 0.4, 0.4, 1)
-                else:
+                else:  # بازاریاب و سایر نقش‌ها
                     if hasattr(self, 'visit_btn'):
                         self.visit_btn.disabled = False
                         self.visit_btn.background_color = (0.8, 0.5, 0.2, 1)
@@ -1661,17 +1662,19 @@ class UserScreen(Screen):
                         self.distributor_btn.background_color = (0.2, 0.2, 0.2, 1)
                         self.distributor_btn.color = (0.4, 0.4, 0.4, 1)
             
-            # فعال کردن فیلدهای ویزیت
+            # فعال کردن فیلدهای ویزیت (فقط فیلدهایی که باید قابل تغییر باشن)
             for key, input_field in self.visit_inputs.items():
                 if hasattr(input_field, 'disabled') and hasattr(input_field, '_hidden_input'):
                     if key != 'route_name' and key != 'visit_date':
                         input_field._hidden_input.disabled = False
             
-            # فعال کردن فیلدهای توزیع
+            # فعال کردن فیلدهای توزیع (فقط فیلدهایی که باید قابل تغییر باشن)
             for key, input_field in self.distributor_inputs.items():
                 if hasattr(input_field, 'disabled') and hasattr(input_field, '_hidden_input'):
                     if key != 'dist_route' and key != 'dist_date':
                         input_field._hidden_input.disabled = False
+            
+            print(f"🔓 صفحه باز شد برای نقش: {self.user_role}")
             
         except Exception as e:
             print(f"خطا در باز کردن صفحه: {e}")

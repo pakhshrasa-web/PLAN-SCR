@@ -1469,9 +1469,7 @@ class DistributorReportScreen(ReportScreen):
             
             summary_data = all_summaries[today]
             
-            # ============================================================
             # بررسی ساعت پایان کار موزع
-            # ============================================================
             has_clock_out = False
             if 'dist_clock_out' in summary_data and summary_data['dist_clock_out']:
                 has_clock_out = True
@@ -1490,6 +1488,35 @@ class DistributorReportScreen(ReportScreen):
             print(f"خطا در باز کردن خودآزمایی توزیع: {e}")
             import traceback
             traceback.print_exc()
+
+    def save_self_score(self, score):
+        """ذخیره نمره خودآزمایی در distributor_summary.json (برای موزع)"""
+        try:
+            today = get_today_jalali()
+            
+            summary_file = 'distributor_summary.json'
+            summary_path = os.path.join(get_data_path(), summary_file)
+            
+            if os.path.exists(summary_path):
+                all_summaries = load_json(summary_file)
+            else:
+                all_summaries = {}
+            
+            if today in all_summaries:
+                all_summaries[today]['self_score'] = score
+            else:
+                all_summaries[today] = {'self_score': score}
+            
+            save_json(summary_file, all_summaries)
+            
+            # بازنشانی کامل فلگ‌ها
+            self._self_assessment_shown = False
+            self._is_processing = False
+            
+            return True
+        except Exception as e:
+            print(f"خطا در ذخیره نمره خودآزمایی توزیع: {e}")
+            return False
 
 
     def _on_self_assessment_dismiss(self, instance):
