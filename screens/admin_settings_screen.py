@@ -579,15 +579,15 @@ class AdminSettingsScreen(Screen):
         """انتخاب همه آیتم‌ها"""
         try:
             all_items = [
-                'ویزیت‌های روزانه بازاریاب (daily_log.json)',
-                'خلاصه پایان کار بازاریاب (daily_summary.json)',
-                'توزیع‌های روزانه موزع (delivery_sale.json)',
-                'خلاصه پایان کار موزع (distributor_summary.json)',
-                'تارگت‌ها (targets.json)',
-                'سرکشی‌های سوپروایزر (supervisor_visits.json)',
-                'عامل‌ها (agents)',
-                'مسیرها (routes)',
-                'مشتریان (customers)'
+                'ویزیت‌های روزانه بازاریاب',  # بدون پسوند
+                'خلاصه پایان کار بازاریاب',
+                'توزیع‌های روزانه موزع',
+                'خلاصه پایان کار موزع',
+                'تارگت‌ها',
+                'سرکشی‌های سوپروایزر',
+                'عامل‌ها',
+                'مسیرها',
+                'مشتریان'
             ]
             self.clean_selected = all_items.copy()
             self._update_selected_list()
@@ -746,21 +746,29 @@ class AdminSettingsScreen(Screen):
             cleaned = []
             errors = []
             
+            # ============================================================
+            # اصلاح: دیکشنری بدون پسوند
+            # ============================================================
             item_keys = {
-                'ویزیت‌های روزانه بازاریاب (daily_log.json)': 'daily_log',
-                'خلاصه پایان کار بازاریاب (daily_summary.json)': 'daily_summary',
-                'توزیع‌های روزانه موزع (delivery_sale.json)': 'delivery_sale',
-                'خلاصه پایان کار موزع (distributor_summary.json)': 'distributor_summary',
-                'تارگت‌ها (targets.json)': 'targets',
-                'سرکشی‌های سوپروایزر (supervisor_visits.json)': 'supervisor_visits',
-                'عامل‌ها (agents)': 'def_agents',
-                'مسیرها (routes)': 'def_routes',
-                'مشتریان (customers)': 'def_customers'
+                'ویزیت‌های روزانه بازاریاب': 'daily_log',
+                'خلاصه پایان کار بازاریاب': 'daily_summary',
+                'توزیع‌های روزانه موزع': 'delivery_sale',
+                'خلاصه پایان کار موزع': 'distributor_summary',
+                'تارگت‌ها': 'targets',
+                'سرکشی‌های سوپروایزر': 'supervisor_visits',
+                'عامل‌ها': 'def_agents',
+                'مسیرها': 'def_routes',
+                'مشتریان': 'def_customers'
             }
+            
+            if not self.clean_selected:
+                self.show_message('خطا', 'هیچ آیتمی برای خام سازی انتخاب نشده است')
+                return
             
             for item in self.clean_selected:
                 key = item_keys.get(item)
                 if not key:
+                    errors.append(f'{item}: کلید معتبر نیست')
                     continue
                     
                 try:
