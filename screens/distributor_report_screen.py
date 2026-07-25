@@ -1227,6 +1227,27 @@ class DistributorReportScreen(ReportScreen):
             if self._is_processing:
                 return
             
+            # ============================================================
+            # بررسی مجدد پایان کار قبل از نمایش خودآزمایی
+            # ============================================================
+            today = get_today_jalali()
+            summary_file = 'distributor_summary.json'
+            summary_path = os.path.join(get_data_path(), summary_file)
+            
+            if os.path.exists(summary_path):
+                all_summaries = load_json(summary_file)
+                if today in all_summaries:
+                    summary_data = all_summaries[today]
+                    has_clock_out = False
+                    if 'dist_clock_out' in summary_data and summary_data['dist_clock_out']:
+                        has_clock_out = True
+                    elif 'clock_out' in summary_data and summary_data['clock_out']:
+                        has_clock_out = True
+                    
+                    if not has_clock_out:
+                        self.show_message('توجه', 'برای ثبت خودآزمایی، ابتدا پایان کار را ثبت کنید.')
+                        return
+            
             self._is_processing = True
 
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
@@ -1430,7 +1451,11 @@ class DistributorReportScreen(ReportScreen):
                 return
             
             today = get_today_jalali()
-            summary_file = 'daily_summary.json'
+            
+            # ============================================================
+            # اصلاح: بررسی فایل خلاصه موزع
+            # ============================================================
+            summary_file = 'distributor_summary.json'
             summary_path = os.path.join(get_data_path(), summary_file)
             
             if not os.path.exists(summary_path):
@@ -1443,7 +1468,17 @@ class DistributorReportScreen(ReportScreen):
                 return
             
             summary_data = all_summaries[today]
-            if 'clock_out' not in summary_data or not summary_data['clock_out']:
+            
+            # ============================================================
+            # بررسی ساعت پایان کار موزع
+            # ============================================================
+            has_clock_out = False
+            if 'dist_clock_out' in summary_data and summary_data['dist_clock_out']:
+                has_clock_out = True
+            elif 'clock_out' in summary_data and summary_data['clock_out']:
+                has_clock_out = True
+            
+            if not has_clock_out:
                 self.show_message('توجه', 'برای ثبت خودآزمایی، ابتدا پایان کار را ثبت کنید.')
                 return
             

@@ -477,7 +477,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(26)
         )
         visit_date.bg_color = (0.15, 0.15, 0.15, 1)
         visit_date.border_color = (0.3, 0.3, 0.3, 1)
@@ -522,7 +522,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(40),
             color=(1, 0.8, 0.2, 1),
-            font_size=sp(24),
+            font_size=sp(22),
             font_name='PersianFont',
             halign='center',
             valign='middle',
@@ -544,7 +544,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         clock_in.bg_color = (0.15, 0.15, 0.15, 1)
         clock_in.border_color = (0.3, 0.3, 0.3, 1)
@@ -580,7 +580,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         first_visit_time.bg_color = (0.15, 0.15, 0.15, 1)
         first_visit_time.border_color = (0.3, 0.3, 0.3, 1)
@@ -617,7 +617,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         visited_count.bg_color = (0.15, 0.15, 0.15, 1)
         visited_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -655,7 +655,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         new_customers_count.bg_color = (0.15, 0.15, 0.15, 1)
         new_customers_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -692,7 +692,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         invoices_count.bg_color = (0.15, 0.15, 0.15, 1)
         invoices_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -729,7 +729,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         units_count.bg_color = (0.15, 0.15, 0.15, 1)
         units_count.border_color = (0.3, 0.3, 0.3, 1)
@@ -766,7 +766,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         sales_amount.bg_color = (0.15, 0.15, 0.15, 1)
         sales_amount.border_color = (0.3, 0.3, 0.3, 1)
@@ -808,7 +808,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         cash_sales.bg_color = (0.15, 0.15, 0.15, 1)
         cash_sales.border_color = (0.3, 0.3, 0.3, 1)
@@ -850,7 +850,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         check_sales.bg_color = (0.15, 0.15, 0.15, 1)
         check_sales.border_color = (0.3, 0.3, 0.3, 1)
@@ -892,7 +892,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         credit_sales.bg_color = (0.15, 0.15, 0.15, 1)
         credit_sales.border_color = (0.3, 0.3, 0.3, 1)
@@ -933,7 +933,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         last_visit_time.bg_color = (0.15, 0.15, 0.15, 1)
         last_visit_time.border_color = (0.3, 0.3, 0.3, 1)
@@ -969,7 +969,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         clock_out.bg_color = (0.15, 0.15, 0.15, 1)
         clock_out.border_color = (0.3, 0.3, 0.3, 1)
@@ -1035,7 +1035,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_date.bg_color = (0.15, 0.15, 0.15, 1)
         dist_date.border_color = (0.3, 0.3, 0.3, 1)
@@ -1102,7 +1102,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_clock_in.bg_color = (0.15, 0.15, 0.15, 1)
         dist_clock_in.border_color = (0.3, 0.3, 0.3, 1)
@@ -1138,7 +1138,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_first_time.bg_color = (0.15, 0.15, 0.15, 1)
         dist_first_time.border_color = (0.3, 0.3, 0.3, 1)
@@ -1176,7 +1176,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_customers.bg_color = (0.15, 0.15, 0.15, 1)
         dist_customers.border_color = (0.3, 0.3, 0.3, 1)
@@ -1213,7 +1213,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_invoices.bg_color = (0.15, 0.15, 0.15, 1)
         dist_invoices.border_color = (0.3, 0.3, 0.3, 1)
@@ -1250,7 +1250,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_amount.bg_color = (0.15, 0.15, 0.15, 1)
         dist_amount.border_color = (0.3, 0.3, 0.3, 1)
@@ -1292,7 +1292,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_cash.bg_color = (0.15, 0.15, 0.15, 1)
         dist_cash.border_color = (0.3, 0.3, 0.3, 1)
@@ -1334,7 +1334,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_check.bg_color = (0.15, 0.15, 0.15, 1)
         dist_check.border_color = (0.3, 0.3, 0.3, 1)
@@ -1376,7 +1376,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_credit.bg_color = (0.15, 0.15, 0.15, 1)
         dist_credit.border_color = (0.3, 0.3, 0.3, 1)
@@ -1418,7 +1418,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_return_qty.bg_color = (0.15, 0.15, 0.15, 1)
         dist_return_qty.border_color = (0.3, 0.3, 0.3, 1)
@@ -1455,7 +1455,7 @@ class UserScreen(Screen):
             size_hint_y=None,
             height=dp(75),
             input_filter='int',
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_return_amount.bg_color = (0.15, 0.15, 0.15, 1)
         dist_return_amount.border_color = (0.3, 0.3, 0.3, 1)
@@ -1491,7 +1491,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_last_time.bg_color = (0.15, 0.15, 0.15, 1)
         dist_last_time.border_color = (0.3, 0.3, 0.3, 1)
@@ -1527,7 +1527,7 @@ class UserScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(75),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         dist_clock_out.bg_color = (0.15, 0.15, 0.15, 1)
         dist_clock_out.border_color = (0.3, 0.3, 0.3, 1)
@@ -2222,8 +2222,15 @@ class UserScreen(Screen):
                 if not log_data.get('last_visit_time') or log_data.get('last_visit_time') == '':
                     log_data['last_visit_time'] = current_time
             else:
-                inputs['dist_clock_out'].text = current_time
-                log_data['dist_clock_out'] = current_time
+                # ============================================================
+                # اصلاح: ذخیره ساعت پایان کار برای موزع
+                # ============================================================
+                if 'dist_clock_out' in inputs:
+                    inputs['dist_clock_out'].text = current_time
+                    log_data['dist_clock_out'] = current_time
+                else:
+                    log_data['clock_out'] = current_time
+                
                 if not log_data.get('dist_last_time') or log_data.get('dist_last_time') == '':
                     log_data['dist_last_time'] = current_time
             

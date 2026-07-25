@@ -72,7 +72,7 @@ class RegisterScreen(Screen):
             # ========== عنوان ==========
             title = RTLLabel(
                 text='ثبت نام کاربر جدید',
-                font_size=sp(28),
+                font_size=sp(22),
                 size_hint_y=None,
                 height=dp(55),
                 color=(1, 1, 1, 1)
@@ -87,7 +87,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(85),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.code_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.code_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -108,7 +108,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(85),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.username.bg_color = (0.15, 0.15, 0.15, 1)
             self.username.border_color = (0.3, 0.3, 0.3, 1)
@@ -130,7 +130,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(85),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.password.bg_color = (0.15, 0.15, 0.15, 1)
             self.password.border_color = (0.3, 0.3, 0.3, 1)
@@ -154,7 +154,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(85),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.confirm_password.bg_color = (0.15, 0.15, 0.15, 1)
             self.confirm_password.border_color = (0.3, 0.3, 0.3, 1)
@@ -177,7 +177,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(85),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.phone.bg_color = (0.15, 0.15, 0.15, 1)
             self.phone.border_color = (0.3, 0.3, 0.3, 1)
@@ -198,7 +198,7 @@ class RegisterScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(85),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.email.bg_color = (0.15, 0.15, 0.15, 1)
             self.email.border_color = (0.3, 0.3, 0.3, 1)

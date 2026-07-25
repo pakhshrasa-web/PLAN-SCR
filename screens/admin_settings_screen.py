@@ -286,34 +286,34 @@ class AdminSettingsScreen(Screen):
             
             # ========== کامبوباکس انتخاب دسته‌ها ==========
             clean_options = [
-                'ویزیت‌های روزانه بازاریاب (daily_log.json)',
-                'خلاصه پایان کار بازاریاب (daily_summary.json)',
-                'توزیع‌های روزانه موزع (delivery_sale.json)',
-                'خلاصه پایان کار موزع (distributor_summary.json)',
-                'تارگت‌ها (targets.json)',
-                'سرکشی‌های سوپروایزر (supervisor_visits.json)',
-                'عامل‌ها (agents)',
-                'مسیرها (routes)',
-                'مشتریان (customers)'
+                'ویزیت‌های روزانه بازاریاب',
+                'خلاصه پایان کار بازاریاب',
+                'توزیع‌های روزانه موزع',
+                'خلاصه پایان کار موزع',
+                'تارگت‌ها',
+                'سرکشی‌های سوپروایزر',
+                'عامل‌ها',
+                'مسیرها',
+                'مشتریان'
             ]
             
             # نگاشت نام نمایشی به کلید فایل
             self.clean_options_map = {
-                'ویزیت‌های روزانه بازاریاب (daily_log.json)': 'daily_log',
-                'خلاصه پایان کار بازاریاب (daily_summary.json)': 'daily_summary',
-                'توزیع‌های روزانه موزع (delivery_sale.json)': 'delivery_sale',
-                'خلاصه پایان کار موزع (distributor_summary.json)': 'distributor_summary',
-                'تارگت‌ها (targets.json)': 'targets',
-                'سرکشی‌های سوپروایزر (supervisor_visits.json)': 'supervisor_visits',
-                'عامل‌ها (agents)': 'def_agents',
-                'مسیرها (routes)': 'def_routes',
-                'مشتریان (customers)': 'def_customers'
+                'ویزیت‌های روزانه بازاریاب': 'daily_log',
+                'خلاصه پایان کار بازاریاب': 'daily_summary',
+                'توزیع‌های روزانه موزع': 'delivery_sale',
+                'خلاصه پایان کار موزع': 'distributor_summary',
+                'تارگت‌ها': 'targets',
+                'سرکشی‌های سوپروایزر': 'supervisor_visits',
+                'عامل‌ها': 'def_agents',
+                'مسیرها': 'def_routes',
+                'مشتریان': 'def_customers'
             }
             
             self.clean_selected = []
             
             self.clean_combo = PersianComboBox(
-                text='انتخاب کنید...',
+                text='برای خام سازی انتخاب کنید',
                 values=clean_options,
                 height=dp(70)
             )
@@ -353,20 +353,29 @@ class AdminSettingsScreen(Screen):
             layout.add_widget(RTLLabel(
                 text='آیتم‌های انتخاب شده برای خام سازی:',
                 size_hint_y=None,
-                height=dp(30),
+                height=dp(40),
                 font_size=sp(16),
                 color=(0.4, 0.7, 1, 1),
                 bold=True
             ))
-            
+
+            # ============================================================
+            # استفاده از BoxLayout با ارتفاع پویا
+            # ============================================================
+            self.selected_list_container = BoxLayout(
+                orientation='vertical',
+                size_hint_y=None,
+                height=dp(150)  # ارتفاع اولیه
+            )
+
             self.selected_list_scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
-                size_hint_y=0.35,
+                size_hint=(1, 1),
                 scroll_type=['bars', 'content'],
-                bar_width=dp(6)
+                bar_width=dp(8)
             )
-            
+
             self.selected_list = GridLayout(
                 cols=1,
                 spacing=dp(4),
@@ -374,9 +383,66 @@ class AdminSettingsScreen(Screen):
                 padding=dp(5)
             )
             self.selected_list.bind(minimum_height=self.selected_list.setter('height'))
-            
+
             self.selected_list_scroll.add_widget(self.selected_list)
-            layout.add_widget(self.selected_list_scroll)
+            self.selected_list_container.add_widget(self.selected_list_scroll)
+            layout.add_widget(self.selected_list_container)
+
+            # در متد _update_selected_list، ارتفاع رو بر اساس تعداد آیتم‌ها تنظیم کنید:
+            def _update_selected_list(self):
+                """به‌روزرسانی لیست نمایشی آیتم‌های انتخاب شده"""
+                try:
+                    self.selected_list.clear_widgets()
+                    
+                    if not self.clean_selected:
+                        self.selected_list.add_widget(RTLLabel(
+                            text='هیچ آیتمی انتخاب نشده است',
+                            size_hint_y=None,
+                            height=dp(35),
+                            font_size=sp(14),
+                            color=(0.5, 0.5, 0.5, 1)
+                        ))
+                        # تنظیم ارتفاع به حداقل
+                        self.selected_list_container.height = dp(100)
+                        return
+                    
+                    # محاسبه ارتفاع بر اساس تعداد آیتم‌ها
+                    item_count = len(self.clean_selected)
+                    # هر آیتم 35dp + فاصله 4dp
+                    content_height = (item_count * dp(35)) + (item_count * dp(4)) + dp(10)
+                    # محدود کردن ارتفاع
+                    max_height = dp(250)
+                    final_height = min(content_height, max_height)
+                    self.selected_list_container.height = final_height + dp(20)  # + padding
+                    
+                    for item in self.clean_selected:
+                        box = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(5))
+                        
+                        box.add_widget(RTLLabel(
+                            text=f'• {item}',
+                            size_hint_x=0.85,
+                            size_hint_y=None,
+                            height=dp(30),
+                            font_size=sp(14),
+                            color=(0.2, 0.8, 0.2, 1)
+                        ))
+                        
+                        remove_btn = PersianButton(
+                            text='حذف',
+                            size_hint_x=0.15,
+                            size_hint_y=None,
+                            height=dp(28),
+                            background_color=(0.8, 0.2, 0.2, 1),
+                            color=(1, 1, 1, 1),
+                            font_size=sp(12)
+                        )
+                        remove_btn.bind(on_press=lambda x, i=item: self._remove_single_from_list(i))
+                        box.add_widget(remove_btn)
+                        
+                        self.selected_list.add_widget(box)
+                    
+                except Exception as e:
+                    print(f"خطا در به‌روزرسانی لیست: {e}")
             
             # ========== دکمه‌های انتخاب همه و لغو همه ==========
             btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
@@ -610,7 +676,7 @@ class AdminSettingsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(70),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.confirm_clean_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.confirm_clean_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -814,7 +880,7 @@ class AdminSettingsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(32),
+                font_size=sp(22),
                 hint_text='رمز عبور فعلی را وارد کنید'
             )
             self.old_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -842,7 +908,7 @@ class AdminSettingsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(32),
+                font_size=sp(22),
                 hint_text='رمز عبور جدید را وارد کنید'
             )
             self.new_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -870,7 +936,7 @@ class AdminSettingsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(32),
+                font_size=sp(22),
                 hint_text='تکرار رمز عبور جدید'
             )
             self.confirm_password.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1151,7 +1217,7 @@ class AdminSettingsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             self.code_name_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.code_name_input.border_color = (0.3, 0.3, 0.3, 1)

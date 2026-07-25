@@ -71,7 +71,7 @@ class AdminScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=dp(80),
-            font_size=sp(32)
+            font_size=sp(22)
         )
         txt.bg_color = (0.15, 0.15, 0.15, 1)
         txt.border_color = (0.3, 0.3, 0.3, 1)
@@ -1187,7 +1187,7 @@ class AdminScreen(Screen):
                 text='باشه',
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(22),
+                font_size=sp(20),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )

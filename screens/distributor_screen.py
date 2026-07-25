@@ -381,7 +381,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(36)
+                font_size=sp(26)
             )
             search_input.bg_color = (0.15, 0.15, 0.15, 1)
             search_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -611,7 +611,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48)
+                font_size=sp(22)
             )
             customer_name_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_name_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -631,7 +631,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48)
+                font_size=sp(22)
             )
             customer_store_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_store_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -651,7 +651,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48)
+                font_size=sp(22)
             )
             customer_mobile_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_mobile_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -672,7 +672,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48)
+                font_size=sp(22)
             )
             customer_address_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_address_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -896,7 +896,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='شماره فاکتور را وارد کنید'
             )
             invoice_number.bg_color = (0.15, 0.15, 0.15, 1)
@@ -915,7 +915,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='مبلغ فاکتور را وارد کنید'
             )
             self.invoice_amount_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -944,7 +944,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(32),
+                font_size=sp(22),
                 disabled=True
             )
             self.invoice_amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
@@ -1152,14 +1152,14 @@ class DistributorScreen(Screen):
                 text='توضیحات:',
                 size_hint_y=None,
                 height=dp(28),
-                font_size=sp(16),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             description = RTLTextInput(
                 multiline=True,
                 size_hint_y=None,
                 height=dp(90),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='توضیحات اضافی (اختیاری)'
             )
             description.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1345,14 +1345,14 @@ class DistributorScreen(Screen):
                 text='تعداد برگشتی:',
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             return_quantity = RTLTextInput(
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='تعداد',
                 input_filter='int'
             )
@@ -1364,7 +1364,7 @@ class DistributorScreen(Screen):
                 text='مبلغ برگشتی (ریال):',
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             self.return_amount_input = RTLTextInput(
@@ -1372,7 +1372,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='مبلغ'
             )
             self.return_amount_input.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1391,7 +1391,7 @@ class DistributorScreen(Screen):
                 text='مبلغ برگشتی به حروف:',
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(0.4, 0.9, 0.4, 1),
                 bold=True
             ))
@@ -1401,7 +1401,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(32),
+                font_size=sp(22),
                 disabled=True
             )
             self.return_amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
@@ -1445,14 +1445,14 @@ class DistributorScreen(Screen):
                 text='علت برگشتی:',
                 size_hint_y=None,
                 height=dp(30),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             return_reason = RTLTextInput(
                 multiline=True,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='علت برگشت کالا'
             )
             return_reason.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1760,7 +1760,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(40),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(0.4, 0.7, 1, 1),
                 halign='right'
             ))
@@ -1774,7 +1774,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
+                font_size=sp(22),
                 input_filter='float'
             )
             discount_percent.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1790,7 +1790,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
@@ -1804,7 +1804,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
+                font_size=sp(22),
                 input_filter='float'
             )
             other_deductions_percent.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1820,7 +1820,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
@@ -1834,7 +1834,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
+                font_size=sp(22),
                 input_filter='float'
             )
             other_deductions_amount.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1850,7 +1850,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
@@ -1863,7 +1863,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(65),
-                font_size=sp(48),
+                font_size=sp(22),
                 hint_text='توضیحات اضافی (اختیاری)'
             )
             description.bg_color = (0.15, 0.15, 0.15, 1)
@@ -1873,7 +1873,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(65),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
@@ -1889,7 +1889,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.80,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48)
+                font_size=sp(22)
             )
             cash_amount.bg_color = (0.15, 0.15, 0.15, 1)
 
@@ -1966,7 +1966,7 @@ class DistributorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(38),
+                font_size=sp(26),
                 disabled=True
             )
             self.cash_amount_words_field.bg_color = (0.08, 0.12, 0.08, 1)
@@ -1984,7 +1984,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
+                font_size=sp(22),
                 disabled=True
             )
             self.check_amount_display.bg_color = (0.1, 0.1, 0.1, 1)
@@ -1994,7 +1994,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
@@ -2009,7 +2009,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
+                font_size=sp(22),
                 disabled=True
             )
             self.total_received_display.bg_color = (0.1, 0.1, 0.1, 1)
@@ -2019,7 +2019,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(1, 1, 1, 1),
                 halign='right'
             ))
@@ -2034,7 +2034,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.65,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(48),
+                font_size=sp(22),
                 disabled=True
             )
             self.remaining_label.bg_color = (0.1, 0.1, 0.1, 1)
@@ -2044,7 +2044,7 @@ class DistributorScreen(Screen):
                 size_hint_x=0.35,
                 size_hint_y=None,
                 height=dp(45),
-                font_size=sp(18),
+                font_size=sp(22),
                 color=(0.4, 0.7, 1, 1),
                 halign='right'
             ))

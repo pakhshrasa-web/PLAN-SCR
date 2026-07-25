@@ -277,7 +277,7 @@ class SupervisorScreen(Screen):
                 size_hint_y=None,
                 height=dp(80),
                 input_filter='int',
-                font_size=sp(28)
+                font_size=sp(22)
             )
             self.target_value_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.target_value_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -321,7 +321,7 @@ class SupervisorScreen(Screen):
                 size_hint_y=None,
                 height=dp(80),
                 input_filter='int',
-                font_size=sp(28)
+                font_size=sp(22)
             )
             self.duration_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.duration_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -345,7 +345,7 @@ class SupervisorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(28)
+                font_size=sp(22)
             )
             self.start_date_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.start_date_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -369,7 +369,7 @@ class SupervisorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             self.description_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.description_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -885,7 +885,7 @@ class SupervisorScreen(Screen):
                 text='نوع تارگت:',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(24),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             edit_type = PersianComboBox(
@@ -903,7 +903,7 @@ class SupervisorScreen(Screen):
                 text='میزان هدف:',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(24),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             edit_value = RTLTextInput(
@@ -912,7 +912,7 @@ class SupervisorScreen(Screen):
                 size_hint_y=None,
                 height=dp(55),
                 input_filter='int',
-                font_size=sp(32)
+                font_size=sp(22)
             )
             edit_value.bg_color = (0.15, 0.15, 0.15, 1)
             edit_value.border_color = (0.3, 0.3, 0.3, 1)
@@ -925,7 +925,7 @@ class SupervisorScreen(Screen):
                 text='مدت (روز):',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(24),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             edit_duration = RTLTextInput(
@@ -934,7 +934,7 @@ class SupervisorScreen(Screen):
                 size_hint_y=None,
                 height=dp(55),
                 input_filter='int',
-                font_size=sp(32)
+                font_size=sp(22)
             )
             edit_duration.bg_color = (0.15, 0.15, 0.15, 1)
             edit_duration.border_color = (0.3, 0.3, 0.3, 1)
@@ -947,7 +947,7 @@ class SupervisorScreen(Screen):
                 text='تاریخ شروع:',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(24),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             edit_start_date = RTLTextInput(
@@ -955,7 +955,7 @@ class SupervisorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             edit_start_date.bg_color = (0.15, 0.15, 0.15, 1)
             edit_start_date.border_color = (0.3, 0.3, 0.3, 1)
@@ -968,7 +968,7 @@ class SupervisorScreen(Screen):
                 text='وضعیت:',
                 size_hint_y=None,
                 height=dp(25),
-                font_size=sp(24),
+                font_size=sp(22),
                 color=(1, 1, 1, 1)
             ))
             edit_status = PersianComboBox(
@@ -994,7 +994,7 @@ class SupervisorScreen(Screen):
                 multiline=True,
                 size_hint_y=None,
                 height=dp(60),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             edit_description.bg_color = (0.15, 0.15, 0.15, 1)
             edit_description.border_color = (0.3, 0.3, 0.3, 1)
@@ -1220,7 +1220,7 @@ class SupervisorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(65),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             self.fulfillment_start_date.bg_color = (0.15, 0.15, 0.15, 1)
             self.fulfillment_start_date.border_color = (0.3, 0.3, 0.3, 1)
@@ -1242,7 +1242,7 @@ class SupervisorScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(65),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             self.fulfillment_end_date.bg_color = (0.15, 0.15, 0.15, 1)
             self.fulfillment_end_date.border_color = (0.3, 0.3, 0.3, 1)

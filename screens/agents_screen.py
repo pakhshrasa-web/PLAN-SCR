@@ -837,7 +837,7 @@ class AgentsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             customer_name_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_name_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -853,11 +853,11 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             customer_store_input = RTLTextInput(
-                hint_text='نام فروشگاه را وارد کنید (اختیاری)',
+                hint_text='نام فروشگاه را وارد کنید',
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             customer_store_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_store_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -877,7 +877,7 @@ class AgentsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             customer_mobile_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_mobile_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -894,11 +894,11 @@ class AgentsScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             customer_address_input = RTLTextInput(
-                hint_text='آدرس را وارد کنید (اختیاری)',
+                hint_text='آدرس را وارد کنید',
                 multiline=False,
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(24)
+                font_size=sp(22)
             )
             customer_address_input.bg_color = (0.15, 0.15, 0.15, 1)
             customer_address_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -1442,7 +1442,7 @@ class AgentsScreen(Screen):
                 multiline=False,
                 size_hint_y=None,
                 height=dp(75),
-                font_size=sp(32)
+                font_size=sp(22)
             )
             description_input.bg_color = (0.15, 0.15, 0.15, 1)
             description_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -1582,7 +1582,7 @@ class AgentsScreen(Screen):
                 size_hint_y=None,
                 height=dp(70),
                 input_filter='int',
-                font_size=sp(22)
+                font_size=sp(18)
             )
             units_input.bg_color = (0.15, 0.15, 0.15, 1)
             units_input.border_color = (0.3, 0.3, 0.3, 1)
@@ -1606,7 +1606,7 @@ class AgentsScreen(Screen):
                 size_hint_y=None,
                 height=dp(70),
                 input_filter='int',
-                font_size=sp(22)
+                font_size=sp(18)
             )
             self.amount_input.bg_color = (0.15, 0.15, 0.15, 1)
             self.amount_input.border_color = (0.3, 0.3, 0.3, 1)
