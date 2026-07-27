@@ -1,6 +1,7 @@
 # screens/agents_screen.py
 # ========== صفحه ثبت ویزیت بازاریابان با لیست مشتریان ==========
 
+import os         
 import traceback
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
@@ -10,7 +11,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.clock import Clock
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.core.window import Window
 
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
@@ -38,18 +39,21 @@ class AgentsScreen(Screen):
             self.route_confirmed = False
             self.session_new_customers = []
             
-            # ✅ تعریف customers_list_container قبل از build_ui
             self.customers_list_container = GridLayout(
                 cols=1,
                 spacing=dp(6),
                 size_hint_y=None,
                 padding=dp(5)
             )
-            self.customers_list_container.height = dp(50)  # ارتفاع اولیه
+            self.customers_list_container.height = dp(50)
             
             self.settings = get_settings()
             self.selected_customer = None
             self.selected_route = None
+            
+            # متغیرهای دیالوگ تحقق
+            self.fulfillment_file_path = None
+            self.fulfillment_data = []
             
             self.build_ui()
             
@@ -324,7 +328,6 @@ class AgentsScreen(Screen):
                     self.route_confirmed = True
             
             self._last_route_text = self.route_spinner.text
-            # ✅ اضافه کردن تایمر برای بررسی تغییر مسیر
             Clock.schedule_interval(self._check_route_change_with_confirm, 0.3)
             content.add_widget(self.route_spinner)
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
@@ -341,7 +344,7 @@ class AgentsScreen(Screen):
             add_customer_btn.bind(on_press=self.show_add_customer_dialog)
             content.add_widget(add_customer_btn)
             
-            # ========== دکمه انتخاب مشتری (جایگزین لیست قبلی) ==========
+            # ========== دکمه انتخاب مشتری ==========
             select_customer_btn = PersianButton(
                 text='انتخاب مشتری',
                 background_color=(0.2, 0.5, 0.9, 1),
@@ -365,6 +368,19 @@ class AgentsScreen(Screen):
             )
             content.add_widget(self.selected_customer_label)
             
+            # ========== دکمه تحقق ریزتارگت‌ها ==========
+            fulfillment_btn = PersianButton(
+                text='تحقق ریزتارگت‌ها',
+                background_color=(1, 1, 1, 1),
+                color=(1, 0.5, 0, 1),
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                bold=True
+            )
+            fulfillment_btn.bind(on_press=self.show_target_fulfillment_dialog)
+            content.add_widget(fulfillment_btn)
+            
             # ========== دکمه بازگشت ==========
             back_btn = PersianButton(
                 text='بازگشت',
@@ -381,14 +397,12 @@ class AgentsScreen(Screen):
             main_layout.add_widget(scroll)
             self.add_widget(main_layout)
             
-   
             Clock.schedule_interval(self.update_time, 60)
             
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ساخت UI AgentsScreen: {e}", error_details)
             raise
-    
     
     def _check_route_change_with_confirm(self, dt):
         if hasattr(self, 'route_spinner') and not self.route_spinner.main_btn.disabled:
@@ -401,19 +415,14 @@ class AgentsScreen(Screen):
         self.time_label.text = get_current_time()
     
     def update_customers_list(self):
-        """به‌روزرسانی لیست مشتریان"""
         try:
-            # ✅ اگر کانتینر والد ندارد، کاری نکن
             if not hasattr(self, 'customers_list_container') or not self.customers_list_container.parent:
-                print("⚠️ customers_list_container والد ندارد، لیست به‌روز نمی‌شود")
                 return
             
-            # ✅ پاک کردن لیست قبلی
             self.customers_list_container.clear_widgets()
             
             selected_route = self.route_spinner.text
             
-            # ✅ اگر مسیری انتخاب نشده
             if not selected_route:
                 self.customers_list_container.add_widget(RTLLabel(
                     text='لطفاً ابتدا یک مسیر انتخاب کنید',
@@ -427,11 +436,9 @@ class AgentsScreen(Screen):
                     self.customers_list_container.parent.update_from_scroll()
                 return
             
-            # ✅ دریافت مشتریان
             all_customers = get_customers()
             search_text = self.search_input.text.strip()
             
-            # ✅ فیلتر مشتریان
             filtered = []
             for c in all_customers:
                 route_name = c.get('route_name', '').strip()
@@ -443,7 +450,6 @@ class AgentsScreen(Screen):
                     else:
                         filtered.append(customer_name)
             
-            # ✅ اگر مشتری‌ای وجود نداشت
             if not filtered:
                 self.customers_list_container.add_widget(RTLLabel(
                     text='هیچ مشتری‌ای در این مسیر یافت نشد',
@@ -457,7 +463,6 @@ class AgentsScreen(Screen):
                     self.customers_list_container.parent.update_from_scroll()
                 return
             
-            # ✅ ایجاد دکمه‌های مشتریان
             for customer_name in filtered:
                 customer_box = BoxLayout(
                     size_hint_y=None,
@@ -499,38 +504,27 @@ class AgentsScreen(Screen):
                 
                 self.customers_list_container.add_widget(customer_box)
             
-            # ✅ تنظیم ارتفاع کل کانتینر
             total_height = len(filtered) * dp(55) + dp(10)
             self.customers_list_container.height = total_height
             
-            # ✅ به‌روزرسانی اسکرول فقط اگر والد وجود داشته باشه
             if hasattr(self.customers_list_container, 'parent') and self.customers_list_container.parent:
                 self.customers_list_container.parent.update_from_scroll()
             
-            # ✅ دیباگ
-            print(f"✅ ارتفاع کانتینر تنظیم شد: {self.customers_list_container.height}")
-            print(f"✅ تعداد مشتریان نمایش داده شده: {len(filtered)}")
-            
         except Exception as e:
-            error_details = traceback.format_exc()
-            # ✅ فقط لاگ کن، خطا نشون نده چون دیگه از این قابلیت استفاده نمیشه
-            print(f"⚠️ خطا در بروزرسانی لیست مشتریان (نادیده گرفته شد): {e}")
+            print(f"خطا در بروزرسانی لیست مشتریان: {e}")
     
     # ============================================================
-    # دیالوگ انتخاب مشتری (جدید)
+    # دیالوگ انتخاب مشتری
     # ============================================================
     
     def show_customer_selection_dialog(self, instance):
-        """نمایش دیالوگ انتخاب مشتری"""
         try:
             selected_route = self.route_spinner.text
             
-            # ✅ اگر مسیری انتخاب نشده
             if not selected_route:
                 self.show_message('خطا', 'لطفاً ابتدا یک مسیر انتخاب کنید')
                 return
             
-            # ✅ دریافت مشتریان مسیر
             all_customers = get_customers()
             filtered_customers = []
             for c in all_customers:
@@ -541,7 +535,6 @@ class AgentsScreen(Screen):
                 self.show_message('توجه', 'هیچ مشتری‌ای در این مسیر یافت نشد')
                 return
             
-            # ✅ دریافت لیست مشتریان ویزیت شده امروز
             today = get_today_jalali()
             logs = get_daily_logs()
             visited_today = []
@@ -550,7 +543,6 @@ class AgentsScreen(Screen):
                     if isinstance(log, dict):
                         visited_today.append(log.get('customer', ''))
             
-            # ✅ ساخت محتوای دیالوگ
             content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
@@ -558,7 +550,6 @@ class AgentsScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
                             size=lambda i, v: setattr(content_rect, 'size', v))
             
-            # ✅ عنوان با توضیح هایلایت
             title_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(60))
             
             title_layout.add_widget(RTLLabel(
@@ -580,7 +571,6 @@ class AgentsScreen(Screen):
             
             content.add_widget(title_layout)
             
-            # ✅ جستجو
             search_input = RTLTextInput(
                 hint_text='جستجوی مشتری...',
                 multiline=False,
@@ -594,7 +584,6 @@ class AgentsScreen(Screen):
             search_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(search_input)
             
-            # ✅ لیست مشتریان
             customers_scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -611,7 +600,6 @@ class AgentsScreen(Screen):
             )
             customers_grid.bind(minimum_height=customers_grid.setter('height'))
             
-            # ✅ تابع فیلتر کردن
             def filter_customers(text):
                 customers_grid.clear_widgets()
                 search_text = text.strip()
@@ -620,7 +608,6 @@ class AgentsScreen(Screen):
                     if search_text and search_text not in customer:
                         continue
                     
-                    # ✅ تشخیص ویزیت شده امروز
                     is_visited = customer in visited_today
                     
                     customer_btn = PersianButton(
@@ -638,14 +625,12 @@ class AgentsScreen(Screen):
                 
                 customers_grid.height = len(customers_grid.children) * dp(50) + dp(10)
             
-            # ✅ اصلاح: استفاده از _hidden_input.text برای bind
             search_input._hidden_input.bind(text=lambda i, v: filter_customers(v))
             filter_customers('')
             
             customers_scroll.add_widget(customers_grid)
             content.add_widget(customers_scroll)
             
-            # ✅ دکمه بستن
             close_btn = PersianButton(
                 text='بستن',
                 background_color=(0.3, 0.3, 0.3, 1),
@@ -664,7 +649,6 @@ class AgentsScreen(Screen):
                 auto_dismiss=True
             )
             
-            # ✅ ذخیره popup برای دسترسی بعدی
             self.customer_selection_popup = popup
             
             close_btn.bind(on_press=popup.dismiss)
@@ -675,12 +659,10 @@ class AgentsScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ انتخاب مشتری: {e}", error_details)
     
     def _handle_customer_selection(self, customer_name, dialog_content):
-        """مدیریت انتخاب مشتری از دیالوگ"""
         try:
             today = get_today_jalali()
             logs = get_daily_logs()
             
-            # ✅ بررسی اینکه مشتری امروز ویزیت شده؟
             is_visited_today = False
             if today in logs and isinstance(logs[today], list):
                 for log in logs[today]:
@@ -688,7 +670,6 @@ class AgentsScreen(Screen):
                         is_visited_today = True
                         break
             
-            # ✅ اگر ویزیت شده، سوال بپرس
             if is_visited_today:
                 content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
                 with content.canvas.before:
@@ -738,7 +719,6 @@ class AgentsScreen(Screen):
                 
                 def on_yes(instance):
                     confirm_popup.dismiss()
-                    # ✅ بستن popup انتخاب مشتری
                     if hasattr(self, 'customer_selection_popup'):
                         self.customer_selection_popup.dismiss()
                     self.selected_customer = customer_name
@@ -754,8 +734,6 @@ class AgentsScreen(Screen):
                 confirm_popup.open()
                 
             else:
-                # ✅ ویزیت نشده، مستقیم برو به دیالوگ تأیید
-                # ✅ بستن popup انتخاب مشتری
                 if hasattr(self, 'customer_selection_popup'):
                     self.customer_selection_popup.dismiss()
                 self.selected_customer = customer_name
@@ -775,7 +753,8 @@ class AgentsScreen(Screen):
             self.show_confirm_dialog(customer_name)
     
     # ============================================================
-    # ادامه دیالوگ‌ها (همانند کد قبلی)
+    # دیالوگ‌های افزودن مشتری، تأیید مسیر، ویزیت و فروش
+    # (بدون تغییر - همان کد قبلی)
     # ============================================================
     
     def show_add_customer_dialog(self, instance):
@@ -1762,9 +1741,7 @@ class AgentsScreen(Screen):
                     log_data['sales_amount'] = kwargs.get('sales_amount', 0)
                     log_data['payment_method'] = kwargs.get('payment_method', '')
             
-            # ✅ حذف ویزیت قبلی این مشتری در امروز (برای جایگزینی)
             logs[today] = [log for log in logs[today] if log.get('customer') != customer_name]
-            
             logs[today].append(log_data)
             save_daily_log(today, logs[today])
             
@@ -1784,6 +1761,597 @@ class AgentsScreen(Screen):
         self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
         self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
         self.update_customers_list()
+
+    # ============================================================
+    # دیالوگ تحقق ریزتارگت‌ها (جدید)
+    # ============================================================
+    def show_target_fulfillment_dialog(self, instance):
+        """نمایش دیالوگ تحقق ریزتارگت‌ها"""
+        try:
+            import openpyxl
+            import os
+            from datetime import datetime
+            from utils.storage import get_backup_path
+            from utils.detailed_target_manager import get_all_detailed_targets
+            
+            content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v))
+            
+           
+            # ========== دکمه بارگذاری فایل ==========
+            file_btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            
+            self.fulfillment_file_status = RTLLabel(
+                text='فایلی انتخاب نشده است',
+                size_hint_x=0.5, size_hint_y=None, height=dp(45),
+                font_size=sp(16), color=(0.5, 0.5, 0.5, 1)
+            )
+            file_btn_layout.add_widget(self.fulfillment_file_status)
+            
+            select_file_btn = PersianButton(
+                text='انتخاب فایل',
+                size_hint_x=0.25, size_hint_y=None, height=dp(45),
+                background_color=(0.2, 0.5, 0.8, 1),
+                color=(1, 1, 1, 1), font_size=sp(14)
+            )
+            file_btn_layout.add_widget(select_file_btn)
+            
+            history_btn = PersianButton(
+                text='تاریخچه',
+                size_hint_x=0.25, size_hint_y=None, height=dp(45),
+                background_color=(0.6, 0.4, 0.2, 1),
+                color=(1, 1, 1, 1), font_size=sp(14)
+            )
+            file_btn_layout.add_widget(history_btn)
+            content.add_widget(file_btn_layout)
+            
+            # ========== هدر جدول ==========
+            header_box = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(3))
+            headers = [
+                ('کسر تارگت', 0.22),       # ✅ تغییر عنوان
+                ('تحقق', 0.18),
+                ('تارگت روز', 0.22),
+                ('نام گروه کالا', 0.38)
+            ]
+            for text, size in headers:
+                header_box.add_widget(RTLLabel(
+                    text=text, size_hint_x=size, size_hint_y=None, height=dp(32),
+                    font_size=sp(14), bold=True, color=(0.4, 0.7, 1, 1), halign='center'
+                ))
+            content.add_widget(header_box)
+            
+           
+            # ========== جدول داده‌ها ==========
+            self.fulfillment_data = []
+            self.fulfillment_inputs = []
+            
+            self.fulfillment_scroll = ScrollView(
+                do_scroll_x=False, do_scroll_y=True,
+                size_hint_y=0.55, scroll_type=['bars', 'content'], bar_width=dp(6)
+            )
+            
+            self.fulfillment_grid = GridLayout(
+                cols=1, spacing=dp(3), size_hint_y=None, padding=dp(3)
+            )
+            self.fulfillment_grid.bind(minimum_height=self.fulfillment_grid.setter('height'))
+            
+            self.fulfillment_grid.add_widget(RTLLabel(
+                text='لطفاً فایل اکسل ریزتارگت را انتخاب کنید',
+                size_hint_y=None, height=dp(40),
+                font_size=sp(16), color=(0.5, 0.5, 0.5, 1)
+            ))
+            
+            self.fulfillment_scroll.add_widget(self.fulfillment_grid)
+            content.add_widget(self.fulfillment_scroll)
+            
+            # ========== دکمه‌های پایین ==========
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            
+            save_btn = PersianButton(
+                text='ثبت ریز تارگت',
+                size_hint_x=0.5, size_hint_y=None, height=dp(45),
+                background_color=(0.2, 0.7, 0.2, 1),
+                color=(1, 1, 1, 1), font_size=sp(16)
+            )
+            btn_layout.add_widget(save_btn)
+            
+            export_btn = PersianButton(
+                text='خروجی اکسل',
+                size_hint_x=0.5, size_hint_y=None, height=dp(45),
+                background_color=(0.8, 0.6, 0.2, 1),
+                color=(1, 1, 1, 1), font_size=sp(16)
+            )
+            btn_layout.add_widget(export_btn)
+            
+            content.add_widget(btn_layout)
+            
+            close_btn = PersianButton(
+                text='بستن', background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None, height=dp(40),
+                color=(1, 1, 1, 1), font_size=sp(16)
+            )
+            content.add_widget(close_btn)
+            
+            popup = PersianPopup(
+                title='تحقق ریزتارگت‌ها', content=content,
+                size_hint=(0.95, 0.9), background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            # ========== رویدادها (بدون تغییر) ==========
+            
+            def select_file(inst):
+                try:
+                    from kivy.utils import platform
+                    
+                    if platform == 'android':
+                        try:
+                            from android.storage import primary_external_storage_path
+                            default_path = primary_external_storage_path()
+                            if default_path:
+                                default_path = os.path.join(default_path, 'Download')
+                        except:
+                            default_path = '/storage/emulated/0/Download'
+                    else:
+                        default_path = os.path.expanduser('~/Downloads')
+                    
+                    if not os.path.exists(default_path):
+                        default_path = '/'
+                    
+                    from plyer import filechooser
+                    filechooser.open_file(
+                        on_selection=lambda sel: self._on_fulfillment_file_selected(
+                            sel, self.fulfillment_file_status, self.fulfillment_grid
+                        ),
+                        filters=[('Excel Files', '*.xlsx')],
+                        path=default_path
+                    )
+                except Exception as e:
+                    self.show_message('خطا', f'امکان انتخاب فایل وجود ندارد:\n{str(e)}')
+            
+            def save_fulfillment(inst):
+                if not self.fulfillment_data:
+                    self.show_message('خطا', 'هیچ داده‌ای برای ثبت وجود ندارد')
+                    return
+                
+                updated = 0
+                all_targets = get_all_detailed_targets()
+                
+                for item in self.fulfillment_data:
+                    target_id = item.get('id')
+                    achieved = item.get('achieved', 0)
+                    
+                    if target_id and achieved > 0:
+                        for t in all_targets:
+                            if t.get('id') == target_id:
+                                current = t.get('achieved_value', 0)
+                                t['achieved_value'] = current + achieved
+                                t['status'] = 'فعال'
+                                updated += 1
+                                break
+                
+                if updated > 0:
+                    import json
+                    from utils.storage import get_data_path
+                    path = os.path.join(get_data_path(), 'detailed_targets.json')
+                    with open(path, 'w', encoding='utf-8') as f:
+                        json.dump(all_targets, f, ensure_ascii=False, indent=2)
+                    self.show_message('موفق', f'{updated} ریزتارگت بروزرسانی شد')
+                else:
+                    self.show_message('خطا', 'هیچ تارگتی بروزرسانی نشد')
+            
+            def export_fulfillment(inst):
+                if not self.fulfillment_data:
+                    self.show_message('خطا', 'داده‌ای برای خروجی وجود ندارد')
+                    return
+                
+                try:
+                    import openpyxl
+                    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+                    from openpyxl.utils import get_column_letter
+                    
+                    wb = openpyxl.Workbook()
+                    ws = wb.active
+                    ws.title = "گزارش تحقق"
+                    
+                    header_font = Font(bold=True, size=11, color="FFFFFF")
+                    header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+                    header_alignment = Alignment(horizontal="center", vertical="center")
+                    thin_border = Border(
+                        left=Side(style='thin'), right=Side(style='thin'),
+                        top=Side(style='thin'), bottom=Side(style='thin')
+                    )
+                    
+                    headers = ['شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'کسر تارگت', 'واحد']
+                    for col, header in enumerate(headers, 1):
+                        cell = ws.cell(row=1, column=col, value=header)
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = header_alignment
+                        cell.border = thin_border
+                    
+                    for row, item in enumerate(self.fulfillment_data, 2):
+                        daily = item.get('daily_target', 1)
+                        achieved = item.get('achieved', 0)
+                        remaining = max(0, daily - achieved)  # ✅ کسر بر اساس تارگت روزانه
+                        
+                        values = [
+                            item.get('id', ''),
+                            item.get('agent_name', ''),
+                            item.get('product_group', ''),
+                            daily,
+                            achieved,
+                            remaining,
+                            item.get('unit', '')
+                        ]
+                        for col, value in enumerate(values, 1):
+                            cell = ws.cell(row=row, column=col, value=value)
+                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                            cell.border = thin_border
+                    
+                    column_widths = [16, 18, 18, 14, 14, 14, 12]
+                    for i, width in enumerate(column_widths, 1):
+                        ws.column_dimensions[get_column_letter(i)].width = width
+                    
+                    today = get_today_jalali().replace('/', '-')
+                    timestamp = datetime.now().strftime('%H%M%S')
+                    filename = f'گزارش_تحقق_{today}_{timestamp}.xlsx'
+                    
+                    export_dir = get_backup_path()
+                    os.makedirs(export_dir, exist_ok=True)
+                    filepath = os.path.join(export_dir, filename)
+                    
+                    wb.save(filepath)
+                    self.show_message('موفق', f'فایل ذخیره شد:\n{filename}')
+                    
+                except ImportError:
+                    self.show_message('خطا', 'ماژول openpyxl نصب نیست')
+                except Exception as e:
+                    self.show_message('خطا', f'خطا در خروجی: {str(e)}')
+            
+            def show_history(inst):
+                """نمایش تاریخچه تحقق ریزتارگت‌ها"""
+                try:
+                    all_targets = get_all_detailed_targets()
+                    
+                    if not all_targets:
+                        self.show_message('اطلاع', 'هیچ ریزتارگتی ثبت نشده است')
+                        return
+                    
+                    fulfilled = [t for t in all_targets if t.get('achieved_value', 0) > 0]
+                    
+                    if not fulfilled:
+                        self.show_message('اطلاع', 'هنوز هیچ تحققی ثبت نشده است')
+                        return
+                    
+                    history_content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
+                    with history_content.canvas.before:
+                        Color(0.12, 0.12, 0.12, 1)
+                        h_rect = Rectangle(pos=history_content.pos, size=history_content.size)
+                        history_content.bind(pos=lambda i, v: setattr(h_rect, 'pos', v),
+                                            size=lambda i, v: setattr(h_rect, 'size', v))
+                    
+                    history_content.add_widget(RTLLabel(
+                        text=f'تاریخچه تحقق ({len(fulfilled)} مورد)',
+                        size_hint_y=None, height=dp(35),
+                        font_size=sp(18), bold=True, color=(0.4, 0.7, 1, 1)
+                    ))
+                    
+                    # ✅ هدر با کسر تارگت
+                    hist_header = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(2))
+                    hist_headers = [
+                        ('کسر', 0.18), ('تحقق', 0.2), ('هدف', 0.2),
+                        ('گروه کالا', 0.25), ('عامل', 0.17)
+                    ]
+                    for text, size in hist_headers:
+                        hist_header.add_widget(RTLLabel(
+                            text=text, size_hint_x=size, size_hint_y=None, height=dp(30),
+                            font_size=sp(13), bold=True, color=(0.4, 0.7, 1, 1), halign='center'
+                        ))
+                    history_content.add_widget(hist_header)
+                    
+                    hist_scroll = ScrollView(
+                        do_scroll_x=False, do_scroll_y=True,
+                        size_hint_y=0.75, scroll_type=['bars', 'content'], bar_width=dp(5)
+                    )
+                    
+                    hist_grid = GridLayout(cols=1, spacing=dp(2), size_hint_y=None, padding=dp(2))
+                    hist_grid.bind(minimum_height=hist_grid.setter('height'))
+                    
+                    for t in fulfilled:
+                        target_count = t.get('target_count', 1)
+                        achieved = t.get('achieved_value', 0)
+                        remaining = target_count - achieved  # ✅ کسر تارگت
+                        
+                        # ✅ رنگ‌بندی بر اساس درصد انجام‌شده
+                        if target_count > 0:
+                            percent_done = (achieved / target_count) * 100
+                            if percent_done < 25:
+                                r_color = (0.8, 0.2, 0.2, 1)
+                            elif percent_done < 50:
+                                r_color = (1, 0.7, 0, 1)
+                            elif percent_done < 75:
+                                r_color = (0.2, 0.6, 1, 1)
+                            else:
+                                r_color = (0.2, 0.8, 0.2, 1)
+                        else:
+                            r_color = (0.5, 0.5, 0.5, 1)
+                        
+                        row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(2))
+                        
+                        row.add_widget(RTLLabel(
+                            text=f"{remaining:,}", size_hint_x=0.18, size_hint_y=None, height=dp(33),
+                            font_size=sp(14), bold=True, color=r_color, halign='center'
+                        ))
+                        row.add_widget(RTLLabel(
+                            text=f"{achieved:,}", size_hint_x=0.2, size_hint_y=None, height=dp(33),
+                            font_size=sp(13), color=(1, 1, 1, 1), halign='center'
+                        ))
+                        row.add_widget(RTLLabel(
+                            text=f"{target_count:,}", size_hint_x=0.2, size_hint_y=None, height=dp(33),
+                            font_size=sp(13), color=(0.8, 0.8, 0.8, 1), halign='center'
+                        ))
+                        row.add_widget(RTLLabel(
+                            text=t.get('product_group', ''), size_hint_x=0.25,
+                            size_hint_y=None, height=dp(33),
+                            font_size=sp(13), color=(1, 1, 1, 1), halign='right'
+                        ))
+                        row.add_widget(RTLLabel(
+                            text=t.get('agent_name', ''), size_hint_x=0.17,
+                            size_hint_y=None, height=dp(33),
+                            font_size=sp(13), color=(0.6, 0.6, 0.6, 1), halign='right'
+                        ))
+                        
+                        hist_grid.add_widget(row)
+                    
+                    hist_scroll.add_widget(hist_grid)
+                    history_content.add_widget(hist_scroll)
+                    
+                    close_hist_btn = PersianButton(
+                        text='بستن', background_color=(0.3, 0.3, 0.3, 1),
+                        size_hint_y=None, height=dp(40),
+                        color=(1, 1, 1, 1), font_size=sp(15)
+                    )
+                    history_content.add_widget(close_hist_btn)
+                    
+                    hist_popup = PersianPopup(
+                        title='تاریخچه تحقق', content=history_content,
+                        size_hint=(0.92, 0.78), background_color=(0.08, 0.08, 0.08, 1),
+                        auto_dismiss=False
+                    )
+                    
+                    close_hist_btn.bind(on_press=hist_popup.dismiss)
+                    hist_popup.open()
+                    
+                except Exception as e:
+                    error_details = traceback.format_exc()
+                    ErrorPopup.show_error(f"خطا در نمایش تاریخچه: {e}", error_details)
+            
+            select_file_btn.bind(on_press=select_file)
+            history_btn.bind(on_press=show_history)
+            save_btn.bind(on_press=save_fulfillment)
+            export_btn.bind(on_press=export_fulfillment)
+            close_btn.bind(on_press=popup.dismiss)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ تحقق: {e}", error_details)
+
+
+    def _on_fulfillment_file_selected(self, selection, status_label, grid):
+        """پردازش فایل اکسل انتخاب شده"""
+        try:
+            import openpyxl
+            import os
+            
+            if not selection:
+                return
+            
+            filepath = selection[0] if isinstance(selection, list) else selection
+            self.fulfillment_file_path = filepath
+            
+            filename = os.path.basename(filepath)
+            status_label.text = f'✅ {filename}'
+            status_label.color = (0.2, 0.8, 0.2, 1)
+            
+            wb = openpyxl.load_workbook(filepath, data_only=True)
+            ws = wb.active
+            
+            col_map = {}
+            for col_idx, cell in enumerate(ws[1], 1):
+                if cell.value:
+                    col_map[str(cell.value).strip()] = col_idx
+            
+            id_col = col_map.get('شناسه ریزتارگت')
+            agent_col = col_map.get('نام عامل')
+            product_col = col_map.get('نام گروه کالا')
+            daily_col = col_map.get('تارگت روزانه')
+            unit_col = col_map.get('واحد تارگت')
+            
+            if not all([id_col, product_col, daily_col]):
+                status_label.text = '❌ ستون‌های مورد نیاز یافت نشد'
+                status_label.color = (0.8, 0.2, 0.2, 1)
+                return
+            
+            self.fulfillment_data = []
+            self.fulfillment_inputs = []
+            grid.clear_widgets()
+            
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row or not row[id_col - 1]:
+                    continue
+                
+                target_id = str(row[id_col - 1]).strip() if row[id_col - 1] else ''
+                agent_name = str(row[agent_col - 1]).strip() if agent_col and row[agent_col - 1] else ''
+                product_group = str(row[product_col - 1]).strip() if row[product_col - 1] else ''
+                daily_target = int(row[daily_col - 1]) if row[daily_col - 1] else 0
+                unit = str(row[unit_col - 1]).strip() if unit_col and row[unit_col - 1] else ''
+                
+                idx = len(self.fulfillment_data)
+                self.fulfillment_data.append({
+                    'id': target_id,
+                    'agent_name': agent_name,
+                    'product_group': product_group,
+                    'daily_target': daily_target,
+                    'unit': unit,
+                    'achieved': 0
+                })
+                
+                row_box = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(3))
+                
+                # ✅ ستون ۱: کسر تارگت
+                remaining_input = RTLTextInput(
+                    text=f"{daily_target:,}", multiline=False, size_hint_x=0.22,
+                    size_hint_y=None, height=dp(50), font_size=sp(24)
+                )
+                remaining_input.bg_color = (0.15, 0.15, 0.15, 1)
+                remaining_input.border_color = (0.4, 0.4, 0.4, 1)
+                remaining_input.border_color_focus = (0.4, 0.4, 0.4, 1)
+                remaining_input._hidden_input.foreground_color = (1, 1, 1, 1)
+                remaining_input._hidden_input.disabled = True
+                remaining_input._hidden_input.halign = 'center'
+                remaining_input._hidden_input.padding = [dp(2), dp(10), dp(2), dp(10)]
+                row_box.add_widget(remaining_input)
+                
+                # ✅ ستون ۲: تحقق - استفاده از TextInput ساده Kivy
+                from kivy.uix.textinput import TextInput
+                
+                achieved_input = TextInput(
+                    text='0',
+                    multiline=False,
+                    size_hint_x=0.18,
+                    size_hint_y=None,
+                    height=dp(50),
+                    input_filter='int',
+                    font_size=sp(24),
+                    font_name='PersianFont',
+                    halign='center',
+                    padding=[dp(2), dp(10), dp(2), dp(10)],
+                    background_color=(0.3, 0.3, 0.3, 1),
+                    foreground_color=(1, 1, 1, 1),
+                    cursor_color=(1, 1, 1, 1),
+                    selection_color=(0.2, 0.5, 0.8, 0.5),
+                    border=(2, 2, 2, 2)
+                )
+                row_box.add_widget(achieved_input)
+                
+                # ✅ ستون ۳: تارگت روز
+                daily_input = RTLTextInput(
+                    text=f"{daily_target:,}", multiline=False, size_hint_x=0.22,
+                    size_hint_y=None, height=dp(50), font_size=sp(24)
+                )
+                daily_input.bg_color = (0.15, 0.15, 0.15, 1)
+                daily_input.border_color = (0.4, 0.4, 0.4, 1)
+                daily_input.border_color_focus = (0.4, 0.4, 0.4, 1)
+                daily_input._hidden_input.foreground_color = (1, 1, 1, 1)
+                daily_input._hidden_input.disabled = True
+                daily_input._hidden_input.halign = 'center'
+                daily_input._hidden_input.padding = [dp(2), dp(10), dp(2), dp(10)]
+                row_box.add_widget(daily_input)
+                
+                # ✅ ستون ۴: نام گروه کالا
+                product_input = RTLTextInput(
+                    text=product_group, multiline=False, size_hint_x=0.38,
+                    size_hint_y=None, height=dp(50), font_size=sp(22)
+                )
+                product_input.bg_color = (0.15, 0.15, 0.15, 1)
+                product_input.border_color = (0.4, 0.4, 0.4, 1)
+                product_input.border_color_focus = (0.4, 0.4, 0.4, 1)
+                product_input._hidden_input.foreground_color = (1, 1, 1, 1)
+                product_input._hidden_input.disabled = True
+                product_input._hidden_input.halign = 'right'
+                product_input._hidden_input.padding = [dp(5), dp(10), dp(5), dp(10)]
+                row_box.add_widget(product_input)
+                
+                self.fulfillment_inputs.append({
+                    'achieved_input': achieved_input,
+                    'remaining_input': remaining_input,
+                    'daily_target': daily_target,
+                    'index': idx
+                })
+                
+                achieved_input.bind(
+                    text=lambda inst, val, i=idx: self._update_fulfillment_remaining(i, val)
+                )
+                
+                grid.add_widget(row_box)
+            
+            wb.close()
+            status_label.text = f'✅ {filename} ({len(self.fulfillment_data)} ردیف)'
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در خواندن فایل: {e}", error_details)
+
+
+    def _update_fulfillment_remaining(self, index, value):
+        """بروزرسانی کسر تارگت روزانه با تغییر عدد تحقق"""
+        try:
+            if index >= len(self.fulfillment_data):
+                return
+            
+            try:
+                achieved = int(value) if value and str(value).strip().isdigit() else 0
+            except:
+                achieved = 0
+            
+            self.fulfillment_data[index]['achieved'] = achieved
+            
+            for inp_data in self.fulfillment_inputs:
+                if inp_data['index'] == index:
+                    daily_target = inp_data['daily_target']
+                    remaining = daily_target - achieved
+                    display_remaining = max(0, remaining)
+                    
+                    # ✅ بروزرسانی فیلد کسر (مستقیم در _hidden_input)
+                    inp_data['remaining_input']._hidden_input.text = f"{display_remaining:,}"
+                    
+                    if daily_target > 0:
+                        ratio = achieved / daily_target
+                        
+                        if ratio < 0.25:
+                            text_color = (0.8, 0.2, 0.2, 1)
+                            bg_color = (0.25, 0.08, 0.08, 1)
+                        elif ratio < 0.50:
+                            text_color = (1, 0.7, 0, 1)
+                            bg_color = (0.25, 0.18, 0.05, 1)
+                        elif ratio < 0.75:
+                            text_color = (0.2, 0.6, 1, 1)
+                            bg_color = (0.05, 0.12, 0.25, 1)
+                        else:
+                            text_color = (0.2, 0.8, 0.2, 1)
+                            bg_color = (0.05, 0.2, 0.05, 1)
+                    else:
+                        text_color = (0.5, 0.5, 0.5, 1)
+                        bg_color = (0.15, 0.15, 0.15, 1)
+                    
+                    inp_data['remaining_input']._hidden_input.foreground_color = text_color
+                    inp_data['remaining_input'].bg_color = bg_color
+                    
+                    # بازسازی canvas
+                    remaining_widget = inp_data['remaining_input']
+                    remaining_widget.canvas.before.clear()
+                    with remaining_widget.canvas.before:
+                        Color(*bg_color)
+                        RoundedRectangle(
+                            pos=remaining_widget.pos,
+                            size=remaining_widget.size,
+                            radius=[dp(3)]
+                        )
+                    break
+                    
+        except Exception as e:
+            print(f"خطا در بروزرسانی کسر تارگت: {e}")
+
+
+    # ============================================================
+    # توابع عمومی
+    # ============================================================
 
     def show_message(self, title, message):
         try:
