@@ -361,9 +361,10 @@ class PersianComboBox(BoxLayout):
         self.add_widget(self.main_btn)
         self.add_widget(self.arrow)
         
+        # ========== اصلاح: مدیریت صحیح observer ها ==========
         self._text_observers = []
         self._last_text = self._text
-        Clock.schedule_interval(self._check_text_change, 0.1)
+        self._clock_event = None  # Clock فقط وقتی schedule میشه که observer وجود داشته باشه
         
         self._dropdown = None
         Clock.schedule_once(self._init_dropdown, 0.1)
@@ -411,15 +412,28 @@ class PersianComboBox(BoxLayout):
             
             self._dropdown.add_widget(btn)
     
+    # ========== اصلاح: _check_text_change فقط وقتی observer داره اجرا بشه ==========
+    def _start_clock_if_needed(self):
+        """شروع Clock فقط در صورت وجود observer"""
+        if self._text_observers and not self._clock_event:
+            self._clock_event = Clock.schedule_interval(self._check_text_change, 0.3)
+    
+    def _stop_clock_if_not_needed(self):
+        """توقف Clock اگر observer ای وجود نداشته باشه"""
+        if not self._text_observers and self._clock_event:
+            Clock.unschedule(self._clock_event)
+            self._clock_event = None
+    
     def _check_text_change(self, dt):
+        """بررسی تغییر متن - فقط وقتی observer وجود داره"""
         current = self.main_btn.text
         if current != self._last_text:
             self._last_text = current
-            for callback in self._text_observers:
+            for callback in self._text_observers[:]:  # کپی از لیست برای جلوگیری از خطای iteration
                 try:
                     callback(self, current)
                 except Exception as e:
-                    print(f"خطا در callback: {e}")
+                    print(f"خطا در callback PersianComboBox: {e}")
     
     def _update_rect(self, *args):
         self.bg.pos = self.main_btn.pos
@@ -438,17 +452,44 @@ class PersianComboBox(BoxLayout):
         self._text = value
         popup.dismiss()
     
+    # ========== اصلاح: bind و unbind ایمن ==========
     def bind(self, **kwargs):
         if 'text' in kwargs:
-            self._text_observers.append(kwargs['text'])
-        return super().bind(**kwargs)
+            callback = kwargs['text']
+            if callback not in self._text_observers:
+                self._text_observers.append(callback)
+                self._start_clock_if_needed()
+            # حذف text از kwargs قبل از پاس دادن به super
+            del kwargs['text']
+        if kwargs:
+            return super().bind(**kwargs)
+        return self
     
     def unbind(self, **kwargs):
         if 'text' in kwargs:
             callback = kwargs['text']
             if callback in self._text_observers:
                 self._text_observers.remove(callback)
-        return super().unbind(**kwargs)
+                self._stop_clock_if_not_needed()
+            del kwargs['text']
+        if kwargs:
+            return super().unbind(**kwargs)
+        return self
+    
+    # ========== پاکسازی در زمان حذف ویجت ==========
+    def on_parent(self, widget, parent):
+        """وقتی از صفحه حذف میشه، Clock رو پاک کن"""
+        if parent is None:
+            self._cleanup()
+    
+    def _cleanup(self):
+        """پاکسازی کامل برای جلوگیری از memory leak"""
+        if self._clock_event:
+            Clock.unschedule(self._clock_event)
+            self._clock_event = None
+        self._text_observers.clear()
+        if self._dropdown:
+            self._dropdown.dismiss()
     
     @property
     def text(self):

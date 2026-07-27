@@ -196,3 +196,152 @@ def delete_daily_log(date):
 def get_all_logs_sorted():
     logs = get_daily_logs()
     return sorted(logs.items(), key=lambda x: x[0], reverse=True)
+
+# ========== مدیریت تنظیمات تارگت ==========
+
+def get_target_settings():
+    """دریافت تنظیمات تارگت (واحدها و دوره‌ها)"""
+    data = load_json('target_settings.json')
+    if not data:
+        data = {
+            'target_units': ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"],
+            'target_periods': ["روزانه", "ماهانه", "فصلی", "سالیانه"]
+        }
+        save_json('target_settings.json', data)
+    return data
+
+def save_target_settings(settings_data):
+    """ذخیره تنظیمات تارگت"""
+    return save_json('target_settings.json', settings_data)
+
+
+# ========== مدیریت واحدهای تارگت ==========
+
+def get_target_units():
+    """دریافت لیست واحدهای تارگت"""
+    settings = get_target_settings()
+    return settings.get('target_units', ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"])
+
+def add_target_unit(name):
+    """افزودن واحد تارگت جدید"""
+    settings = get_target_settings()
+    units = settings.get('target_units', [])
+    if name not in units:
+        units.append(name)
+        settings['target_units'] = units
+        save_target_settings(settings)
+        return True
+    return False
+
+def update_target_unit(old_name, new_name):
+    """ویرایش واحد تارگت"""
+    settings = get_target_settings()
+    units = settings.get('target_units', [])
+    if old_name in units:
+        idx = units.index(old_name)
+        units[idx] = new_name
+        settings['target_units'] = units
+        save_target_settings(settings)
+        return True
+    return False
+
+def delete_target_unit(name):
+    """حذف واحد تارگت"""
+    settings = get_target_settings()
+    units = settings.get('target_units', [])
+    # حداقل ۲ واحد باید باقی بمونه
+    if len(units) <= 2:
+        return False
+    if name in units:
+        units.remove(name)
+        settings['target_units'] = units
+        save_target_settings(settings)
+        return True
+    return False
+
+
+# ========== مدیریت دوره‌های تارگت ==========
+
+def get_target_periods():
+    """دریافت لیست دوره‌های تارگت"""
+    settings = get_target_settings()
+    return settings.get('target_periods', ["روزانه", "ماهانه", "فصلی", "سالیانه"])
+
+def add_target_period(name):
+    """افزودن دوره تارگت جدید"""
+    settings = get_target_settings()
+    periods = settings.get('target_periods', [])
+    if name not in periods:
+        periods.append(name)
+        settings['target_periods'] = periods
+        save_target_settings(settings)
+        return True
+    return False
+
+def update_target_period(old_name, new_name):
+    """ویرایش دوره تارگت"""
+    settings = get_target_settings()
+    periods = settings.get('target_periods', [])
+    if old_name in periods:
+        idx = periods.index(old_name)
+        periods[idx] = new_name
+        settings['target_periods'] = periods
+        save_target_settings(settings)
+        return True
+    return False
+
+def delete_target_period(name):
+    """حذف دوره تارگت"""
+    settings = get_target_settings()
+    periods = settings.get('target_periods', [])
+    # حداقل ۲ دوره باید باقی بمونه
+    if len(periods) <= 2:
+        return False
+    if name in periods:
+        periods.remove(name)
+        settings['target_periods'] = periods
+        save_target_settings(settings)
+        return True
+    return False
+
+
+# ========== مدیریت محصولات (گروه کالا) ==========
+
+def get_product_groups():
+    """دریافت لیست گروه‌های کالا"""
+    data = load_json('products.json')
+    return data.get('product_groups', [])
+
+def add_product_group(name):
+    """افزودن گروه کالا جدید"""
+    data = load_json('products.json')
+    groups = data.get('product_groups', [])
+    if name not in groups:
+        groups.append(name)
+        data['product_groups'] = groups
+        save_json('products.json', data)
+        return True
+    return False
+
+def update_product_group(old_name, new_name):
+    """ویرایش نام گروه کالا"""
+    data = load_json('products.json')
+    groups = data.get('product_groups', [])
+    if old_name in groups:
+        idx = groups.index(old_name)
+        groups[idx] = new_name
+        data['product_groups'] = groups
+        save_json('products.json', data)
+        return True
+    return False
+
+def delete_product_group(name):
+    """حذف گروه کالا"""
+    data = load_json('products.json')
+    groups = data.get('product_groups', [])
+    if name in groups:
+        groups.remove(name)
+        data['product_groups'] = groups
+        save_json('products.json', data)
+        return True
+    return False
