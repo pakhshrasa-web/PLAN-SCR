@@ -8,6 +8,14 @@ import json
 import traceback    
 
 # ============================================================
+# تنظیم لوگو قبل از هر چیز (با Config)
+# ============================================================
+from kivy.config import Config
+
+# تنظیم لوگو برای ویندوز
+Config.set('kivy', 'window_icon', 'icon/kivy-icon-64.ico')
+
+# ============================================================
 # 1. ابتدا فونت Roboto رو تنظیم کن
 # ============================================================
 fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
@@ -35,7 +43,7 @@ except:
 # ============================================================
 # 2. سپس Kivy رو import کن
 # ============================================================
-from kivy.config import Config
+from kivy.config import Config  # قبلاً imported شده
 
 # تنظیم فونت پیش‌فرض قبل از هر چیز
 Config.set('kivy', 'default_font', [
@@ -57,7 +65,6 @@ from kivy.metrics import dp, sp
 # ========== ایمپورت ماژول‌های جدید ==========
 from constants import ROLES, ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD
 from error_handler import ErrorPopup, exception_handler
-
 
 # ========== ایمپورت صفحات ==========
 from screens import (
@@ -230,6 +237,20 @@ class MainApp(App):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در راه‌اندازی برنامه: {e}", error_details)
             return ScreenManager()
+    
+    def on_start(self):
+        """بعد از شروع برنامه - تنظیم لوگو (در صورت نیاز)"""
+        try:
+            if platform == 'win':
+                icon_path = os.path.join(os.path.dirname(__file__), 'icon', 'kivy-icon-64.ico')
+                if os.path.exists(icon_path):
+                    try:
+                        Window.icon = icon_path
+                        print(f"✅ لوگو بارگذاری شد: {icon_path}")
+                    except Exception as e:
+                        print(f"❌ خطا در بارگذاری لوگو: {e}")
+        except Exception as e:
+            print(f"❌ خطا در تنظیم لوگو: {e}")
     
     def on_keyboard(self, window, key, *args):
         if key == 27:
