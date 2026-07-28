@@ -327,7 +327,7 @@ class MainApp(App):
                 'users.json': {'users': []},
                 'codes.json': {'codes': []},
                 'admin_password.json': {'hashed_password': hashed_default},
-                'targets.json': {'targets': []}
+                'targets.json': []
             }
             
             from utils.storage import get_data_path
