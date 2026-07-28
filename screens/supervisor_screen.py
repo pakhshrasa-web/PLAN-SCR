@@ -1520,6 +1520,19 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تب ریزتارگت: {e}", error_details)
 
+    def _check_dt_agent_change(self, dt):
+        """بررسی تغییر عامل در تب ریزتارگت"""
+        if not hasattr(self, 'dt_agent_spinner') or not hasattr(self, 'dt_linked_target'):
+            return
+        try:
+            current = self.dt_agent_spinner.text
+            if current != self._last_dt_agent:
+                self._last_dt_agent = current
+                self._update_dt_linked_targets()
+        except Exception as e:
+            print(f"خطا در _check_dt_agent_change: {e}")
+
+
     def _update_dt_linked_targets(self):
         """بروزرسانی لیست تارگت‌های پیوند بر اساس عامل انتخاب‌شده"""
         try:
@@ -1528,9 +1541,13 @@ class SupervisorScreen(Screen):
             
             agent_name = self.dt_agent_spinner.text
             all_targets = get_all_targets()
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
             unfulfilled = [t for t in all_targets 
-                          if t.get('agent_name') == agent_name 
-                          and t.get('status') in ['در انتظار', 'فعال']]
+                        if isinstance(t, dict)
+                        and t.get('agent_name') == agent_name 
+                        and t.get('status') in ['در انتظار', 'فعال']]
             
             target_labels = [f"{t.get('target_id')} | {t.get('target_type')} | {t.get('target_value'):,}" 
                             for t in unfulfilled] if unfulfilled else ['هیچ تارگت فعالی نیست']
@@ -1544,6 +1561,7 @@ class SupervisorScreen(Screen):
                 
         except Exception as e:
             print(f"خطا در بروزرسانی تارگت‌های پیوند: {e}")
+
 
     # ============================================================
     # دیالوگ‌های مدیریت گروه کالا
