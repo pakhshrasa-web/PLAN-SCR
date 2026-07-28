@@ -33,7 +33,11 @@ def _load_targets() -> List[Dict]:
         path = _get_targets_path()
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+                # ✅ اگه دیکشنری یا هر چیز دیگه بود، لیست خالی برگردون
+                return []
         return []
     except Exception as e:
         logger.error(f"خطا در بارگذاری تارگت‌ها: {e}")
@@ -635,6 +639,69 @@ def export_targets_to_excel(targets: List[Dict], filename: str = None) -> Tuple[
         traceback.print_exc()
         return False, f'خطا در ایجاد فایل اکسل:\n{str(e)}', ''
 
+def get_targets_filtered_advanced(
+    agent_name: str = None,
+    target_type: str = None,
+    status: str = None,
+    period_type: str = None,
+    target_id: str = None,
+    start_date: str = None,
+    end_date: str = None
+) -> List[Dict]:
+    """
+    دریافت تارگت‌ها با فیلترهای پیشرفته
+    
+    Args:
+        agent_name: نام عامل (None = همه)
+        target_type: نوع تارگت (None = همه)
+        status: وضعیت (None = همه)
+        period_type: نوع دوره (None = همه)
+        target_id: جستجوی شامل در شناسه تارگت (None = همه)
+        start_date: تاریخ شروع بازه (None = بدون فیلتر)
+        end_date: تاریخ پایان بازه (None = بدون فیلتر)
+    
+    Returns:
+        List[Dict]: لیست فیلتر شده
+    """
+    try:
+        targets = _load_targets()
+        if not isinstance(targets, list):
+            return []
+        
+        result = targets
+        
+        if agent_name:
+            result = [t for t in result if isinstance(t, dict) and t.get('agent_name') == agent_name]
+        
+        if target_type:
+            result = [t for t in result if isinstance(t, dict) and t.get('target_type') == target_type]
+        
+        if status:
+            result = [t for t in result if isinstance(t, dict) and t.get('status') == status]
+        
+        if period_type:
+            result = [t for t in result if isinstance(t, dict) and t.get('period_type') == period_type]
+        
+        # جستجوی شامل در شناسه تارگت
+        if target_id:
+            search_term = target_id.strip().upper()
+            result = [t for t in result if isinstance(t, dict) and search_term in str(t.get('target_id', '')).upper()]
+        
+        # فیلتر بازه زمانی
+        if start_date:
+            result = [t for t in result if isinstance(t, dict) and t.get('start_date', '') >= start_date]
+        
+        if end_date:
+            result = [t for t in result if isinstance(t, dict) and t.get('start_date', '') <= end_date]
+        
+        # مرتب‌سازی
+        result.sort(key=lambda x: x.get('created_at', '') if isinstance(x, dict) else '', reverse=True)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در فیلتر تارگت‌ها: {e}")
+        return []
 
 # ============================================================
 # تابع تست

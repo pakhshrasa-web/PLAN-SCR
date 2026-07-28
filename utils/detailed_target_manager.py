@@ -32,7 +32,10 @@ def _load() -> List[Dict]:
         path = _get_path()
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+                return []
         return []
     except Exception as e:
         logger.error(f"خطا در بارگذاری ریزتارگت‌ها: {e}")
@@ -91,11 +94,10 @@ def _calculate_end_date(start_date: str, period: str, duration: int) -> str:
                 return 30 if year_mod in leap_years else 29
         
         if period == 'روزانه':
-            # هر روز = ۱ روز اضافه
             total_days = jd
             current_year, current_month = jy, jm
             
-            for _ in range(duration - 1):  # -۱ چون روز شروع رو حساب کردیم
+            for _ in range(duration - 1):
                 total_days += 1
                 if total_days > get_month_days(current_year, current_month):
                     total_days = 1
@@ -107,21 +109,18 @@ def _calculate_end_date(start_date: str, period: str, duration: int) -> str:
             return f"{current_year:04d}/{current_month:02d}/{total_days:02d}"
             
         elif period == 'ماهانه':
-            # ✅ محاسبه ماه آخر دوره
-            total_months = jm + duration - 1  # -۱ چون ماه جاری رو حساب می‌کنیم
+            total_months = jm + duration - 1
             current_year = jy
             
             while total_months > 12:
                 total_months -= 12
                 current_year += 1
             
-            # ✅ آخرین روز ماه مقصد (نه min با روز شروع)
             last_day = get_month_days(current_year, total_months)
             
             return f"{current_year:04d}/{total_months:02d}/{last_day:02d}"
             
         elif period == 'فصلی':
-            # هر فصل = ۳ ماه
             total_months = jm + (duration * 3) - 1
             current_year = jy
             
@@ -161,9 +160,9 @@ def _calculate_daily_target(target_count: int, period: str, duration: int) -> in
     elif period == 'ماهانه':
         divisor = duration * 26
     elif period == 'فصلی':
-        divisor = duration * 78  # 3 × 26
+        divisor = duration * 78
     elif period == 'سالیانه':
-        divisor = duration * 312  # 12 × 26
+        divisor = duration * 312
     else:
         divisor = duration
     
@@ -213,13 +212,8 @@ def create_detailed_target(
         if not validate_jalali_date(start_date):
             return False, 'تاریخ شروع نامعتبر است', None
         
-        # محاسبه تاریخ پایان با تقویم واقعی شمسی
         end_date = _calculate_end_date(start_date, period, duration)
-        
-        # محاسبه تارگت روزانه
         daily_target = _calculate_daily_target(target_count, period, duration)
-        
-        # تولید آیدی
         target_id = _generate_id()
         
         target = {
@@ -262,22 +256,34 @@ def get_all_detailed_targets() -> List[Dict]:
 def get_targets_by_agent(agent_name: str) -> List[Dict]:
     """دریافت ریزتارگت‌های یک عامل"""
     data = _load()
-    return [t for t in data if t.get('agent_name') == agent_name]
+    return [t for t in data if isinstance(t, dict) and t.get('agent_name') == agent_name]
 
 
 def get_targets_by_status(status: str) -> List[Dict]:
     """دریافت ریزتارگت‌ها بر اساس وضعیت"""
     data = _load()
-    return [t for t in data if t.get('status') == status]
+    return [t for t in data if isinstance(t, dict) and t.get('status') == status]
 
 
 def can_edit_target(target: Dict) -> bool:
-    """بررسی قابلیت ویرایش (تحقق نیافته + حداکثر ۱۰ روز از ایجاد)"""
+    """
+    بررسی قابلیت ویرایش
+    
+    شرایط:
+    - وضعیت 'تکمیل شده' → قابل ویرایش نیست
+    - وضعیت 'لغو شده' → قابل ویرایش نیست
+    - حداکثر ۱۰ روز از تاریخ ایجاد گذشته باشد → قابل ویرایش نیست
+    """
     try:
+        if not isinstance(target, dict):
+            return False
+        
+        # ✅ شرط اول: وضعیت تکمیل شده یا لغو شده = قفل
         status = target.get('status', '')
         if status in ['تکمیل شده', 'لغو شده']:
             return False
         
+        # ✅ شرط دوم: حداکثر ۱۰ روز از ایجاد
         created_at = target.get('created_at', '')
         if not created_at:
             return True
@@ -289,7 +295,7 @@ def can_edit_target(target: Dict) -> bool:
         return days_diff <= 10
         
     except Exception as e:
-        logger.error(f"خطا: {e}")
+        logger.error(f"خطا در بررسی ویرایش: {e}")
         return False
 
 
@@ -299,9 +305,12 @@ def update_detailed_target(target_id: str, updates: Dict) -> Tuple[bool, str]:
         data = _load()
         
         for i, target in enumerate(data):
+            if not isinstance(target, dict):
+                continue
+            
             if target.get('id') == target_id:
                 if not can_edit_target(target):
-                    return False, 'این ریزتارگت قابل ویرایش نیست'
+                    return False, 'این ریزتارگت قابل ویرایش نیست (نهایی شده یا منقضی شده)'
                 
                 allowed = ['product_group', 'target_count', 'unit', 'period', 
                           'duration', 'linked_target_id', 'start_date']
@@ -310,7 +319,6 @@ def update_detailed_target(target_id: str, updates: Dict) -> Tuple[bool, str]:
                     if field in allowed:
                         target[field] = value
                 
-                # بازمحاسبه daily_target و end_date
                 target['daily_target'] = _calculate_daily_target(
                     target.get('target_count', 0),
                     target.get('period', ''),
@@ -339,9 +347,12 @@ def delete_detailed_target(target_id: str) -> Tuple[bool, str]:
         data = _load()
         
         for i, target in enumerate(data):
+            if not isinstance(target, dict):
+                continue
+            
             if target.get('id') == target_id:
                 if not can_edit_target(target):
-                    return False, 'این ریزتارگت قابل حذف نیست'
+                    return False, 'این ریزتارگت قابل حذف نیست (نهایی شده یا منقضی شده)'
                 
                 data.pop(i)
                 
@@ -354,6 +365,81 @@ def delete_detailed_target(target_id: str) -> Tuple[bool, str]:
         
     except Exception as e:
         return False, f'خطا: {str(e)}'
+    
+def get_detailed_targets_filtered(
+    agent_name: str = None,
+    product_group: str = None,
+    status: str = None,
+    period: str = None,
+    target_id: str = None,
+    linked_target_id: str = None,
+    start_date: str = None,
+    end_date: str = None
+) -> List[Dict]:
+    """
+    دریافت ریزتارگت‌ها با فیلترهای دلخواه
+    
+    Args:
+        agent_name: نام عامل (None = همه)
+        product_group: گروه کالا (None = همه)
+        status: وضعیت (None = همه)
+        period: دوره (None = همه)
+        target_id: جستجو در شناسه ریزتارگت (None = همه) - جستجوی شامل
+        linked_target_id: جستجو در شناسه تارگت مادر (None = همه) - جستجوی شامل
+        start_date: تاریخ شروع بازه (None = بدون فیلتر)
+        end_date: تاریخ پایان بازه (None = بدون فیلتر)
+    
+    Returns:
+        List[Dict]: لیست فیلتر شده
+    """
+    try:
+        data = _load()
+        if not isinstance(data, list):
+            return []
+        
+        result = data
+        
+        # فیلتر عامل
+        if agent_name:
+            result = [t for t in result if isinstance(t, dict) and t.get('agent_name') == agent_name]
+        
+        # فیلتر گروه کالا
+        if product_group:
+            result = [t for t in result if isinstance(t, dict) and t.get('product_group') == product_group]
+        
+        # فیلتر وضعیت
+        if status:
+            result = [t for t in result if isinstance(t, dict) and t.get('status') == status]
+        
+        # فیلتر دوره
+        if period:
+            result = [t for t in result if isinstance(t, dict) and t.get('period') == period]
+        
+        # جستجوی شامل در شناسه ریزتارگت
+        if target_id:
+            search_term = target_id.strip().upper()
+            result = [t for t in result if isinstance(t, dict) and search_term in str(t.get('id', '')).upper()]
+        
+        # جستجوی شامل در شناسه تارگت مادر
+        if linked_target_id:
+            search_term = linked_target_id.strip().upper()
+            result = [t for t in result if isinstance(t, dict) and search_term in str(t.get('linked_target_id', '')).upper()]
+        
+        # فیلتر بازه زمانی (بر اساس تاریخ شروع)
+        if start_date:
+            result = [t for t in result if isinstance(t, dict) and t.get('start_date', '') >= start_date]
+        
+        if end_date:
+            result = [t for t in result if isinstance(t, dict) and t.get('start_date', '') <= end_date]
+        
+        # مرتب‌سازی بر اساس تاریخ ایجاد (جدیدترین اول)
+        result.sort(key=lambda x: x.get('created_at', '') if isinstance(x, dict) else '', reverse=True)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در فیلتر ریزتارگت‌ها: {e}")
+        return []
 
 
 def export_to_excel(targets: List[Dict], filename: str = None) -> Tuple[bool, str, str]:
@@ -383,14 +469,16 @@ def export_to_excel(targets: List[Dict], filename: str = None) -> Tuple[bool, st
             'شناسه ریزتارگت',
             'نام عامل',
             'دوره تارگت',
-            'تاریخ شروع',        # ✅ همون start_date که سوپروایزر وارد کرده
-            'تاریخ پایان',        # ✅ محاسبه‌شده با تقویم واقعی
-            'تاریخ ایجاد',        # ✅ created_at تبدیل به شمسی
+            'تاریخ شروع',
+            'تاریخ پایان',
+            'تاریخ ایجاد',
             'نام گروه کالا',
             'تعداد تارگت',
             'واحد تارگت',
             'پیوند با تارگت مادر',
-            'تارگت روزانه'
+            'تارگت روزانه',
+            'مقدار محقق شده',
+            'وضعیت'
         ]
         
         for col, header in enumerate(headers, 1):
@@ -401,7 +489,9 @@ def export_to_excel(targets: List[Dict], filename: str = None) -> Tuple[bool, st
             cell.border = thin_border
         
         for row, target in enumerate(targets, 2):
-            # تاریخ ایجاد رو از isoformat به شمسی تبدیل کن
+            if not isinstance(target, dict):
+                continue
+                
             created_at = target.get('created_at', '')
             created_date = ''
             if created_at:
@@ -415,22 +505,24 @@ def export_to_excel(targets: List[Dict], filename: str = None) -> Tuple[bool, st
                 target.get('id', ''),
                 target.get('agent_name', ''),
                 target.get('period', ''),
-                target.get('start_date', ''),       # ✅ تاریخ شروع (همونی که کاربر وارد کرده)
-                target.get('end_date', ''),         # ✅ تاریخ پایان (محاسبه‌شده)
-                created_date,                        # ✅ تاریخ ایجاد (تبدیل به شمسی)
+                target.get('start_date', ''),
+                target.get('end_date', ''),
+                created_date,
                 target.get('product_group', ''),
                 target.get('target_count', 0),
                 target.get('unit', ''),
                 target.get('linked_target_id', ''),
-                target.get('daily_target', 0)
+                target.get('daily_target', 0),
+                target.get('achieved_value', 0),
+                target.get('status', '')
             ]
             
             for col, value in enumerate(values, 1):
                 cell = ws.cell(row=row, column=col, value=value)
-                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.alignment = Alignment(horizontal="center", vertical="center")
                 cell.border = thin_border
         
-        column_widths = [16, 18, 12, 14, 14, 14, 18, 14, 12, 20, 16]
+        column_widths = [16, 18, 12, 14, 14, 14, 18, 14, 12, 20, 16, 16, 14]
         for i, width in enumerate(column_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = width
         
