@@ -2147,6 +2147,13 @@ class SupervisorScreen(Screen):
             
             content.add_widget(filter_row2)
 
+            # ========== عنوان با تعداد ==========
+            filtered_count_label = RTLLabel(
+                text=f'لیست ریزتارگت‌ها ({len(all_targets)} مورد)',
+                size_hint_y=None, height=dp(35),
+                font_size=sp(18), bold=True, color=(0.4, 0.7, 1, 1)
+            )
+            content.add_widget(filtered_count_label)
 
             # ========== جدول ==========
             scroll = ScrollView(
@@ -2160,7 +2167,7 @@ class SupervisorScreen(Screen):
             filtered_list_content.bind(minimum_height=filtered_list_content.setter('height'))
 
             # ========== تابع کمکی ==========
-            def make_field(text, size_x, font_sz=22, fg=(1,1,1,1), halign='center'):
+            def make_field(text, size_x, font_sz=14, fg=(1,1,1,1), halign='center'):
                 fld = RTLTextInput(
                     text=str(text) if text else '', multiline=False,
                     size_hint_x=size_x, size_hint_y=None, height=dp(32),
@@ -2176,6 +2183,7 @@ class SupervisorScreen(Screen):
 
             # ========== تابع نمایش لیست ==========
             def populate_list(filtered_targets):
+                nonlocal filtered_list_content
                 filtered_list_content.clear_widgets()
                 
                 if not filtered_targets:
@@ -2278,6 +2286,7 @@ class SupervisorScreen(Screen):
 
             # ========== رویداد اعمال فیلتر ==========
             def apply_filter(inst):
+                nonlocal filtered_count_label
                 a = filter_agent.text
                 p = filter_product.text
                 s = filter_status.text
