@@ -1122,6 +1122,8 @@ class SupervisorScreen(Screen):
 
             # فیلتر گروه کالا
             product_groups = get_product_groups()
+            if not isinstance(product_groups, list):
+                product_groups = []
             if not product_groups:
                 product_groups = ['']
             product_filter_list = ['همه'] + product_groups
@@ -1161,10 +1163,6 @@ class SupervisorScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
 
-
-            agents = get_agents()
-            agent_names = [a.get('name', '') for a in agents] if agents else ['']
-
             self.dt_agent_spinner = PersianComboBox(
                 text=agent_names[0] if agent_names else '',
                 values=agent_names,
@@ -1191,11 +1189,13 @@ class SupervisorScreen(Screen):
             )
 
             product_groups = get_product_groups()
+            if not isinstance(product_groups, list):
+                product_groups = []
             if not product_groups:
                 product_groups = ['']
 
             self.dt_product_spinner = PersianComboBox(
-                text=product_groups[0],
+                text=product_groups[0] if product_groups else '',
                 values=product_groups,
                 height=dp(75)
             )
@@ -1261,6 +1261,9 @@ class SupervisorScreen(Screen):
             )
 
             units = get_target_units()
+            if not isinstance(units, list):
+                units = ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"]
+            
             self.dt_unit_spinner = PersianComboBox(
                 text=units[0] if units else '',
                 values=units,
@@ -1327,6 +1330,9 @@ class SupervisorScreen(Screen):
             )
 
             periods = get_target_periods()
+            if not isinstance(periods, list):
+                periods = ["روزانه", "ماهانه", "فصلی", "سالیانه"]
+            
             self.dt_period_spinner = PersianComboBox(
                 text=periods[0] if periods else '',
                 values=periods,
@@ -1433,9 +1439,13 @@ class SupervisorScreen(Screen):
             ))
 
             all_targets = get_all_targets()
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
             agent_name = self.dt_agent_spinner.text
             unfulfilled = [t for t in all_targets 
-                        if t.get('agent_name') == agent_name 
+                        if isinstance(t, dict)
+                        and t.get('agent_name') == agent_name 
                         and t.get('status') in ['در انتظار', 'فعال']]
             
             target_labels = [f"{t.get('target_id')} | {t.get('target_type')} | {t.get('target_value'):,}" 
@@ -1509,18 +1519,6 @@ class SupervisorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تب ریزتارگت: {e}", error_details)
-
-    def _check_dt_agent_change(self, dt):
-        """بررسی تغییر عامل در تب ریزتارگت"""
-        if not hasattr(self, 'dt_agent_spinner') or not hasattr(self, 'dt_linked_target'):
-            return
-        try:
-            current = self.dt_agent_spinner.text
-            if current != self._last_dt_agent:
-                self._last_dt_agent = current
-                self._update_dt_linked_targets()
-        except Exception as e:
-            print(f"خطا در _check_dt_agent_change: {e}")
 
     def _update_dt_linked_targets(self):
         """بروزرسانی لیست تارگت‌های پیوند بر اساس عامل انتخاب‌شده"""
