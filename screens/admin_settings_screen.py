@@ -253,7 +253,7 @@ class AdminSettingsScreen(Screen):
             layout = BoxLayout(
                 orientation='vertical',
                 padding=dp(15),
-                spacing=dp(12),
+                spacing=dp(10),
                 size_hint_y=None
             )
             layout.bind(minimum_height=layout.setter('height'))
@@ -268,220 +268,149 @@ class AdminSettingsScreen(Screen):
             ))
             
             layout.add_widget(RTLLabel(
-                text='توجه: این عملیات غیرقابل بازگشت است. لطفاً با دقت انتخاب کنید.',
+                text='توجه: این عملیات غیرقابل بازگشت است.',
                 size_hint_y=None,
-                height=dp(35),
+                height=dp(30),
                 font_size=sp(14),
                 color=(1, 0.8, 0.2, 1)
             ))
             
-            layout.add_widget(RTLLabel(
-                text='انتخاب دسته‌های داده برای خام سازی:',
-                size_hint_y=None,
-                height=dp(30),
-                font_size=sp(16),
-                color=(0.4, 0.7, 1, 1),
-                bold=True
-            ))
-            
-            # ========== کامبوباکس انتخاب دسته‌ها ==========
+            # ========== لیست کامل فایل‌های قابل خام سازی ==========
             clean_options = [
-                'ویزیت‌های روزانه بازاریاب',
-                'خلاصه پایان کار بازاریاب',
-                'توزیع‌های روزانه موزع',
-                'خلاصه پایان کار موزع',
-                'تارگت‌ها',
-                'سرکشی‌های سوپروایزر',
-                'عامل‌ها',
-                'مسیرها',
-                'مشتریان'
+                'ویزیت‌های روزانه بازاریاب (daily_log.json)',
+                'خلاصه پایان کار بازاریاب (daily_summary.json)',
+                'توزیع‌های روزانه موزع (delivery_sale.json)',
+                'خلاصه پایان کار موزع (distributor_summary.json)',
+                'تارگت‌های اصلی (targets.json)',
+                'ریزتارگت‌ها (detailed_targets.json)',
+                'سرکشی‌های سوپروایزر (supervisor_visits.json)',
+                'عامل‌ها (definitions.json > agents)',
+                'مسیرها (definitions.json > routes)',
+                'مشتریان (definitions.json > customers)',
+                'تنظیمات تارگت (target_settings.json)',
+                'محصولات/گروه کالا (products.json)',
+                'کدهای ثبت نام (codes.json)',
+                'کاربران (users.json)',
+                'تنظیمات عمومی (settings.json)',
             ]
             
-            # نگاشت نام نمایشی به کلید فایل
             self.clean_options_map = {
-                'ویزیت‌های روزانه بازاریاب': 'daily_log',
-                'خلاصه پایان کار بازاریاب': 'daily_summary',
-                'توزیع‌های روزانه موزع': 'delivery_sale',
-                'خلاصه پایان کار موزع': 'distributor_summary',
-                'تارگت‌ها': 'targets',
-                'سرکشی‌های سوپروایزر': 'supervisor_visits',
-                'عامل‌ها': 'def_agents',
-                'مسیرها': 'def_routes',
-                'مشتریان': 'def_customers'
+                'ویزیت‌های روزانه بازاریاب (daily_log.json)': 'daily_log',
+                'خلاصه پایان کار بازاریاب (daily_summary.json)': 'daily_summary',
+                'توزیع‌های روزانه موزع (delivery_sale.json)': 'delivery_sale',
+                'خلاصه پایان کار موزع (distributor_summary.json)': 'distributor_summary',
+                'تارگت‌های اصلی (targets.json)': 'targets',
+                'ریزتارگت‌ها (detailed_targets.json)': 'detailed_targets',
+                'سرکشی‌های سوپروایزر (supervisor_visits.json)': 'supervisor_visits',
+                'عامل‌ها (definitions.json > agents)': 'def_agents',
+                'مسیرها (definitions.json > routes)': 'def_routes',
+                'مشتریان (definitions.json > customers)': 'def_customers',
+                'تنظیمات تارگت (target_settings.json)': 'target_settings',
+                'محصولات/گروه کالا (products.json)': 'products',
+                'کدهای ثبت نام (codes.json)': 'codes',
+                'کاربران (users.json)': 'users',
+                'تنظیمات عمومی (settings.json)': 'settings',
             }
             
             self.clean_selected = []
             
+            # کمبوباکس
+            layout.add_widget(RTLLabel(
+                text='انتخاب آیتم برای خام سازی:',
+                size_hint_y=None, height=dp(28),
+                font_size=sp(15), color=(0.4, 0.7, 1, 1), bold=True
+            ))
+            
             self.clean_combo = PersianComboBox(
-                text='برای خام سازی انتخاب کنید',
+                text=clean_options[0],
                 values=clean_options,
-                height=dp(70)
+                height=dp(60)
             )
             self.clean_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             self.clean_combo.main_btn.color = (1, 1, 1, 1)
-            self.clean_combo.main_btn.font_size = sp(18)
+            self.clean_combo.main_btn.font_size = sp(16)
             layout.add_widget(self.clean_combo)
             
-            # دکمه افزودن به لیست انتخاب
-            add_btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            # دکمه‌های افزودن/حذف
+            btn_add_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
             
             add_btn = PersianButton(
-                text='افزودن به لیست حذف',
+                text='افزودن به لیست',
                 background_color=(0.2, 0.5, 0.9, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
+                size_hint_y=None, height=dp(40),
+                color=(1, 1, 1, 1), font_size=sp(15)
             )
             add_btn.bind(on_press=self._add_to_clean_list)
-            add_btn_layout.add_widget(add_btn)
+            btn_add_layout.add_widget(add_btn)
             
             remove_btn = PersianButton(
-                text='حذف از لیست',
+                text='حذف آخرین',
                 background_color=(0.8, 0.5, 0.2, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
+                size_hint_y=None, height=dp(40),
+                color=(1, 1, 1, 1), font_size=sp(15)
             )
             remove_btn.bind(on_press=self._remove_from_clean_list)
-            add_btn_layout.add_widget(remove_btn)
+            btn_add_layout.add_widget(remove_btn)
             
-            layout.add_widget(add_btn_layout)
+            layout.add_widget(btn_add_layout)
             
-            # ========== لیست آیتم‌های انتخاب شده ==========
+            # لیست انتخاب‌ها
             layout.add_widget(RTLLabel(
-                text='آیتم‌های انتخاب شده برای خام سازی:',
-                size_hint_y=None,
-                height=dp(40),
-                font_size=sp(16),
-                color=(0.4, 0.7, 1, 1),
-                bold=True
+                text='آیتم‌های انتخاب شده:',
+                size_hint_y=None, height=dp(28),
+                font_size=sp(15), color=(0.4, 0.7, 1, 1), bold=True
             ))
-
-            # ============================================================
-            # استفاده از BoxLayout با ارتفاع پویا
-            # ============================================================
+            
             self.selected_list_container = BoxLayout(
-                orientation='vertical',
-                size_hint_y=None,
-                height=dp(150)  # ارتفاع اولیه
+                orientation='vertical', size_hint_y=None, height=dp(120)
             )
-
             self.selected_list_scroll = ScrollView(
-                do_scroll_x=False,
-                do_scroll_y=True,
-                size_hint=(1, 1),
-                scroll_type=['bars', 'content'],
-                bar_width=dp(8)
+                do_scroll_x=False, do_scroll_y=True,
+                size_hint=(1, 1), scroll_type=['bars', 'content'], bar_width=dp(6)
             )
-
             self.selected_list = GridLayout(
-                cols=1,
-                spacing=dp(4),
-                size_hint_y=None,
-                padding=dp(5)
+                cols=1, spacing=dp(3), size_hint_y=None, padding=dp(3)
             )
             self.selected_list.bind(minimum_height=self.selected_list.setter('height'))
-
             self.selected_list_scroll.add_widget(self.selected_list)
             self.selected_list_container.add_widget(self.selected_list_scroll)
             layout.add_widget(self.selected_list_container)
-
-            # در متد _update_selected_list، ارتفاع رو بر اساس تعداد آیتم‌ها تنظیم کنید:
-            def _update_selected_list(self):
-                """به‌روزرسانی لیست نمایشی آیتم‌های انتخاب شده"""
-                try:
-                    self.selected_list.clear_widgets()
-                    
-                    if not self.clean_selected:
-                        self.selected_list.add_widget(RTLLabel(
-                            text='هیچ آیتمی انتخاب نشده است',
-                            size_hint_y=None,
-                            height=dp(35),
-                            font_size=sp(14),
-                            color=(0.5, 0.5, 0.5, 1)
-                        ))
-                        # تنظیم ارتفاع به حداقل
-                        self.selected_list_container.height = dp(100)
-                        return
-                    
-                    # محاسبه ارتفاع بر اساس تعداد آیتم‌ها
-                    item_count = len(self.clean_selected)
-                    # هر آیتم 35dp + فاصله 4dp
-                    content_height = (item_count * dp(35)) + (item_count * dp(4)) + dp(10)
-                    # محدود کردن ارتفاع
-                    max_height = dp(250)
-                    final_height = min(content_height, max_height)
-                    self.selected_list_container.height = final_height + dp(20)  # + padding
-                    
-                    for item in self.clean_selected:
-                        box = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(5))
-                        
-                        box.add_widget(RTLLabel(
-                            text=f'• {item}',
-                            size_hint_x=0.85,
-                            size_hint_y=None,
-                            height=dp(30),
-                            font_size=sp(14),
-                            color=(0.2, 0.8, 0.2, 1)
-                        ))
-                        
-                        remove_btn = PersianButton(
-                            text='حذف',
-                            size_hint_x=0.15,
-                            size_hint_y=None,
-                            height=dp(28),
-                            background_color=(0.8, 0.2, 0.2, 1),
-                            color=(1, 1, 1, 1),
-                            font_size=sp(12)
-                        )
-                        remove_btn.bind(on_press=lambda x, i=item: self._remove_single_from_list(i))
-                        box.add_widget(remove_btn)
-                        
-                        self.selected_list.add_widget(box)
-                    
-                except Exception as e:
-                    print(f"خطا در به‌روزرسانی لیست: {e}")
             
-            # ========== دکمه‌های انتخاب همه و لغو همه ==========
-            btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            # دکمه‌های انتخاب همه / پاک کردن
+            btn_all_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
             
             select_all_btn = PersianButton(
                 text='انتخاب همه',
                 background_color=(0.3, 0.3, 0.5, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
+                size_hint_y=None, height=dp(40),
+                color=(1, 1, 1, 1), font_size=sp(15)
             )
             select_all_btn.bind(on_press=self._select_all_clean_items)
-            btn_layout.add_widget(select_all_btn)
+            btn_all_layout.add_widget(select_all_btn)
             
             clear_all_btn = PersianButton(
                 text='پاک کردن لیست',
                 background_color=(0.5, 0.3, 0.3, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
+                size_hint_y=None, height=dp(40),
+                color=(1, 1, 1, 1), font_size=sp(15)
             )
             clear_all_btn.bind(on_press=self._clear_clean_list)
-            btn_layout.add_widget(clear_all_btn)
+            btn_all_layout.add_widget(clear_all_btn)
             
-            layout.add_widget(btn_layout)
+            layout.add_widget(btn_all_layout)
             
-            # ========== دکمه اصلی خام سازی ==========
+            # دکمه اصلی خام سازی
             clean_btn = PersianButton(
                 text='خام سازی انتخاب‌ها',
                 background_color=(0.8, 0.2, 0.2, 1),
-                size_hint_y=None,
-                height=dp(50),
-                color=(1, 1, 1, 1),
-                font_size=sp(18)
+                size_hint_y=None, height=dp(50),
+                color=(1, 1, 1, 1), font_size=sp(18), bold=True
             )
             clean_btn.bind(on_press=self.show_clean_confirm)
             layout.add_widget(clean_btn)
+            
+            # بروزرسانی اولیه
+            self._update_selected_list()
             
             scroll.add_widget(layout)
             self.content_area.add_widget(scroll)
@@ -490,12 +419,12 @@ class AdminSettingsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تب خام سازی: {e}", error_details)
 
+
     def _add_to_clean_list(self, instance):
-        """افزودن آیتم انتخاب شده به لیست خام سازی"""
+        """افزودن آیتم انتخاب شده به لیست"""
         try:
             selected_text = self.clean_combo.text
-            if not selected_text or selected_text == 'انتخاب کنید...':
-                self.show_message('خطا', 'لطفاً یک آیتم را انتخاب کنید')
+            if not selected_text:
                 return
             
             if selected_text in self.clean_selected:
@@ -504,112 +433,90 @@ class AdminSettingsScreen(Screen):
             
             self.clean_selected.append(selected_text)
             self._update_selected_list()
-            
         except Exception as e:
-            print(f"خطا در افزودن به لیست: {e}")
+            print(f"خطا در افزودن: {e}")
+
 
     def _remove_from_clean_list(self, instance):
-        """حذف آیتم انتخاب شده از لیست خام سازی"""
+        """حذف آخرین آیتم"""
         try:
             if not self.clean_selected:
-                self.show_message('توجه', 'لیست خالی است')
                 return
-            
-            # حذف آخرین آیتم
-            removed = self.clean_selected.pop()
+            self.clean_selected.pop()
             self._update_selected_list()
-            
         except Exception as e:
-            print(f"خطا در حذف از لیست: {e}")
+            print(f"خطا در حذف: {e}")
 
-    def _update_selected_list(self):
-        """به‌روزرسانی لیست نمایشی آیتم‌های انتخاب شده"""
-        try:
-            self.selected_list.clear_widgets()
-            
-            if not self.clean_selected:
-                self.selected_list.add_widget(RTLLabel(
-                    text='هیچ آیتمی انتخاب نشده است',
-                    size_hint_y=None,
-                    height=dp(35),
-                    font_size=sp(14),
-                    color=(0.5, 0.5, 0.5, 1)
-                ))
-                return
-            
-            for item in self.clean_selected:
-                box = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(5))
-                
-                box.add_widget(RTLLabel(
-                    text=f'• {item}',
-                    size_hint_x=0.85,
-                    size_hint_y=None,
-                    height=dp(30),
-                    font_size=sp(14),
-                    color=(0.2, 0.8, 0.2, 1)
-                ))
-                
-                remove_btn = PersianButton(
-                    text='حذف',
-                    size_hint_x=0.15,
-                    size_hint_y=None,
-                    height=dp(28),
-                    background_color=(0.8, 0.2, 0.2, 1),
-                    color=(1, 1, 1, 1),
-                    font_size=sp(12)
-                )
-                remove_btn.bind(on_press=lambda x, i=item: self._remove_single_from_list(i))
-                box.add_widget(remove_btn)
-                
-                self.selected_list.add_widget(box)
-            
-        except Exception as e:
-            print(f"خطا در به‌روزرسانی لیست: {e}")
 
     def _remove_single_from_list(self, item):
-        """حذف یک آیتم خاص از لیست"""
+        """حذف یک آیتم خاص"""
         try:
             if item in self.clean_selected:
                 self.clean_selected.remove(item)
                 self._update_selected_list()
         except Exception as e:
-            print(f"خطا در حذف آیتم: {e}")
+            print(f"خطا: {e}")
+
+
+    def _update_selected_list(self):
+        """به‌روزرسانی لیست نمایشی"""
+        try:
+            self.selected_list.clear_widgets()
+            
+            if not self.clean_selected:
+                self.selected_list.add_widget(RTLLabel(
+                    text='هیچ آیتمی انتخاب نشده',
+                    size_hint_y=None, height=dp(35),
+                    font_size=sp(14), color=(0.5, 0.5, 0.5, 1)
+                ))
+                self.selected_list_container.height = dp(80)
+                return
+            
+            # تنظیم ارتفاع
+            item_count = len(self.clean_selected)
+            content_height = item_count * dp(38) + dp(10)
+            self.selected_list_container.height = min(content_height, dp(250)) + dp(10)
+            
+            for item in self.clean_selected:
+                box = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(4))
+                box.add_widget(RTLLabel(
+                    text=f'• {item}',
+                    size_hint_x=0.85, size_hint_y=None, height=dp(32),
+                    font_size=sp(13), color=(0.2, 0.8, 0.2, 1)
+                ))
+                remove_btn = PersianButton(
+                    text='✕', size_hint_x=0.15, size_hint_y=None, height=dp(30),
+                    background_color=(0.8, 0.2, 0.2, 1), color=(1, 1, 1, 1), font_size=sp(13)
+                )
+                remove_btn.bind(on_press=lambda x, i=item: self._remove_single_from_list(i))
+                box.add_widget(remove_btn)
+                self.selected_list.add_widget(box)
+        except Exception as e:
+            print(f"خطا در بروزرسانی لیست: {e}")
+
 
     def _select_all_clean_items(self, instance):
         """انتخاب همه آیتم‌ها"""
         try:
-            all_items = [
-                'ویزیت‌های روزانه بازاریاب',  # بدون پسوند
-                'خلاصه پایان کار بازاریاب',
-                'توزیع‌های روزانه موزع',
-                'خلاصه پایان کار موزع',
-                'تارگت‌ها',
-                'سرکشی‌های سوپروایزر',
-                'عامل‌ها',
-                'مسیرها',
-                'مشتریان'
-            ]
+            all_items = list(self.clean_options_map.keys())
             self.clean_selected = all_items.copy()
             self._update_selected_list()
             self.show_message('توجه', f'{len(all_items)} آیتم انتخاب شد')
-            
         except Exception as e:
-            print(f"خطا در انتخاب همه: {e}")
+            print(f"خطا: {e}")
+
 
     def _clear_clean_list(self, instance):
-        """پاک کردن لیست انتخاب‌ها"""
+        """پاک کردن لیست"""
         try:
-            if not self.clean_selected:
-                return
             self.clean_selected = []
             self._update_selected_list()
-            self.show_message('توجه', 'لیست انتخاب‌ها پاک شد')
-            
         except Exception as e:
-            print(f"خطا در پاک کردن لیست: {e}")
+            print(f"خطا: {e}")
+
 
     def show_clean_confirm(self, instance):
-        """نمایش دیالوگ تأیید خام سازی با لیست انتخاب‌ها"""
+        """نمایش دیالوگ تأیید خام سازی"""
         try:
             if not self.clean_selected:
                 self.show_message('خطا', 'هیچ آیتمی برای خام سازی انتخاب نشده است')
@@ -624,40 +531,24 @@ class AdminSettingsScreen(Screen):
             
             content.add_widget(RTLLabel(
                 text='هشدار: این عملیات غیرقابل بازگشت است!',
-                size_hint_y=None,
-                height=dp(35),
-                font_size=sp(18),
-                color=(0.8, 0.2, 0.2, 1)
+                size_hint_y=None, height=dp(35),
+                font_size=sp(18), color=(0.8, 0.2, 0.2, 1)
             ))
             
             content.add_widget(RTLLabel(
-                text='آیتم‌های انتخاب شده برای حذف:',
-                size_hint_y=None,
-                height=dp(30),
-                font_size=sp(16),
-                color=(1, 1, 1, 1)
+                text=f'{len(self.clean_selected)} آیتم برای حذف انتخاب شده:',
+                size_hint_y=None, height=dp(28),
+                font_size=sp(15), color=(1, 1, 1, 1)
             ))
             
-            list_scroll = ScrollView(
-                do_scroll_x=False,
-                do_scroll_y=True,
-                size_hint_y=0.3
-            )
-            list_content = GridLayout(
-                cols=1,
-                spacing=dp(3),
-                size_hint_y=None,
-                padding=dp(5)
-            )
+            list_scroll = ScrollView(do_scroll_x=False, do_scroll_y=True, size_hint_y=0.3)
+            list_content = GridLayout(cols=1, spacing=dp(3), size_hint_y=None, padding=dp(5))
             list_content.bind(minimum_height=list_content.setter('height'))
             
             for item in self.clean_selected:
                 list_content.add_widget(RTLLabel(
-                    text=f'• {item}',
-                    size_hint_y=None,
-                    height=dp(25),
-                    font_size=sp(14),
-                    color=(1, 0.8, 0.2, 1)
+                    text=f'• {item}', size_hint_y=None, height=dp(25),
+                    font_size=sp(13), color=(1, 0.8, 0.2, 1)
                 ))
             
             list_scroll.add_widget(list_content)
@@ -665,46 +556,29 @@ class AdminSettingsScreen(Screen):
             
             content.add_widget(RTLLabel(
                 text='برای تأیید، عبارت "حذف" را وارد کنید:',
-                size_hint_y=None,
-                height=dp(30),
-                font_size=sp(14),
-                color=(1, 1, 1, 1)
+                size_hint_y=None, height=dp(28),
+                font_size=sp(14), color=(1, 1, 1, 1)
             ))
             
-            self.confirm_clean_input = RTLTextInput(
-                hint_text='عبارت تأیید',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(70),
-                font_size=sp(22)
+            confirm_input = RTLTextInput(
+                hint_text='عبارت تأیید', multiline=False,
+                size_hint_y=None, height=dp(55), font_size=sp(20)
             )
-            self.confirm_clean_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.confirm_clean_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.confirm_clean_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.confirm_clean_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            confirm_input.bg_color = (0.15, 0.15, 0.15, 1)
+            confirm_input.border_color = (0.3, 0.3, 0.3, 1)
+            confirm_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            confirm_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(confirm_input)
             
-            self.confirm_clean_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.confirm_clean_input._hidden_input)
-            
-            content.add_widget(self.confirm_clean_input)
-            
-            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(45))
             
             clean_btn = PersianButton(
-                text='حذف انتخاب‌ها',
-                background_color=(0.8, 0.2, 0.2, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
+                text='حذف انتخاب‌ها', background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None, height=dp(40), color=(1, 1, 1, 1), font_size=sp(15)
             )
             cancel_btn = PersianButton(
-                text='انصراف',
-                background_color=(0.3, 0.3, 0.3, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(16)
+                text='انصراف', background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None, height=dp(40), color=(1, 1, 1, 1), font_size=sp(15)
             )
             
             btn_layout.add_widget(clean_btn)
@@ -712,21 +586,18 @@ class AdminSettingsScreen(Screen):
             content.add_widget(btn_layout)
             
             popup = PersianPopup(
-                title='تأیید خام سازی',
-                content=content,
-                size_hint=(0.85, 0.6),
-                background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
+                title='تأیید خام سازی', content=content,
+                size_hint=(0.85, 0.55), background_color=(0.08, 0.08, 0.08, 1), auto_dismiss=False
             )
             
-            def do_clean(instance):
-                if self.confirm_clean_input.text.strip() != 'حذف':
+            def do_clean(inst):
+                if confirm_input.text.strip() != 'حذف':
                     self.show_message('خطا', 'عبارت تأیید اشتباه است')
                     return
                 popup.dismiss()
                 self._perform_clean_selected()
             
-            def on_cancel(instance):
+            def on_cancel(inst):
                 popup.dismiss()
             
             clean_btn.bind(on_press=do_clean)
@@ -735,42 +606,27 @@ class AdminSettingsScreen(Screen):
             
         except Exception as e:
             error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
+            ErrorPopup.show_error(f"خطا: {e}", error_details)
+
 
     def _perform_clean_selected(self):
-        """اجرای خام سازی بر اساس آیتم‌های انتخاب شده"""
+        """اجرای خام سازی"""
         try:
             from utils.file_manager import load_json, save_json
             
-            data_path = get_data_path()
             cleaned = []
             errors = []
             
-            # ============================================================
-            # اصلاح: دیکشنری بدون پسوند
-            # ============================================================
-            item_keys = {
-                'ویزیت‌های روزانه بازاریاب': 'daily_log',
-                'خلاصه پایان کار بازاریاب': 'daily_summary',
-                'توزیع‌های روزانه موزع': 'delivery_sale',
-                'خلاصه پایان کار موزع': 'distributor_summary',
-                'تارگت‌ها': 'targets',
-                'سرکشی‌های سوپروایزر': 'supervisor_visits',
-                'عامل‌ها': 'def_agents',
-                'مسیرها': 'def_routes',
-                'مشتریان': 'def_customers'
-            }
-            
             if not self.clean_selected:
-                self.show_message('خطا', 'هیچ آیتمی برای خام سازی انتخاب نشده است')
+                self.show_message('خطا', 'هیچ آیتمی انتخاب نشده')
                 return
             
             for item in self.clean_selected:
-                key = item_keys.get(item)
+                key = self.clean_options_map.get(item)
                 if not key:
-                    errors.append(f'{item}: کلید معتبر نیست')
+                    errors.append(f'{item}: کلید نامعتبر')
                     continue
-                    
+                
                 try:
                     if key == 'daily_log':
                         save_json('daily_log.json', {})
@@ -789,54 +645,78 @@ class AdminSettingsScreen(Screen):
                         cleaned.append(item)
                         
                     elif key == 'targets':
-                        save_json('targets.json', {'targets': []})
+                        save_json('targets.json', [])
+                        cleaned.append(item)
+                        
+                    elif key == 'detailed_targets':
+                        save_json('detailed_targets.json', [])
                         cleaned.append(item)
                         
                     elif key == 'supervisor_visits':
-                        save_json('supervisor_visits.json', {'visits': []})
+                        save_json('supervisor_visits.json', [])
                         cleaned.append(item)
                         
-                    elif key == 'def_agents':
+                    elif key == 'target_settings':
+                        save_json('target_settings.json', {
+                            'target_units': ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"],
+                            'target_periods': ["روزانه", "ماهانه", "فصلی", "سالیانه"]
+                        })
+                        cleaned.append(item)
+                        
+                    elif key == 'products':
+                        save_json('products.json', {'product_groups': []})
+                        cleaned.append(item)
+                        
+                    elif key == 'codes':
+                        save_json('codes.json', {'codes': []})
+                        cleaned.append(item)
+                        
+                    elif key == 'users':
+                        save_json('users.json', {'users': []})
+                        cleaned.append(item)
+                        
+                    elif key == 'settings':
+                        save_json('settings.json', {
+                            'supervision_rate': 0.3, 'conversion_rate': 0.25,
+                            'avg_invoice_amount': 1000000, 'target_amount': 50000000,
+                            'target_count': 100, 'target_invoice_count': 20,
+                            'target_customer_count': 50, 'target_new_customer_count': 10,
+                            'target_cash_sales': 30000000, 'target_credit_sales': 20000000,
+                            'work_start_time': '08:00', 'first_visit_time': '09:00',
+                            'min_daily_hours': 6, 'first_customer_of_route': '',
+                            'distributor_target_customers': 30, 'distributor_target_invoices': 15,
+                            'distributor_target_amount': 30000000, 'distributor_target_cash': 15000000,
+                            'distributor_target_check': 10000000, 'distributor_target_credit': 5000000
+                        })
+                        cleaned.append(item)
+                        
+                    elif key in ['def_agents', 'def_routes', 'def_customers']:
                         data = load_json('definitions.json')
                         if data:
-                            data['agents'] = []
+                            field_map = {
+                                'def_agents': 'agents',
+                                'def_routes': 'routes',
+                                'def_customers': 'customers'
+                            }
+                            data[field_map[key]] = []
                             save_json('definitions.json', data)
                             cleaned.append(item)
                         else:
-                            errors.append(f'{item}: فایل definitions.json یافت نشد')
-                            
-                    elif key == 'def_routes':
-                        data = load_json('definitions.json')
-                        if data:
-                            data['routes'] = []
-                            save_json('definitions.json', data)
-                            cleaned.append(item)
-                        else:
-                            errors.append(f'{item}: فایل definitions.json یافت نشد')
-                            
-                    elif key == 'def_customers':
-                        data = load_json('definitions.json')
-                        if data:
-                            data['customers'] = []
-                            save_json('definitions.json', data)
-                            cleaned.append(item)
-                        else:
-                            errors.append(f'{item}: فایل definitions.json یافت نشد')
+                            errors.append(f'{item}: فایل یافت نشد')
                             
                 except Exception as e:
-                    errors.append(f"{item}: {str(e)}")
+                    errors.append(f'{item}: {str(e)}')
             
-            # پاک کردن لیست انتخاب‌ها
             self.clean_selected = []
             self._update_selected_list()
             
             if cleaned:
-                message = 'آیتم‌های زیر با موفقیت خام سازی شدند:\n' + '\n'.join(f'• {c}' for c in cleaned)
+                msg = 'موارد زیر خام سازی شدند:\n' + '\n'.join(f'• {c}' for c in cleaned)
                 if errors:
-                    message += '\n\nخطاها:\n' + '\n'.join(f'• {e}' for e in errors)
-                self.show_message('نتیجه خام سازی', message)
+                    msg += '\n\nخطاها:\n' + '\n'.join(f'• {e}' for e in errors)
+                self.show_message('نتیجه', msg)
             else:
-                self.show_message('خطا', 'هیچ آیتمی خام سازی نشد.\n' + '\n'.join(errors))
+                self.show_message('خطا', 'هیچ موردی خام سازی نشد')
             
             self.switch_tab(4)
             
