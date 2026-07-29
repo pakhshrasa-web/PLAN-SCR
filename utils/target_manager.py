@@ -702,6 +702,105 @@ def get_targets_filtered_advanced(
     except Exception as e:
         logger.error(f"خطا در فیلتر تارگت‌ها: {e}")
         return []
+    
+def check_duplicate_target(agent_name: str, target_type: str, period_type: str) -> Tuple[bool, str, Optional[Dict]]:
+    """
+    بررسی تکراری نبودن تارگت
+    
+    Args:
+        agent_name: نام عامل
+        target_type: نوع تارگت
+        period_type: نوع دوره (daily, weekly, monthly, quarterly, yearly)
+    
+    Returns:
+        Tuple[bool, str, Optional[Dict]]: (مجاز است؟, پیام, تارگت مشابه در صورت وجود)
+    """
+    all_targets = _load_targets()
+    if not isinstance(all_targets, list):
+        return True, '', None
+    
+    # نگاشت دوره برای نمایش فارسی
+    period_display_map = {
+        'daily': 'روزانه',
+        'weekly': 'هفتگی',
+        'monthly': 'ماهانه',
+        'quarterly': 'فصلی',
+        'yearly': 'سالانه'
+    }
+    
+    # ۱. بررسی تکراری بودن دقیق (عامل + نوع + دوره)
+    for t in all_targets:
+        if not isinstance(t, dict):
+            continue
+        if (t.get('agent_name') == agent_name and 
+            t.get('target_type') == target_type and 
+            t.get('period_type') == period_type and
+            t.get('status') in ['در انتظار', 'فعال']):
+            
+            period_display = period_display_map.get(period_type, period_type)
+            return False, f'در دوره انتخابی، تارگت {target_type} {period_display} برای {agent_name} قبلاً تعریف شده است.اطلاعات تکراری است.', t
+    
+    # ۲. بررسی تکراری بودن با دوره متفاوت (عامل + نوع)
+    for t in all_targets:
+        if not isinstance(t, dict):
+            continue
+        if (t.get('agent_name') == agent_name and 
+            t.get('target_type') == target_type and 
+            t.get('period_type') != period_type and
+            t.get('status') in ['در انتظار', 'فعال']):
+            
+            existing_period = t.get('period_type', '')
+            existing_display = period_display_map.get(existing_period, existing_period)
+            new_display = period_display_map.get(period_type, period_type)
+            
+            return False, f'برای {agent_name} تارگت {target_type} {existing_display} ثبت شده است.آیا از ایجاد تارگت {target_type} {new_display} اطمینان دارید؟', t
+    
+    return True, '', None
+
+
+def check_duplicate_detailed_target(agent_name: str, product_group: str, period: str, linked_target_id: str) -> Tuple[bool, str, Optional[Dict]]:
+    """
+    بررسی تکراری نبودن ریزتارگت
+    
+    Args:
+        agent_name: نام عامل
+        product_group: گروه کالا
+        period: دوره (روزانه، ماهانه، فصلی، سالیانه)
+        linked_target_id: شناسه تارگت مادر
+    
+    Returns:
+        Tuple[bool, str, Optional[Dict]]: (مجاز است؟, پیام, ریزتارگت مشابه در صورت وجود)
+    """
+    all_targets = _load()
+    if not isinstance(all_targets, list):
+        return True, '', None
+    
+    # ۱. بررسی تکراری بودن دقیق (عامل + گروه کالا + دوره + تارگت مادر)
+    for t in all_targets:
+        if not isinstance(t, dict):
+            continue
+        if (t.get('agent_name') == agent_name and 
+            t.get('product_group') == product_group and 
+            t.get('period') == period and
+            t.get('linked_target_id') == linked_target_id and
+            t.get('status') in ['در انتظار', 'فعال']):
+            
+            return False, f'ریزتارگت "{product_group}" با دوره {period} برای {agent_name} قبلاً تعریف شده است.اطلاعات تکراری است.', t
+    
+    # ۲. بررسی تکراری بودن با دوره متفاوت (عامل + گروه کالا + تارگت مادر)
+    for t in all_targets:
+        if not isinstance(t, dict):
+            continue
+        if (t.get('agent_name') == agent_name and 
+            t.get('product_group') == product_group and 
+            t.get('period') != period and
+            t.get('linked_target_id') == linked_target_id and
+            t.get('status') in ['در انتظار', 'فعال']):
+            
+            existing_period = t.get('period', '')
+            return False, f'برای {agent_name} ریزتارگت "{product_group}" با دوره {existing_period} ثبت شده است.آیا از ایجاد ریزتارگت با دوره {period} اطمینان دارید؟', t
+    
+    return True, '', None
 
 # ============================================================
 # تابع تست

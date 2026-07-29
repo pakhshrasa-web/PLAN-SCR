@@ -441,6 +441,49 @@ def get_detailed_targets_filtered(
         logger.error(f"خطا در فیلتر ریزتارگت‌ها: {e}")
         return []
 
+def check_duplicate_detailed_target(agent_name: str, product_group: str, period: str, linked_target_id: str) -> Tuple[bool, str, Optional[Dict]]:
+    """
+    بررسی تکراری نبودن ریزتارگت
+    
+    Args:
+        agent_name: نام عامل
+        product_group: گروه کالا
+        period: دوره (روزانه، ماهانه، فصلی، سالیانه)
+        linked_target_id: شناسه تارگت مادر
+    
+    Returns:
+        Tuple[bool, str, Optional[Dict]]: (مجاز است؟, پیام, ریزتارگت مشابه در صورت وجود)
+    """
+    all_targets = _load()
+    if not isinstance(all_targets, list):
+        return True, '', None
+    
+    # ۱. بررسی تکراری بودن دقیق (عامل + گروه کالا + دوره + تارگت مادر)
+    for t in all_targets:
+        if not isinstance(t, dict):
+            continue
+        if (t.get('agent_name') == agent_name and 
+            t.get('product_group') == product_group and 
+            t.get('period') == period and
+            t.get('linked_target_id') == linked_target_id and
+            t.get('status') in ['در انتظار', 'فعال']):
+            
+            return False, f'ریزتارگت "{product_group}" با دوره {period} برای {agent_name} قبلاً تعریف شده است.اطلاعات تکراری است.', t
+    
+    # ۲. بررسی تکراری بودن با دوره متفاوت (عامل + گروه کالا + تارگت مادر)
+    for t in all_targets:
+        if not isinstance(t, dict):
+            continue
+        if (t.get('agent_name') == agent_name and 
+            t.get('product_group') == product_group and 
+            t.get('period') != period and
+            t.get('linked_target_id') == linked_target_id and
+            t.get('status') in ['در انتظار', 'فعال']):
+            
+            existing_period = t.get('period', '')
+            return False, f'برای {agent_name} ریزتارگت "{product_group}" با دوره {existing_period} ثبت شده است.آیا از ایجاد ریزتارگت با دوره {period} اطمینان دارید؟', t
+    
+    return True, '', None
 
 def export_to_excel(targets: List[Dict], filename: str = None) -> Tuple[bool, str, str]:
     """خروجی اکسل ریزتارگت‌ها"""
