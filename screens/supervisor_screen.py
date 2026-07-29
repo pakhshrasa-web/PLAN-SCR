@@ -2926,15 +2926,21 @@ class SupervisorScreen(Screen):
             from datetime import datetime
             from utils.storage import get_backup_path
             from utils.detailed_target_manager import get_all_detailed_targets
+            from utils.file_picker_import import ImportFilePicker  # ✅ اضافه کن
 
             content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
-                           size=lambda i, v: setattr(rect, 'size', v))
+                        size=lambda i, v: setattr(rect, 'size', v))
 
-
+            # ========== عنوان ==========
+            content.add_widget(RTLLabel(
+                text='تحقق ریزتارگت‌ها',
+                size_hint_y=None, height=dp(40),
+                font_size=sp(22), bold=True, color=(1, 0.5, 0, 1)
+            ))
 
             # ========== دکمه بارگذاری فایل ==========
             file_btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
@@ -2946,13 +2952,18 @@ class SupervisorScreen(Screen):
             )
             file_btn_layout.add_widget(self.dt_fulfill_status)
 
-            select_file_btn = PersianButton(
-                text='انتخاب فایل',
-                size_hint_x=0.4, size_hint_y=None, height=dp(45),
-                background_color=(0.2, 0.5, 0.8, 1),
-                color=(1, 1, 1, 1), font_size=sp(16)
+            # ✅ جایگزین select_file_btn با ImportFilePicker
+            self.dt_fulfill_file_picker = ImportFilePicker(
+                on_select=lambda filepath: self._on_dt_fulfill_file_selected(
+                    [filepath] if not isinstance(filepath, list) else filepath,
+                    self.dt_fulfill_status,
+                    self.dt_fulfill_grid
+                ),
+                size_hint_x=0.4,
+                size_hint_y=None,
+                height=dp(45)
             )
-            file_btn_layout.add_widget(select_file_btn)
+            file_btn_layout.add_widget(self.dt_fulfill_file_picker)
             content.add_widget(file_btn_layout)
 
             # ========== هدر جدول ==========
@@ -3020,35 +3031,6 @@ class SupervisorScreen(Screen):
 
             # ========== رویدادها ==========
 
-            def select_file(inst):
-                try:
-                    from kivy.utils import platform
-                    
-                    if platform == 'android':
-                        try:
-                            from android.storage import primary_external_storage_path
-                            default_path = primary_external_storage_path()
-                            if default_path:
-                                default_path = os.path.join(default_path, 'Download')
-                        except:
-                            default_path = '/storage/emulated/0/Download'
-                    else:
-                        default_path = os.path.expanduser('~/Downloads')
-                    
-                    if not os.path.exists(default_path):
-                        default_path = '/'
-                    
-                    from plyer import filechooser
-                    filechooser.open_file(
-                        on_selection=lambda sel: self._on_dt_fulfill_file_selected(
-                            sel, self.dt_fulfill_status, self.dt_fulfill_grid
-                        ),
-                        filters=[('Excel Files', '*.xlsx')],
-                        path=default_path
-                    )
-                except Exception as e:
-                    self.show_message('خطا', f'امکان انتخاب فایل وجود ندارد:{str(e)}')
-
             def do_finalize(inst):
                 if not self.dt_fulfill_data:
                     self.show_message('خطا', 'هیچ داده‌ای برای نهایی‌سازی وجود ندارد')
@@ -3085,7 +3067,6 @@ class SupervisorScreen(Screen):
                 else:
                     self.show_message('خطا', 'هیچ تارگتی بروزرسانی نشد')
 
-            select_file_btn.bind(on_press=select_file)
             finalize_btn.bind(on_press=do_finalize)
             close_btn.bind(on_press=popup.dismiss)
             popup.open()

@@ -1773,6 +1773,7 @@ class AgentsScreen(Screen):
             from datetime import datetime
             from utils.storage import get_backup_path
             from utils.detailed_target_manager import get_all_detailed_targets
+            from utils.file_picker_import import ImportFilePicker
             
             content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
             with content.canvas.before:
@@ -1781,7 +1782,7 @@ class AgentsScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
                         size=lambda i, v: setattr(rect, 'size', v))
             
-           
+        
             # ========== دکمه بارگذاری فایل ==========
             file_btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
             
@@ -1792,13 +1793,17 @@ class AgentsScreen(Screen):
             )
             file_btn_layout.add_widget(self.fulfillment_file_status)
             
-            select_file_btn = PersianButton(
-                text='انتخاب فایل',
-                size_hint_x=0.25, size_hint_y=None, height=dp(45),
-                background_color=(0.2, 0.5, 0.8, 1),
-                color=(1, 1, 1, 1), font_size=sp(14)
+            self.fulfillment_file_picker = ImportFilePicker(
+                on_select=lambda filepath: self._on_fulfillment_file_selected(
+                    [filepath] if not isinstance(filepath, list) else filepath,
+                    self.fulfillment_file_status,
+                    self.fulfillment_grid
+                ),
+                size_hint_x=0.25,
+                size_hint_y=None,
+                height=dp(45)
             )
-            file_btn_layout.add_widget(select_file_btn)
+            file_btn_layout.add_widget(self.fulfillment_file_picker)
             
             history_btn = PersianButton(
                 text='تاریخچه',
@@ -1812,7 +1817,7 @@ class AgentsScreen(Screen):
             # ========== هدر جدول ==========
             header_box = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(3))
             headers = [
-                ('کسر تارگت', 0.22),       # ✅ تغییر عنوان
+                ('کسر تارگت', 0.22),
                 ('تحقق', 0.18),
                 ('تارگت روز', 0.22),
                 ('نام گروه کالا', 0.38)
@@ -1824,7 +1829,7 @@ class AgentsScreen(Screen):
                 ))
             content.add_widget(header_box)
             
-           
+        
             # ========== جدول داده‌ها ==========
             self.fulfillment_data = []
             self.fulfillment_inputs = []
@@ -1882,36 +1887,7 @@ class AgentsScreen(Screen):
                 auto_dismiss=False
             )
             
-            # ========== رویدادها (بدون تغییر) ==========
-            
-            def select_file(inst):
-                try:
-                    from kivy.utils import platform
-                    
-                    if platform == 'android':
-                        try:
-                            from android.storage import primary_external_storage_path
-                            default_path = primary_external_storage_path()
-                            if default_path:
-                                default_path = os.path.join(default_path, 'Download')
-                        except:
-                            default_path = '/storage/emulated/0/Download'
-                    else:
-                        default_path = os.path.expanduser('~/Downloads')
-                    
-                    if not os.path.exists(default_path):
-                        default_path = '/'
-                    
-                    from plyer import filechooser
-                    filechooser.open_file(
-                        on_selection=lambda sel: self._on_fulfillment_file_selected(
-                            sel, self.fulfillment_file_status, self.fulfillment_grid
-                        ),
-                        filters=[('Excel Files', '*.xlsx')],
-                        path=default_path
-                    )
-                except Exception as e:
-                    self.show_message('خطا', f'امکان انتخاب فایل وجود ندارد:\n{str(e)}')
+            # ========== رویدادها ==========
             
             def save_fulfillment(inst):
                 if not self.fulfillment_data:
@@ -1977,7 +1953,7 @@ class AgentsScreen(Screen):
                     for row, item in enumerate(self.fulfillment_data, 2):
                         daily = item.get('daily_target', 1)
                         achieved = item.get('achieved', 0)
-                        remaining = max(0, daily - achieved)  # ✅ کسر بر اساس تارگت روزانه
+                        remaining = max(0, daily - achieved)
                         
                         values = [
                             item.get('id', ''),
@@ -2041,7 +2017,6 @@ class AgentsScreen(Screen):
                         font_size=sp(18), bold=True, color=(0.4, 0.7, 1, 1)
                     ))
                     
-                    # ✅ هدر با کسر تارگت
                     hist_header = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(2))
                     hist_headers = [
                         ('کسر', 0.18), ('تحقق', 0.2), ('هدف', 0.2),
@@ -2065,9 +2040,8 @@ class AgentsScreen(Screen):
                     for t in fulfilled:
                         target_count = t.get('target_count', 1)
                         achieved = t.get('achieved_value', 0)
-                        remaining = target_count - achieved  # ✅ کسر تارگت
+                        remaining = target_count - achieved
                         
-                        # ✅ رنگ‌بندی بر اساس درصد انجام‌شده
                         if target_count > 0:
                             percent_done = (achieved / target_count) * 100
                             if percent_done < 25:
@@ -2131,7 +2105,6 @@ class AgentsScreen(Screen):
                     error_details = traceback.format_exc()
                     ErrorPopup.show_error(f"خطا در نمایش تاریخچه: {e}", error_details)
             
-            select_file_btn.bind(on_press=select_file)
             history_btn.bind(on_press=show_history)
             save_btn.bind(on_press=save_fulfillment)
             export_btn.bind(on_press=export_fulfillment)
