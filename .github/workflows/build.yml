@@ -48,10 +48,11 @@ jobs:
         sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
-    - name: Clean ALL NDK versions
+    - name: Force remove all NDK and set 25b
       run: |
         rm -rf ~/.buildozer/android/platform/android-ndk-*
         rm -rf .buildozer/android/platform/android-ndk-*
+        mkdir -p ~/.buildozer/android/platform/android-ndk-r25b
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -75,6 +76,7 @@ jobs:
         android.minapi = 21
         android.ndk = 25b
         android.accept_sdk_license = True
+        p4a.ndk_version = 25b
         android.archs = armeabi-v7a, arm64-v8a
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
         android.enable_androidx = True
