@@ -305,3 +305,40 @@ def export_visits_to_excel(visits: List[Dict], filename: str = None) -> Tuple[bo
         import traceback
         traceback.print_exc()
         return False, f'خطا در ایجاد فایل اکسل:\n{str(e)}', ''
+    
+def mark_visit_as_reported(visit_id):
+    """علامت‌گذاری یک سرکشی به عنوان گزارش شده به مدیر"""
+    try:
+        import json
+        from utils.storage import get_data_path
+        from utils.jalali_date import get_today_jalali
+        
+        filepath = os.path.join(get_data_path(), 'supervisor_visits.json')
+        
+        if not os.path.exists(filepath):
+            return False, "فایل سرکشی‌ها یافت نشد"
+        
+        with open(filepath, 'r', encoding='utf-8') as f:
+            visits = json.load(f)
+        
+        if not isinstance(visits, list):
+            return False, "فرمت داده‌ها نامعتبر است"
+        
+        found = False
+        for visit in visits:
+            if visit.get('id') == visit_id:
+                visit['reported_to_manager'] = True
+                visit['reported_date'] = get_today_jalali()
+                found = True
+                break
+        
+        if not found:
+            return False, "سرکشی مورد نظر یافت نشد"
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(visits, f, ensure_ascii=False, indent=2)
+        
+        return True, "گزارش با موفقیت به مدیر ارسال شد"
+    
+    except Exception as e:
+        return False, f"خطا در علامت‌گذاری: {str(e)}"
