@@ -48,11 +48,12 @@ jobs:
         sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
-    - name: Clean NDK 28c
+    - name: Clean old NDK
       run: |
-        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
-        rm -rf .buildozer/android/platform/android-ndk-r28c
-    - name: Create buildozer.spec (بدون pyjnius)
+        rm -rf ~/.buildozer/android/platform/android-ndk-*
+        rm -rf .buildozer/android/platform/android-ndk-*
+
+    - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
@@ -62,7 +63,6 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        # pyjnius حذف شد چون در کد استفاده نشده
         requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
         orientation = portrait
         fullscreen = 1
@@ -72,10 +72,9 @@ jobs:
         warn_on_root = 1
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
         android.api = 33
         android.minapi = 21
-        android.ndk = 25b
+        android.ndk = 23b
         android.archs = armeabi-v7a, arm64-v8a
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
         android.enable_androidx = True
