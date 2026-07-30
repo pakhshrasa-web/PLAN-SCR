@@ -3044,12 +3044,6 @@ class SupervisorScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
                         size=lambda i, v: setattr(rect, 'size', v))
 
-            # ========== عنوان ==========
-            content.add_widget(RTLLabel(
-                text='تحقق ریزتارگت‌ها', size_hint_y=None, height=dp(40),
-                font_size=sp(22), bold=True, color=(1, 0.5, 0, 1)
-            ))
-
             # ========== دکمه بارگذاری فایل ==========
             file_btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
@@ -3100,15 +3094,22 @@ class SupervisorScreen(Screen):
             # ========== دکمه‌های پایین ==========
             btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
-            finalize_btn = PersianButton(
-                text='نهایی‌سازی', size_hint_x=0.5, size_hint_y=None, height=dp(45),
+            self.dt_finalize_btn = PersianButton(
+                text='نهایی‌سازی', size_hint_x=0.33, size_hint_y=None, height=dp(45),
                 background_color=(0.2, 0.7, 0.2, 1), color=(1, 1, 1, 1), font_size=sp(16)
             )
-            btn_layout.add_widget(finalize_btn)
+            btn_layout.add_widget(self.dt_finalize_btn)
+
+            history_btn = PersianButton(
+                text='تاریخچه', size_hint_x=0.33, size_hint_y=None, height=dp(45),
+                background_color=(0.6, 0.4, 0.2, 1), color=(1, 1, 1, 1), font_size=sp(16)
+            )
+            history_btn.bind(on_press=self._show_fulfillment_history)
+            btn_layout.add_widget(history_btn)
 
             close_btn = PersianButton(
                 text='بستن', background_color=(0.3, 0.3, 0.3, 1),
-                size_hint_x=0.5, size_hint_y=None, height=dp(45),
+                size_hint_x=0.34, size_hint_y=None, height=dp(45),
                 color=(1, 1, 1, 1), font_size=sp(16)
             )
             btn_layout.add_widget(close_btn)
@@ -3148,7 +3149,7 @@ class SupervisorScreen(Screen):
 
                 self._show_dt_status_selection_dialog(temp_updates, all_targets, popup)
 
-            finalize_btn.bind(on_press=do_finalize)
+            self.dt_finalize_btn.bind(on_press=do_finalize)
             close_btn.bind(on_press=popup.dismiss)
             popup.open()
 
@@ -3236,18 +3237,40 @@ class SupervisorScreen(Screen):
                 import json
                 from utils.storage import get_data_path
 
+                today = get_today_jalali()
+                filename = os.path.basename(self.dt_fulfill_file_path) if hasattr(self, 'dt_fulfill_file_path') and self.dt_fulfill_file_path else ''
+                
+                # ✅ چک تکراری - قبل از همه، کل عملیات رو متوقف کن
+                if filename:
+                    for update in temp_updates:
+                        t = update['target']
+                        processed = t.get('processed_files', {})
+                        if processed.get(today) == filename:
+                            self.show_message('خطا', f'این فایل قبلاً برای امروز ({today}) ثبت شده است.')
+                            return  # ✅ کلاً متوقف کن
+                
+                # حالا ثبت کن
                 for update in temp_updates:
                     t = update['target']
                     target_id = t.get('id', '')
-                    new_achieved = update['new_achieved']
-
+                    added = update['added']
+                    
                     selected_status = 'فعال'
                     for sel in status_selections:
                         if sel['target_id'] == target_id:
                             selected_status = sel['combo'].text
                             break
 
-                    t['achieved_value'] = new_achieved
+                    if 'daily_achievements' not in t:
+                        t['daily_achievements'] = {}
+                    t['daily_achievements'][today] = added
+                    
+                    if filename:
+                        if 'processed_files' not in t:
+                            t['processed_files'] = {}
+                        t['processed_files'][today] = filename
+                    
+                    t['achieved_value'] = sum(t['daily_achievements'].values())
                     t['status'] = selected_status
 
                 path = os.path.join(get_data_path(), 'detailed_targets.json')
@@ -3278,6 +3301,7 @@ class SupervisorScreen(Screen):
                 return
 
             filepath = selection[0] if isinstance(selection, list) else selection
+            self.dt_fulfill_file_path = filepath  
             filename = os.path.basename(filepath)
             status_label.text = f'{filename}'
             status_label.color = (0.2, 0.8, 0.2, 1)
@@ -3381,7 +3405,6 @@ class SupervisorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در خواندن فایل: {e}", error_details)
-
 
     # ============================================================
     # متدهای تارگت اصلی (بدون تغییر)
@@ -3599,6 +3622,304 @@ class SupervisorScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید: {e}", error_details)
 
 
+    def _show_fulfillment_history(self, instance):
+        """نمایش تاریخچه تحقق روزانه با فیلتر ماهیانه و عامل"""
+        try:
+            from utils.detailed_target_manager import get_all_detailed_targets, export_to_excel
+            
+            all_targets = get_all_detailed_targets()
+            if not isinstance(all_targets, list) or not all_targets:
+                self.show_message('اطلاع', 'هیچ ریزتارگتی ثبت نشده است')
+                return
+            
+            # جمع‌آوری همه تحقق‌های روزانه
+            daily_records = []
+            agents_set = set()
+            
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                daily_achievements = t.get('daily_achievements', {})
+                if not isinstance(daily_achievements, dict):
+                    continue
+                
+                agent_name = t.get('agent_name', '')
+                if agent_name:
+                    agents_set.add(agent_name)
+                
+                for date, value in daily_achievements.items():
+                    if value > 0:
+                        daily_records.append({
+                            'date': date,
+                            'target_id': t.get('id', ''),
+                            'agent_name': agent_name,
+                            'product_group': t.get('product_group', ''),
+                            'daily_target': t.get('daily_target', 0),
+                            'target_count': t.get('target_count', 0),
+                            'unit': t.get('unit', ''),
+                            'achieved': value
+                        })
+            
+            if not daily_records:
+                self.show_message('اطلاع', 'هنوز هیچ تحققی ثبت نشده است')
+                return
+            
+            # استخراج ماه‌های موجود
+            months_set = set()
+            for r in daily_records:
+                date = r.get('date', '')
+                if date and len(date) >= 7:
+                    months_set.add(date[:7])
+            
+            months_list = sorted(list(months_set), reverse=True)
+            months_display = ['همه'] + months_list
+            
+            agents_list = sorted(list(agents_set))
+            agents_display = ['همه'] + agents_list
+            
+            content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                h_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(h_rect, 'pos', v),
+                            size=lambda i, v: setattr(h_rect, 'size', v))
+            
+            # ========== فیلترها ==========
+            filter_row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(6))
+            
+            # فیلتر ماه
+            month_filter = PersianComboBox(
+                text='همه', values=months_display, height=dp(38)
+            )
+            month_filter.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            month_filter.main_btn.color = (1, 1, 1, 1)
+            month_filter.main_btn.font_size = sp(14)
+            month_filter.size_hint_x = 0.3
+            filter_row.add_widget(month_filter)
+            
+            # فیلتر عامل
+            agent_filter = PersianComboBox(
+                text='همه', values=agents_display, height=dp(38)
+            )
+            agent_filter.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            agent_filter.main_btn.color = (1, 1, 1, 1)
+            agent_filter.main_btn.font_size = sp(14)
+            agent_filter.size_hint_x = 0.35
+            filter_row.add_widget(agent_filter)
+            
+            # عنوان با تعداد
+            count_label = RTLLabel(
+                text=f'{len(daily_records)} ثبت',
+                size_hint_x=0.35, size_hint_y=None, height=dp(38),
+                font_size=sp(16), bold=True, color=(0.4, 0.7, 1, 1)
+            )
+            filter_row.add_widget(count_label)
+            
+            content.add_widget(filter_row)
+            
+            # ========== هدر جدول ==========
+            hist_header = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(2))
+            hist_headers = [
+                ('تاریخ', 0.14), ('تحقق', 0.14), ('تارگت روز', 0.14),
+                ('گروه کالا', 0.25), ('عامل', 0.20), ('شناسه', 0.13)
+            ]
+            for text, size in hist_headers:
+                hist_header.add_widget(RTLLabel(
+                    text=text, size_hint_x=size, size_hint_y=None, height=dp(28),
+                    font_size=sp(11), bold=True, color=(0.4, 0.7, 1, 1), halign='center'
+                ))
+            content.add_widget(hist_header)
+            
+            # ========== جدول ==========
+            hist_scroll = ScrollView(
+                do_scroll_x=False, do_scroll_y=True,
+                size_hint_y=0.65, scroll_type=['bars', 'content'], bar_width=dp(5)
+            )
+            hist_grid = GridLayout(cols=1, spacing=dp(2), size_hint_y=None, padding=dp(2))
+            hist_grid.bind(minimum_height=hist_grid.setter('height'))
+            
+            # داده فیلترشده برای خروجی اکسل
+            current_filtered_data = []
+            
+            def populate_history():
+                nonlocal current_filtered_data
+                
+                selected_month = month_filter.text or 'همه'
+                selected_agent = agent_filter.text or 'همه'
+                
+                hist_grid.clear_widgets()
+                
+                filtered_list = daily_records
+                
+                if selected_month != 'همه':
+                    filtered_list = [r for r in filtered_list if r.get('date', '').startswith(selected_month)]
+                
+                if selected_agent != 'همه':
+                    filtered_list = [r for r in filtered_list if r.get('agent_name', '') == selected_agent]
+                
+                filtered_list.sort(key=lambda x: x.get('date', ''), reverse=True)
+                current_filtered_data = filtered_list
+                
+                count_label.text = f'{len(filtered_list)} ثبت'
+                
+                if not filtered_list:
+                    hist_grid.add_widget(RTLLabel(
+                        text='هیچ تحققی با این فیلترها یافت نشد',
+                        size_hint_y=None, height=dp(40),
+                        font_size=sp(14), color=(0.5, 0.5, 0.5, 1)
+                    ))
+                    return
+                
+                for r in filtered_list:
+                    daily_target = r.get('daily_target', 1)
+                    achieved = r.get('achieved', 0)
+                    
+                    if daily_target > 0:
+                        percent = (achieved / daily_target) * 100
+                        if percent < 50: date_color = (0.8, 0.3, 0.3, 1)
+                        elif percent < 75: date_color = (1, 0.7, 0, 1)
+                        elif percent < 100: date_color = (0.3, 0.6, 1, 1)
+                        else: date_color = (0.2, 0.8, 0.2, 1)
+                    else:
+                        date_color = (0.5, 0.5, 0.5, 1)
+                    
+                    row = BoxLayout(size_hint_y=None, height=dp(33), spacing=dp(2))
+                    row.add_widget(RTLLabel(
+                        text=r.get('date', ''), size_hint_x=0.14, size_hint_y=None, height=dp(31),
+                        font_size=sp(12), bold=True, color=date_color, halign='center'
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=f"{achieved:,}", size_hint_x=0.14, size_hint_y=None, height=dp(31),
+                        font_size=sp(12), color=(1, 1, 1, 1), halign='center'
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=f"{daily_target:,}", size_hint_x=0.14, size_hint_y=None, height=dp(31),
+                        font_size=sp(12), color=(0.8, 0.8, 0.8, 1), halign='center'
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=r.get('product_group', ''), size_hint_x=0.25, size_hint_y=None, height=dp(31),
+                        font_size=sp(12), color=(1, 1, 1, 1), halign='right'
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=r.get('agent_name', ''), size_hint_x=0.20, size_hint_y=None, height=dp(31),
+                        font_size=sp(12), color=(0.6, 0.6, 0.6, 1), halign='right'
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=r.get('target_id', ''), size_hint_x=0.13, size_hint_y=None, height=dp(31),
+                        font_size=sp(11), color=(0.4, 0.7, 1, 1), halign='center'
+                    ))
+                    hist_grid.add_widget(row)
+                
+                # جمع کل
+                total_achieved = sum(r.get('achieved', 0) for r in filtered_list)
+                summary_row = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(2))
+                summary_row.add_widget(RTLLabel(
+                    text=f'جمع کل: {total_achieved:,}', size_hint_x=1, size_hint_y=None, height=dp(28),
+                    font_size=sp(13), bold=True, color=(0.2, 0.8, 0.2, 1), halign='center'
+                ))
+                hist_grid.add_widget(summary_row)
+
+
+            # ✅ bind ساده - فقط populate رو صدا کن
+            month_filter.bind(text=lambda inst, val: populate_history())
+            agent_filter.bind(text=lambda inst, val: populate_history())
+            populate_history()
+            
+            hist_scroll.add_widget(hist_grid)
+            content.add_widget(hist_scroll)
+            
+            # ========== دکمه‌های پایین ==========
+            btn_row = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
+            
+            export_btn = PersianButton(
+                text='خروجی اکسل', size_hint_x=0.5, size_hint_y=None, height=dp(38),
+                background_color=(0.2, 0.7, 0.4, 1), color=(1, 1, 1, 1), font_size=sp(15)
+            )
+            btn_row.add_widget(export_btn)
+            
+            close_btn = PersianButton(
+                text='بستن', size_hint_x=0.5, size_hint_y=None, height=dp(38),
+                background_color=(0.3, 0.3, 0.3, 1), color=(1, 1, 1, 1), font_size=sp(15)
+            )
+            btn_row.add_widget(close_btn)
+            content.add_widget(btn_row)
+            
+            popup = PersianPopup(
+                title='تاریخچه تحقق روزانه', content=content,
+                size_hint=(0.94, 0.85), background_color=(0.08, 0.08, 0.08, 1), auto_dismiss=False
+            )
+            
+            def export_current(inst):
+                if not current_filtered_data:
+                    self.show_message('خطا', 'داده‌ای برای خروجی وجود ندارد')
+                    return
+                
+                # تبدیل به فرمت مناسب برای export_to_excel
+                # چون export_to_excel فرمت detailed_target می‌خواد، یه خروجی ساده می‌سازیم
+                try:
+                    import openpyxl
+                    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+                    from openpyxl.utils import get_column_letter
+                    from utils.storage import get_backup_path
+                    from datetime import datetime
+                    
+                    wb = openpyxl.Workbook()
+                    ws = wb.active
+                    ws.title = "تاریخچه تحقق روزانه"
+                    
+                    header_font = Font(bold=True, size=10, color="FFFFFF")
+                    header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+                    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
+                                    top=Side(style='thin'), bottom=Side(style='thin'))
+                    
+                    headers = ['تاریخ', 'شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'درصد', 'واحد']
+                    for col, header in enumerate(headers, 1):
+                        cell = ws.cell(row=1, column=col, value=header)
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                        cell.border = thin_border
+                    
+                    for row, r in enumerate(current_filtered_data, 2):
+                        daily = r.get('daily_target', 1)
+                        achieved = r.get('achieved', 0)
+                        percent = f"{(achieved / daily * 100):.0f}%" if daily > 0 else "0%"
+                        
+                        values = [
+                            r.get('date', ''), r.get('target_id', ''),
+                            r.get('agent_name', ''), r.get('product_group', ''),
+                            daily, achieved, percent, r.get('unit', '')
+                        ]
+                        for col, value in enumerate(values, 1):
+                            cell = ws.cell(row=row, column=col, value=value)
+                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                            cell.border = thin_border
+                    
+                    column_widths = [14, 16, 18, 20, 14, 14, 10, 12]
+                    for i, width in enumerate(column_widths, 1):
+                        ws.column_dimensions[get_column_letter(i)].width = width
+                    
+                    today = get_today_jalali().replace('/', '-')
+                    filename = f'تاریخچه_تحقق_{today}_{datetime.now().strftime("%H%M%S")}.xlsx'
+                    export_dir = get_backup_path()
+                    os.makedirs(export_dir, exist_ok=True)
+                    filepath = os.path.join(export_dir, filename)
+                    wb.save(filepath)
+                    self.show_message('موفق', f'فایل ذخیره شد:\n{filename}')
+                    
+                except ImportError:
+                    self.show_message('خطا', 'ماژول openpyxl نصب نیست')
+                except Exception as e:
+                    self.show_message('خطا', f'خطا در خروجی: {str(e)}')
+            
+            export_btn.bind(on_press=export_current)
+            close_btn.bind(on_press=popup.dismiss)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا: {e}", error_details)
+
     def _perform_fulfillment(self, target_ids, achieved_values):
         try:
             success, message = finalize_targets(target_ids, achieved_values)
@@ -3610,7 +3931,6 @@ class SupervisorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نهایی‌سازی تارگت‌ها: {e}", error_details)
-
     # ============================================================
     # تب ۳: بررسی بازار
     # ============================================================
@@ -4528,24 +4848,8 @@ class SupervisorScreen(Screen):
     # ============================================================
 
     def show_reports_tab(self):
-        """تب گزارشات - مشابه ReportScreen"""
-        try:
-            content = BoxLayout(orientation='vertical', padding=dp(15))
-            content.add_widget(RTLLabel(
-                text='تب گزارشات',
-                size_hint_y=None, height=dp(50),
-                font_size=sp(22), color=(0.4, 0.7, 1, 1)
-            ))
-            content.add_widget(RTLLabel(
-                text='(در حال توسعه)',
-                size_hint_y=None, height=dp(40),
-                font_size=sp(18), color=(0.5, 0.5, 0.5, 1)
-            ))
-            self.content_area.add_widget(content)
-
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش تب گزارشات: {e}", error_details)
+        """تب ۴: گزارشات - هدایت به صفحه گزارش سوپروایزر"""
+        self.manager.current = 'supervisor_report'
 
     # ============================================================
     # توابع عمومی

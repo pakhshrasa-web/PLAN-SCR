@@ -11,6 +11,7 @@ from .settings_login_screen import SettingsLoginScreen
 from .debug_screen import DebugScreen
 from .agents_screen import AgentsScreen
 from .supervisor_screen import SupervisorScreen
+from .supervisor_report_screen import SupervisorReportScreen  # ✅ اضافه کن
 from .distributor_screen import DistributorScreen
 from .distributor_report_screen import DistributorReportScreen
 
@@ -25,7 +26,7 @@ __all__ = [
     'DebugScreen',
     'AgentsScreen',
     'SupervisorScreen',
+    'SupervisorReportScreen',  # ✅ اضافه کن
     'DistributorScreen',
     'DistributorReportScreen'
-
 ]
