@@ -167,6 +167,17 @@ jobs:
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "✅ buildozer.spec updated with keystore info"
+    - name: Pre-copy freetype to buildozer cache
+      run: |
+        mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+        cp packages/freetype-2.14.1.tar.gz .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+        touch .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        
+        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+        cp packages/freetype-2.14.1.tar.gz ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+        touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        
+        echo "Freetype cached locally - no download needed"
     - name: Build with Buildozer
       run: |
         echo "y" | buildozer -v android release
@@ -216,4 +227,3 @@ jobs:
         path: bin/*.apk
         retention-days: 30
         if-no-files-found: error
-
