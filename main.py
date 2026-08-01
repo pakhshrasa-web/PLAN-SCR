@@ -209,7 +209,8 @@ class MainApp(App):
     # متغیر برای ذخیره نقش کاربر فعلی
     # ============================================================
     current_user_role = ''
-    
+    current_username = ''
+
     def build(self):
         try:
             self.data_path = init_data_path()
