@@ -13,6 +13,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.clock import Clock
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.core.window import Window
+from kivy.app import App
 
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
 from utils.file_manager import get_routes, get_customers, get_settings, save_daily_log, get_daily_logs, add_customer
@@ -2181,9 +2182,13 @@ class AgentsScreen(Screen):
             is_new_customer = customer_name in self.session_new_customers
             
             log_data = {
-                'date': today, 'route': self.route_spinner.text,
-                'customer': customer_name, 'visit_status': kwargs.get('visit_status'),
-                'time': get_current_time(), 'is_new_customer': is_new_customer
+                'date': today,
+                'route': self.route_spinner.text,
+                'agent_name': App.get_running_app().current_username,
+                'customer': customer_name,
+                'visit_status': kwargs.get('visit_status'),
+                'time': get_current_time(),
+                'is_new_customer': is_new_customer
             }
             
             if kwargs.get('visit_status') == 'ناموفق':

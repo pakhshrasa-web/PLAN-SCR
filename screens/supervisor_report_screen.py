@@ -1769,20 +1769,617 @@ class SupervisorReportScreen(Screen):
 
         return letter
 
+    # ============================================================
+    # تب ۴: آمار و ارزیابی
+    # ============================================================
+
     def show_stats_evaluation_tab(self):
-        """تب ۴: آمار و ارزیابی"""
-        content = BoxLayout(orientation='vertical', padding=dp(15))
-        content.add_widget(RTLLabel(
-            text='📈 آمار و ارزیابی',
-            size_hint_y=None, height=dp(50),
-            font_size=sp(22), color=(0.4, 0.7, 1, 1)
-        ))
-        content.add_widget(RTLLabel(
-            text='(در حال توسعه)',
-            size_hint_y=None, height=dp(40),
-            font_size=sp(18), color=(0.5, 0.5, 0.5, 1)
-        ))
-        self.content_area.add_widget(content)
+        """تب ۴: آمار و ارزیابی - مشابه ReportScreen"""
+        try:
+            self.eval_filter_agent = None
+            self.eval_from_date = ''
+            self.eval_to_date = ''
+            self.current_evaluation_data = []
+
+            main_scroll = ScrollView(
+                do_scroll_x=False, do_scroll_y=True,
+                size_hint=(1, 1), scroll_type=['bars', 'content'], bar_width=dp(8)
+            )
+
+            main_content = BoxLayout(
+                orientation='vertical', spacing=dp(8),
+                size_hint_y=None, padding=dp(10)
+            )
+            main_content.bind(minimum_height=main_content.setter('height'))
+
+            # ========== عنوان ==========
+            main_content.add_widget(RTLLabel(
+                text='آمار و ارزیابی',
+                size_hint_y=None, height=dp(45),
+                font_size=sp(22), bold=True, color=(0.4, 0.7, 1, 1)
+            ))
+
+            # ========== فیلترها ==========
+            filter_box = BoxLayout(
+                orientation='vertical', size_hint_y=None,
+                height=dp(220), spacing=dp(5), padding=dp(8)
+            )
+            with filter_box.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                RoundedRectangle(pos=filter_box.pos, size=filter_box.size, radius=[dp(8)])
+
+            filter_box.add_widget(RTLLabel(
+                text='فیلترها:', size_hint_y=None, height=dp(25),
+                font_size=sp(14), color=(1, 0.8, 0.2, 1), bold=True
+            ))
+
+            # ردیف ۱: انتخاب عامل
+            row1 = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(8))
+            agents = get_agents()
+            agent_names = ['همه'] + [a.get('name', '') for a in agents] if agents else ['همه']
+            self.eval_filter_agent = PersianComboBox(
+                text='همه', values=agent_names, height=dp(55)
+            )
+            self.eval_filter_agent.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.eval_filter_agent.main_btn.color = (1, 1, 1, 1)
+            self.eval_filter_agent.main_btn.font_size = sp(16)
+            self.eval_filter_agent.size_hint_x = 0.88
+            row1.add_widget(RTLLabel(
+                text='عامل:', size_hint_x=0.12, size_hint_y=None, height=dp(55),
+                font_size=sp(14), color=(1, 1, 1, 1)
+            ))
+            row1.add_widget(self.eval_filter_agent)
+            filter_box.add_widget(row1)
+
+            # ردیف ۲: از تاریخ + تا تاریخ
+            row2 = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(8))
+            today = get_today_jalali()
+            first_day = self._get_first_day_of_month()
+
+            self.eval_from_input = RTLTextInput(
+                text=first_day, hint_text='از تاریخ', multiline=False,
+                size_hint_x=0.44, size_hint_y=None, height=dp(55), font_size=sp(18)
+            )
+            self.eval_from_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.eval_from_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.eval_from_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.eval_from_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row2.add_widget(RTLLabel(
+                text='از:', size_hint_x=0.06, size_hint_y=None, height=dp(55),
+                font_size=sp(14), color=(1, 1, 1, 1)
+            ))
+            row2.add_widget(self.eval_from_input)
+
+            self.eval_to_input = RTLTextInput(
+                text=today, hint_text='تا تاریخ', multiline=False,
+                size_hint_x=0.44, size_hint_y=None, height=dp(55), font_size=sp(18)
+            )
+            self.eval_to_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.eval_to_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.eval_to_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.eval_to_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row2.add_widget(RTLLabel(
+                text='تا:', size_hint_x=0.06, size_hint_y=None, height=dp(55),
+                font_size=sp(14), color=(1, 1, 1, 1)
+            ))
+            row2.add_widget(self.eval_to_input)
+            filter_box.add_widget(row2)
+
+            # ردیف ۳: دکمه‌ها
+            btn_row = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
+            apply_btn = PersianButton(
+                text='اعمال فیلتر', background_color=(0.2, 0.6, 0.2, 1),
+                size_hint_x=0.35, size_hint_y=None, height=dp(38),
+                color=(1, 1, 1, 1), font_size=sp(14)
+            )
+            apply_btn.bind(on_press=self._apply_eval_filter)
+            btn_row.add_widget(apply_btn)
+            excel_btn = PersianButton(
+                text='خروجی اکسل', background_color=(0.2, 0.7, 0.4, 1),
+                size_hint_x=0.35, size_hint_y=None, height=dp(38),
+                color=(1, 1, 1, 1), font_size=sp(14)
+            )
+            excel_btn.bind(on_press=self._export_eval_report)
+            btn_row.add_widget(excel_btn)
+            clear_btn = PersianButton(
+                text='پاک کردن', background_color=(0.8, 0.4, 0.1, 1),
+                size_hint_x=0.30, size_hint_y=None, height=dp(38),
+                color=(1, 1, 1, 1), font_size=sp(14)
+            )
+            clear_btn.bind(on_press=self._clear_eval_filter)
+            btn_row.add_widget(clear_btn)
+            filter_box.add_widget(btn_row)
+
+            main_content.add_widget(filter_box)
+
+            # ========== محتوای ارزیابی ==========
+            self.eval_content = BoxLayout(
+                orientation='vertical', spacing=dp(8),
+                size_hint_y=None, padding=dp(5)
+            )
+            self.eval_content.bind(minimum_height=self.eval_content.setter('height'))
+            main_content.add_widget(self.eval_content)
+
+            main_scroll.add_widget(main_content)
+            self.content_area.add_widget(main_scroll)
+
+            self._apply_eval_filter(None, initial_load=True)
+
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش تب آمار و ارزیابی: {e}", error_details)
+
+    def _get_first_day_of_month(self):
+        """دریافت اولین روز ماه جاری"""
+        try:
+            today = get_today_jalali()
+            parts = today.split('/')
+            if len(parts) == 3:
+                return f"{parts[0]}/{parts[1]}/01"
+            return today
+        except:
+            return get_today_jalali()
+
+    def _apply_eval_filter(self, instance, initial_load=False):
+        """اعمال فیلتر و نمایش ارزیابی"""
+        try:
+            from utils.file_manager import get_daily_logs
+
+            agent = self.eval_filter_agent.text if hasattr(self, 'eval_filter_agent') and self.eval_filter_agent and self.eval_filter_agent.text != 'همه' else None
+            from_date = self.eval_from_input.text.strip() if hasattr(self, 'eval_from_input') else ''
+            to_date = self.eval_to_input.text.strip() if hasattr(self, 'eval_to_input') else ''
+
+            if not from_date:
+                from_date = self._get_first_day_of_month()
+            if not to_date:
+                to_date = get_today_jalali()
+
+            all_logs = get_daily_logs()
+            settings = get_settings()
+            
+            # ساخت mapping: route -> agent_name
+            agents = get_agents()
+            route_agent_map = {}
+            for a in agents:
+                if isinstance(a, dict):
+                    agent_routes = a.get('routes', [])
+                    if isinstance(agent_routes, list):
+                        for r in agent_routes:
+                            route_agent_map[r] = a.get('name', '')
+
+            # فیلتر تاریخ
+            date_list = []
+            for date in all_logs.keys():
+                if from_date and date < from_date:
+                    continue
+                if to_date and date > to_date:
+                    continue
+                date_list.append(date)
+
+            if not date_list:
+                self.eval_content.clear_widgets()
+                self.eval_content.add_widget(RTLLabel(
+                    text='هیچ داده‌ای در بازه انتخابی یافت نشد',
+                    size_hint_y=None, height=dp(50),
+                    font_size=sp(18), color=(0.5, 0.5, 0.5, 1)
+                ))
+                return
+
+            # محاسبه آمار
+            supervision_rate = settings.get('supervision_rate', 70.0) / 100
+            conversion_rate = settings.get('conversion_rate', 75.0) / 100
+            target_units = settings.get('target_count', 100)
+            target_sales = settings.get('target_amount', 50000000)
+            target_cash = settings.get('target_cash_sales', 30000000)
+            target_check = settings.get('target_credit_sales', 20000000)
+
+            total_visits = 0
+            total_invoices = 0
+            total_units = 0
+            total_sales = 0
+            total_cash = 0
+            total_check = 0
+            total_new_customers = 0
+            agents_data = {}
+
+            for date in date_list:
+                if date not in all_logs or not isinstance(all_logs[date], list):
+                    continue
+                for log in all_logs[date]:
+                    if not isinstance(log, dict):
+                        continue
+
+                    log_route = log.get('route', '')
+                    log_agent = log.get('agent_name', '')
+                    
+                    # اگر agent_name نداره، از route تشخیص بده
+                    if not log_agent and log_route:
+                        log_agent = route_agent_map.get(log_route, log_route)
+                    
+                    if agent and log_agent != agent:
+                        continue
+
+                    visit_status = log.get('visit_status', '')
+                    sales_status = log.get('sales_status', '')
+                    payment_method = log.get('payment_method', '')
+                    sales_amount = log.get('sales_amount', 0)
+                    units_sold = log.get('units_sold', 0)
+
+                    if log_agent not in agents_data:
+                        agents_data[log_agent] = {
+                            'visits': 0, 'invoices': 0, 'units': 0,
+                            'sales': 0, 'cash': 0, 'check': 0, 'new_customers': 0
+                        }
+
+                    if visit_status == 'موفق':
+                        total_visits += 1
+                        agents_data[log_agent]['visits'] += 1
+                    if sales_status == 'موفق':
+                        total_invoices += 1
+                        total_units += units_sold
+                        total_sales += sales_amount
+                        agents_data[log_agent]['invoices'] += 1
+                        agents_data[log_agent]['units'] += units_sold
+                        agents_data[log_agent]['sales'] += sales_amount
+                        if payment_method == 'نقد':
+                            total_cash += sales_amount
+                            agents_data[log_agent]['cash'] += sales_amount
+                        elif payment_method == 'چک':
+                            total_check += sales_amount
+                            agents_data[log_agent]['check'] += sales_amount
+                    if log.get('is_new_customer', False):
+                        total_new_customers += 1
+                        agents_data[log_agent]['new_customers'] += 1
+
+            day_count = len(date_list)
+            target_visits_day = int(supervision_rate * 50) * day_count
+            target_invoices_day = int(target_visits_day * conversion_rate)
+            target_units_day = target_units * day_count
+            target_sales_day = target_sales * day_count
+            target_cash_day = target_cash * day_count
+            target_check_day = target_check * day_count
+
+            self.eval_content.clear_widgets()
+
+            # ========== کارت‌های آماری ==========
+            stats_box = BoxLayout(size_hint_y=None, height=dp(85), spacing=dp(6), padding=dp(5))
+            stats_data = [
+                ('روزهای کاری', f'{day_count}', (0.2, 0.5, 0.8, 1)),
+                ('کل ویزیت‌ها', f'{total_visits:,}', (0.3, 0.6, 1, 1)),
+                ('فاکتورها', f'{total_invoices:,}', (0.2, 0.7, 0.2, 1)),
+                ('واحد فروش', f'{total_units:,}', (0.5, 0.3, 0.7, 1)),
+            ]
+            for title, value, color in stats_data:
+                card = BoxLayout(orientation='vertical', size_hint_x=0.25, size_hint_y=None, height=dp(80), padding=dp(4), spacing=dp(2))
+                with card.canvas.before:
+                    Color(*color)
+                    RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(6)])
+                card.add_widget(RTLLabel(text=title, size_hint_y=None, height=dp(22), font_size=sp(10), color=(1, 1, 1, 1)))
+                card.add_widget(RTLLabel(text=value, size_hint_y=None, height=dp(35), font_size=sp(22), bold=True, color=(1, 1, 1, 1)))
+                stats_box.add_widget(card)
+            self.eval_content.add_widget(stats_box)
+
+            stats_box2 = BoxLayout(size_hint_y=None, height=dp(85), spacing=dp(6), padding=dp(5))
+            stats_data2 = [
+                ('کل فروش', f'{total_sales:,}', (0.2, 0.6, 0.3, 1)),
+                ('فروش نقدی', f'{total_cash:,}', (0.2, 0.5, 0.8, 1)),
+                ('فروش چکی', f'{total_check:,}', (0.6, 0.3, 0.6, 1)),
+                ('مشتری جدید', f'{total_new_customers:,}', (0.2, 0.8, 0.4, 1)),
+            ]
+            for title, value, color in stats_data2:
+                card = BoxLayout(orientation='vertical', size_hint_x=0.25, size_hint_y=None, height=dp(80), padding=dp(4), spacing=dp(2))
+                with card.canvas.before:
+                    Color(*color)
+                    RoundedRectangle(pos=card.pos, size=card.size, radius=[dp(6)])
+                card.add_widget(RTLLabel(text=title, size_hint_y=None, height=dp(22), font_size=sp(10), color=(1, 1, 1, 1)))
+                card.add_widget(RTLLabel(text=value, size_hint_y=None, height=dp(35), font_size=sp(22), bold=True, color=(1, 1, 1, 1)))
+                stats_box2.add_widget(card)
+            self.eval_content.add_widget(stats_box2)
+
+            # ========== جدول ارزیابی ==========
+            self.eval_content.add_widget(RTLLabel(
+                text='ارزیابی عملکرد',
+                size_hint_y=None, height=dp(35),
+                font_size=sp(18), bold=True, color=(0.4, 0.7, 1, 1)
+            ))
+
+            header = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(3))
+            for text, size in [('آیتم', 0.28), ('هدف', 0.24), ('عملکرد', 0.24), ('نتیجه', 0.24)]:
+                header.add_widget(RTLLabel(
+                    text=text, size_hint_x=size, size_hint_y=None, height=dp(30),
+                    font_size=sp(14), bold=True, color=(0.4, 0.7, 1, 1), halign='center'
+                ))
+            self.eval_content.add_widget(header)
+
+            items = [
+                ('تعداد ویزیت', target_visits_day, total_visits),
+                ('تعداد فاکتور', target_invoices_day, total_invoices),
+                ('واحد فروش', target_units_day, total_units),
+                ('مبلغ فروش', target_sales_day, total_sales),
+                ('فروش نقدی', target_cash_day, total_cash),
+                ('فروش چکی', target_check_day, total_check),
+            ]
+
+            total_percent = 0
+            item_count = 0
+
+            for name, target_val, actual_val in items:
+                diff = actual_val - target_val
+                diff_str = f'{diff:+,}'
+                diff_color = (0.2, 0.8, 0.2, 1) if diff >= 0 else (0.8, 0.3, 0.3, 1)
+
+                if target_val > 0:
+                    percent = (actual_val / target_val) * 100
+                    total_percent += percent
+                    item_count += 1
+
+                row = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(3))
+                row.add_widget(RTLLabel(text=name, size_hint_x=0.28, size_hint_y=None, height=dp(28), font_size=sp(13), color=(1, 1, 1, 1)))
+                row.add_widget(RTLLabel(text=f'{target_val:,}', size_hint_x=0.24, size_hint_y=None, height=dp(28), font_size=sp(13), color=(1, 1, 1, 1), halign='center'))
+                row.add_widget(RTLLabel(text=f'{actual_val:,}', size_hint_x=0.24, size_hint_y=None, height=dp(28), font_size=sp(13), color=(1, 1, 1, 1), halign='center'))
+                row.add_widget(RTLLabel(text=diff_str, size_hint_x=0.24, size_hint_y=None, height=dp(28), font_size=sp(13), color=diff_color, halign='center'))
+                self.eval_content.add_widget(row)
+
+            avg_percent = total_percent / item_count if item_count > 0 else 0
+            
+            self.current_evaluation_data = {
+                'items': items,
+                'avg_percent': avg_percent,
+                'agents_data': agents_data,
+                'from_date': from_date,
+                'to_date': to_date,
+                'day_count': day_count
+            }
+            
+            if avg_percent >= 100:
+                eval_text = "عملکرد عالی"
+                eval_color = (0.2, 0.8, 0.2, 1)
+            elif avg_percent >= 70:
+                eval_text = "عملکرد خوب"
+                eval_color = (0.3, 0.6, 1, 1)
+            elif avg_percent >= 50:
+                eval_text = "نیاز به تلاش بیشتر"
+                eval_color = (1, 0.7, 0, 1)
+            else:
+                eval_text = "ضعیف - نیاز به بررسی"
+                eval_color = (0.8, 0.3, 0.3, 1)
+
+            self.eval_content.add_widget(RTLLabel(
+                text=f'میانگین تحقق: {avg_percent:.1f}% - {eval_text}',
+                size_hint_y=None, height=dp(40),
+                font_size=sp(18), bold=True, color=eval_color
+            ))
+
+            # ========== جدول عملکرد عامل‌ها ==========
+            if agents_data and not agent:
+                self.eval_content.add_widget(RTLLabel(
+                    text='عملکرد تفکیکی عامل‌ها',
+                    size_hint_y=None, height=dp(35),
+                    font_size=sp(18), bold=True, color=(1, 0.5, 0, 1)
+                ))
+
+                agent_header = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(3))
+                for text, size in [('عامل', 0.22), ('ویزیت', 0.16), ('فاکتور', 0.16), ('فروش', 0.23), ('امتیاز', 0.23)]:
+                    agent_header.add_widget(RTLLabel(
+                        text=text, size_hint_x=size, size_hint_y=None, height=dp(28),
+                        font_size=sp(12), bold=True, color=(0.4, 0.7, 1, 1), halign='center'
+                    ))
+                self.eval_content.add_widget(agent_header)
+
+                for ag_name, ag_data in agents_data.items():
+                    ag_row = BoxLayout(size_hint_y=None, height=dp(28), spacing=dp(3))
+                    ag_row.add_widget(RTLLabel(text=ag_name, size_hint_x=0.22, size_hint_y=None, height=dp(26), font_size=sp(12), color=(1, 1, 1, 1)))
+                    ag_row.add_widget(RTLLabel(text=str(ag_data['visits']), size_hint_x=0.16, size_hint_y=None, height=dp(26), font_size=sp(12), color=(1, 1, 1, 1), halign='center'))
+                    ag_row.add_widget(RTLLabel(text=str(ag_data['invoices']), size_hint_x=0.16, size_hint_y=None, height=dp(26), font_size=sp(12), color=(1, 1, 1, 1), halign='center'))
+                    ag_row.add_widget(RTLLabel(text=f'{ag_data["sales"]:,}', size_hint_x=0.23, size_hint_y=None, height=dp(26), font_size=sp(12), color=(1, 1, 1, 1), halign='center'))
+
+                    ag_percent = (ag_data['visits'] / max(target_visits_day / max(len(agents_data), 1), 1)) * 100
+                    ag_color = (0.2, 0.8, 0.2, 1) if ag_percent >= 70 else (1, 0.7, 0, 1) if ag_percent >= 50 else (0.8, 0.3, 0.3, 1)
+                    ag_row.add_widget(RTLLabel(text=f'{ag_percent:.0f}%', size_hint_x=0.23, size_hint_y=None, height=dp(26), font_size=sp(12), color=ag_color, halign='center'))
+                    self.eval_content.add_widget(ag_row)
+
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در اعمال فیلتر ارزیابی: {e}", error_details)
+
+    def _clear_eval_filter(self, instance):
+        """پاک کردن فیلترهای تب ارزیابی"""
+        if hasattr(self, 'eval_filter_agent') and self.eval_filter_agent:
+            self.eval_filter_agent.text = 'همه'
+        if hasattr(self, 'eval_from_input') and self.eval_from_input:
+            self.eval_from_input.text = self._get_first_day_of_month()
+        if hasattr(self, 'eval_to_input') and self.eval_to_input:
+            self.eval_to_input.text = get_today_jalali()
+        self._apply_eval_filter(None)
+
+    def _export_eval_report(self, instance):
+        """خروجی اکسل از داده‌های ارزیابی"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+            from utils.storage import get_backup_path
+
+            if not hasattr(self, 'current_evaluation_data') or not self.current_evaluation_data:
+                self.show_message('خطا', 'ابتدا فیلتر را اعمال کنید')
+                return
+
+            data = self.current_evaluation_data
+            items = data.get('items', [])
+            avg_percent = data.get('avg_percent', 0)
+            agents_data = data.get('agents_data', {})
+            from_date = data.get('from_date', '')
+            to_date = data.get('to_date', '')
+            day_count = data.get('day_count', 0)
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "آمار و ارزیابی"
+            ws.sheet_view.rightToLeft = True
+
+            # استایل‌ها
+            header_font = Font(name='B Nazanin', size=12, bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+            text_font = Font(name='B Nazanin', size=11)
+            bold_font = Font(name='B Nazanin', size=11, bold=True)
+            green_font = Font(name='B Nazanin', size=11, color="008000")
+            red_font = Font(name='B Nazanin', size=11, color="CC0000")
+            orange_font = Font(name='B Nazanin', size=11, color="CC8800")
+            center_align = Alignment(horizontal='center', vertical='center')
+            right_align = Alignment(horizontal='right', vertical='center')
+            thin_border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+
+            # عنوان
+            ws.merge_cells('A1:F1')
+            title_cell = ws.cell(row=1, column=1, value=f'گزارش آمار و ارزیابی ({from_date} تا {to_date}) - {day_count} روز کاری')
+            title_cell.font = Font(name='B Nazanin', size=16, bold=True)
+            title_cell.alignment = center_align
+
+            # هدر جدول
+            headers = ['آیتم', 'هدف', 'عملکرد', 'اختلاف', 'درصد', 'وضعیت']
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=3, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_align
+                cell.border = thin_border
+
+            # داده‌ها
+            for row_idx, item in enumerate(items, 4):
+                name = item[0]
+                target_val = item[1]
+                actual_val = item[2]
+                
+                diff = actual_val - target_val
+                diff_str = f'{diff:+,}'
+                percent = (actual_val / target_val * 100) if target_val > 0 else 0
+                
+                if percent >= 70:
+                    status = 'مطلوب'
+                    status_font = green_font
+                elif percent >= 50:
+                    status = 'متوسط'
+                    status_font = orange_font
+                else:
+                    status = 'ضعیف'
+                    status_font = red_font
+
+                values = [
+                    name,
+                    target_val,
+                    actual_val,
+                    diff,
+                    percent,
+                    status
+                ]
+                
+                for col_idx, value in enumerate(values, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.font = text_font
+                    cell.alignment = center_align
+                    cell.border = thin_border
+                    
+                    # فرمت‌بندی اعداد
+                    if col_idx in [2, 3]:
+                        cell.number_format = '#,##0'
+                        cell.value = int(value) if isinstance(value, (int, float)) else value
+                    elif col_idx == 4:
+                        cell.number_format = '#,##0'
+                        cell.value = int(value) if isinstance(value, (int, float)) else value
+                        if diff < 0:
+                            cell.font = red_font
+                        elif diff >= 0:
+                            cell.font = green_font
+                    elif col_idx == 5:
+                        cell.number_format = '0.0"%"'
+                    elif col_idx == 6:
+                        cell.font = status_font
+
+            # میانگین
+            avg_row = len(items) + 4
+            ws.merge_cells(f'A{avg_row}:C{avg_row}')
+            avg_label = ws.cell(row=avg_row, column=1, value='میانگین تحقق')
+            avg_label.font = bold_font
+            avg_label.alignment = center_align
+            avg_label.border = thin_border
+
+            ws.merge_cells(f'D{avg_row}:F{avg_row}')
+            avg_value = ws.cell(row=avg_row, column=4, value=f'{avg_percent:.1f}%')
+            avg_value.font = Font(name='B Nazanin', size=13, bold=True, color="008000" if avg_percent >= 70 else "CC0000")
+            avg_value.alignment = center_align
+            avg_value.border = thin_border
+
+            # ارزیابی کلی
+            eval_row = avg_row + 1
+            ws.merge_cells(f'A{eval_row}:F{eval_row}')
+            if avg_percent >= 100:
+                eval_text = "عملکرد عالی - تبریک!"
+            elif avg_percent >= 70:
+                eval_text = "عملکرد خوب - در مسیر درست"
+            elif avg_percent >= 50:
+                eval_text = "نیاز به تلاش بیشتر"
+            else:
+                eval_text = "ضعیف - نیاز به بررسی و پیگیری"
+            
+            eval_cell = ws.cell(row=eval_row, column=1, value=eval_text)
+            eval_cell.font = Font(name='B Nazanin', size=14, bold=True)
+            eval_cell.alignment = center_align
+
+            # جدول تفکیکی عامل‌ها
+            if agents_data and len(agents_data) > 1:
+                agent_start = eval_row + 2
+                ws.merge_cells(f'A{agent_start}:F{agent_start}')
+                agent_title = ws.cell(row=agent_start, column=1, value='عملکرد تفکیکی عامل‌ها')
+                agent_title.font = Font(name='B Nazanin', size=14, bold=True)
+                agent_title.alignment = center_align
+
+                agent_headers = ['عامل', 'ویزیت', 'فاکتور', 'فروش', 'نقدی', 'چکی']
+                header_row = agent_start + 1
+                for col, header in enumerate(agent_headers, 1):
+                    cell = ws.cell(row=header_row, column=col, value=header)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = center_align
+                    cell.border = thin_border
+
+                for i, (ag_name, ag_data) in enumerate(agents_data.items()):
+                    row = header_row + 1 + i
+                    values = [
+                        ag_name,
+                        ag_data['visits'],
+                        ag_data['invoices'],
+                        ag_data['sales'],
+                        ag_data['cash'],
+                        ag_data['check']
+                    ]
+                    for col, value in enumerate(values, 1):
+                        cell = ws.cell(row=row, column=col, value=value)
+                        cell.font = text_font
+                        cell.alignment = center_align
+                        cell.border = thin_border
+                        if col >= 2:
+                            cell.number_format = '#,##0'
+
+            # عرض ستون‌ها
+            column_widths = [28, 18, 18, 18, 14, 18]
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+
+            # ذخیره
+            filename = f'ارزیابی_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            export_dir = get_backup_path()
+            os.makedirs(export_dir, exist_ok=True)
+            filepath = os.path.join(export_dir, filename)
+            wb.save(filepath)
+
+            self.show_message('موفق', f'فایل اکسل ذخیره شد:\n{filename}')
+
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در خروجی اکسل: {e}", error_details)
 
     # ============================================================
     # توابع عمومی

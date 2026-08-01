@@ -431,26 +431,22 @@ class LoginScreen(Screen):
             user = login(self.username.text, self.password.text)
             if user:
                 role = user.get('role', '')
+                username = user.get('username', '')  # ✅ اسم کاربر
                 
-                # ============================================================
-                # ذخیره نقش کاربر در App
-                # ============================================================
                 from kivy.app import App
                 app = App.get_running_app()
                 if app:
                     app.current_user_role = role
-                    print(f"✅ نقش کاربر در App ذخیره شد: {role}")
+                    app.current_username = username  # ✅ ذخیره اسم کاربر
+                    print(f"نقش کاربر در App ذخیره شد: {role} - {username}")
                 
-                # ذخیره در خود LoginScreen برای دسترسی مستقیم
                 self.current_user_role = role
                 
-                # هدایت به صفحات مناسب
                 if role == 'مدیر' or role == 'سرپرست':
                     self.manager.current = 'admin'
                 elif role == 'سوپروایزر':
                     self.manager.current = 'supervisor'
                 else:
-                    # همه کاربران دیگر به UserScreen میروند
                     self.manager.current = 'user'
             else:
                 self.show_message('خطا', 'نام کاربری یا رمز عبور اشتباه است')
