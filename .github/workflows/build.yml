@@ -48,11 +48,11 @@ jobs:
         sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
-    - name: Clean NDK 28c
+    - name: Clean ALL NDK versions
       run: |
-        rm -rf ~/.buildozer/android/platform/android-ndk-r28c
-        rm -rf .buildozer/android/platform/android-ndk-r28c
-    - name: Create buildozer.spec (بدون pyjnius)
+        rm -rf ~/.buildozer/android/platform/android-ndk-*
+        rm -rf .buildozer/android/platform/android-ndk-*
+    - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
@@ -62,20 +62,21 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        # pyjnius حذف شد چون در کد استفاده نشده
         requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
+        p4a.ndk_version = 25b
+        p4a.branch = develop
         [buildozer]
         log_level = 2
         warn_on_root = 1
         [buildozer:android]
         android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
         android.api = 33
         android.minapi = 21
         android.ndk = 25b
+        android.accept_sdk_license = True
         android.archs = armeabi-v7a, arm64-v8a
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
         android.enable_androidx = True
@@ -145,19 +146,19 @@ jobs:
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
         
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "⚠️ No fonts"
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "⚠️ No data"
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "No fonts"
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "No data"
     - name: Update version and version_code
       run: |
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
         sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
-        echo "✅ Version set to: ${{ github.run_number }}"
+        echo "Version set to: ${{ github.run_number }}"
     - name: Restore Keystore from Secrets
       run: |
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
         mkdir -p .buildozer/android/platform/
         cp keystore.jks .buildozer/android/platform/planandroid.keystore
-        echo "✅ Keystore restored successfully"
+        echo "Keystore restored successfully"
     - name: Update buildozer.spec with keystore paths
       run: |
         echo "" >> buildozer.spec
@@ -166,7 +167,23 @@ jobs:
         echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
-        echo "✅ buildozer.spec updated with keystore info"
+        echo "buildozer.spec updated with keystore info"
+    - name: Pre-copy freetype to buildozer cache
+      run: |
+        echo "Checking if freetype file exists:"
+        ls -la packages/freetype-2.14.1.tar.gz
+        
+        mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+        cp packages/freetype-2.14.1.tar.gz .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+        touch .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        
+        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+        cp packages/freetype-2.14.1.tar.gz ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+        touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        
+        echo "Verifying copied files:"
+        ls -la .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+        ls -la ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
     - name: Build with Buildozer
       run: |
         echo "y" | buildozer -v android release
@@ -179,7 +196,7 @@ jobs:
       run: |
         AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
         if [ -f "$AAB_FILE" ]; then
-          echo "📦 Found AAB: $AAB_FILE"
+          echo "Found AAB: $AAB_FILE"
           
           wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
           
@@ -196,16 +213,16 @@ jobs:
           unzip -o app.apks -d apk_output
           mkdir -p bin
           cp apk_output/universal.apk bin/app-release.apk
-          echo "✅ APK created successfully"
+          echo "APK created successfully"
         else
-          echo "⚠️ No AAB file found, checking for APK..."
+          echo "No AAB file found, checking for APK..."
           APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
           if [ -f "$APK_FILE" ]; then
             mkdir -p bin
             cp "$APK_FILE" bin/app-release.apk
-            echo "✅ APK found and copied"
+            echo "APK found and copied"
           else
-            echo "❌ No APK or AAB file found!"
+            echo "No APK or AAB file found!"
             exit 1
           fi
         fi
@@ -216,4 +233,3 @@ jobs:
         path: bin/*.apk
         retention-days: 30
         if-no-files-found: error
-
