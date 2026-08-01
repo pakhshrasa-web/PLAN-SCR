@@ -27,7 +27,17 @@ def _load_visits() -> List[Dict]:
         path = _get_visits_path()
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # اگه dict بود، تبدیل به list کن
+                if isinstance(data, dict):
+                    # اگه خالیه، list برگردون
+                    if not data:
+                        return []
+                    # اگه کلیدهای عددی داره مثل یه dict معمولی، تبدیل کن
+                    return []
+                if not isinstance(data, list):
+                    return []
+                return data
         return []
     except Exception as e:
         logger.error(f"خطا در بارگذاری سرکشی‌ها: {e}")
