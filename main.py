@@ -82,6 +82,7 @@ from screens import (
     DistributorReportScreen
 )
 from screens.supervisor_report_screen import SupervisorReportScreen
+from screens.attendance_screen import AttendanceScreen
 
 # ========== تنظیم فونت ==========
 def setup_font():
@@ -224,6 +225,7 @@ class MainApp(App):
             sm.add_widget(AdminScreen(name='admin'))
             sm.add_widget(AdminSettingsScreen(name='admin_settings'))
             sm.add_widget(UserScreen(name='user'))
+            sm.add_widget(AttendanceScreen(name='attendance'))
             sm.add_widget(ReportScreen(name='report'))
             sm.add_widget(SettingsLoginScreen(name='settings_login'))
             sm.add_widget(DebugScreen(name='debug'))
