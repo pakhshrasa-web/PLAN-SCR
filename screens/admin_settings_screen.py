@@ -14,12 +14,15 @@ from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.uix.checkbox import CheckBox
+from kivy.uix.textinput import TextInput
 from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLLabel, PersianPopup
 from utils.user_manager import get_users, delete_user_by_id, get_codes, create_code
 from utils.auth import get_admin_password, set_admin_password, verify_password
 from utils.file_manager import load_json, save_json, get_daily_logs, get_data_path
+from utils.attendance_manager import AttendanceManager
 from error_handler import ErrorPopup
 from constants import ROLES
+from functools import partial
 
 
 class AdminSettingsScreen(Screen):
@@ -69,10 +72,21 @@ class AdminSettingsScreen(Screen):
                 size_hint_y=None,
                 height=dp(34),
                 color=(1, 1, 1, 1),
-                font_size=sp(14)
+                font_size=sp(13)
             )
-            btn_password.bind(on_press=lambda x: self.switch_tab(3))
+            btn_password.bind(on_press=lambda x: self.switch_tab(4))
             tabs_layout.add_widget(btn_password)
+            
+            btn_leave = PersianButton(
+                text='تنظیمات مرخصی',
+                background_color=(0.5, 0.3, 0.7, 0.6),
+                size_hint_y=None,
+                height=dp(34),
+                color=(1, 1, 1, 1),
+                font_size=sp(13)
+            )
+            btn_leave.bind(on_press=lambda x: self.switch_tab(5))
+            tabs_layout.add_widget(btn_leave)
             
             btn_codes = PersianButton(
                 text='کدهای ثبت نام',
@@ -80,7 +94,7 @@ class AdminSettingsScreen(Screen):
                 size_hint_y=None,
                 height=dp(34),
                 color=(1, 1, 1, 1),
-                font_size=sp(14)
+                font_size=sp(13)
             )
             btn_codes.bind(on_press=lambda x: self.switch_tab(1))
             tabs_layout.add_widget(btn_codes)
@@ -91,7 +105,7 @@ class AdminSettingsScreen(Screen):
                 size_hint_y=None,
                 height=dp(34),
                 color=(1, 1, 1, 1),
-                font_size=sp(14)
+                font_size=sp(13)
             )
             btn_users.bind(on_press=lambda x: self.switch_tab(0))
             tabs_layout.add_widget(btn_users)
@@ -103,9 +117,9 @@ class AdminSettingsScreen(Screen):
                 size_hint_y=None,
                 height=dp(34),
                 color=(1, 1, 1, 1),
-                font_size=sp(14)
+                font_size=sp(13)
             )
-            btn_clean.bind(on_press=lambda x: self.switch_tab(4))
+            btn_clean.bind(on_press=lambda x: self.switch_tab(3))
             tabs_layout.add_widget(btn_clean)
             
             layout.add_widget(tabs_layout)
@@ -146,9 +160,11 @@ class AdminSettingsScreen(Screen):
             elif tab_id == 2:
                 self.show_general_settings_tab()
             elif tab_id == 3:
-                self.show_change_password_tab()
-            elif tab_id == 4:
                 self.show_clean_tab()
+            elif tab_id == 4:
+                self.show_change_password_tab()
+            elif tab_id == 5:
+                self.show_leave_settings_tab()
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در تغییر تب: {e}", error_details)
@@ -236,6 +252,628 @@ class AdminSettingsScreen(Screen):
                 next_i = (i + 1) % len(self.focusable_fields)
                 self.focusable_fields[next_i].focus = True
                 break
+
+    # ========================================
+    #            تب تنظیمات مرخصی  
+    # ========================================
+
+    def show_leave_settings_tab(self):
+        """نمایش تب تنظیمات مرخصی"""
+        try:
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint=(1, 1),
+                scroll_type=['bars', 'content'],
+                bar_width=dp(8)
+            )
+            
+            layout = BoxLayout(
+                orientation='vertical',
+                padding=dp(20),
+                spacing=dp(12),
+                size_hint_y=None
+            )
+            layout.bind(minimum_height=layout.setter('height'))
+            
+            # عنوان
+            layout.add_widget(RTLLabel(
+                text='تنظیمات مرخصی',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(28),
+                bold=True,
+                color=(153, 102, 204, 255)
+            ))
+            
+            config = AttendanceManager.load_config()
+            
+            # ============================================================
+            # بخش 1: سقف مرخصی سالانه
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='سقف مرخصی سالانه (روز):',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(22),
+                bold=True,
+                color=(255, 255, 255, 255)
+            ))
+
+            # ردیف سقف مرخصی
+            row_limit = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+
+            self.annual_leave_limit = RTLTextInput(
+                text=str(config.get('annual_leave_limit', 30)),
+                multiline=False,
+                size_hint_x=0.5,  # ← افزایش به 0.5
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(32),
+                hint_text='تعداد روز'
+            )
+            self.annual_leave_limit.bg_color = (0.15, 0.15, 0.15, 1)
+            self.annual_leave_limit.border_color = (0.3, 0.3, 0.3, 1)
+            self.annual_leave_limit.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.annual_leave_limit._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.annual_leave_limit._hidden_input.bind(focus=self._on_field_focus)
+            row_limit.add_widget(self.annual_leave_limit)
+
+            # ✅ لیبل "روز" با size_hint_x=0.5
+            row_limit.add_widget(RTLLabel(
+                text='روز',
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(24),
+                color=(255, 255, 255, 255),
+                halign='right',
+                valign='middle'
+            ))
+
+            layout.add_widget(row_limit)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 2: انواع مرخصی
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='انواع مرخصی:',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(22),
+                bold=True,
+                color=(102, 178, 255, 255)
+            ))
+            
+            # لیست انواع مرخصی
+            leave_list_scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=dp(120),
+                bar_width=dp(6)
+            )
+            
+            self.leave_types_container = BoxLayout(
+                orientation='vertical',
+                spacing=dp(4),
+                size_hint_y=None,
+                padding=dp(5)
+            )
+            self.leave_types_container.bind(minimum_height=self.leave_types_container.setter('height'))
+            
+            leave_types = config.get('leave_types', ['ساعتی', 'استحقاقی', 'استعلاجی', 'اضطراری', 'بدون حقوق'])
+            self.leave_type_items = []
+            for lt in leave_types:
+                self._add_leave_type_item(lt)
+            
+            leave_list_scroll.add_widget(self.leave_types_container)
+            layout.add_widget(leave_list_scroll)
+            
+            # ردیف افزودن نوع مرخصی (دکمه در راست، فیلد در وسط، لیبل در چپ)
+            add_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
+            
+            # دکمه در راست
+            add_btn = PersianButton(
+                text='افزودن',
+                size_hint_x=0.3,
+                size_hint_y=None,
+                height=dp(46),
+                background_color=(0.2, 0.7, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            add_btn.bind(on_press=self._add_leave_type)
+            add_row.add_widget(add_btn)
+            
+            # فیلد در وسط
+            self.new_leave_type_input = RTLTextInput(
+                text='',
+                multiline=False,
+                size_hint_x=0.4,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(18),
+                hint_text='نوع جدید'
+            )
+            self.new_leave_type_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.new_leave_type_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.new_leave_type_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.new_leave_type_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.new_leave_type_input._hidden_input.bind(focus=self._on_field_focus)
+            add_row.add_widget(self.new_leave_type_input)
+            
+            # لیبل در چپ
+            add_row.add_widget(RTLLabel(
+                text='نوع جدید:',
+                size_hint_x=0.3,
+                font_size=sp(16),
+                color=(200, 200, 200, 255)
+            ))
+            
+            layout.add_widget(add_row)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 3: روزهای تعطیل هفتگی
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='روزهای تعطیل هفتگی:',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(22),
+                bold=True,
+                color=(102, 178, 255, 255)
+            ))
+            
+            weekend_days = config.get('weekend_days', ['پنجشنبه', 'جمعه'])
+            
+            weekend_layout = BoxLayout(
+                size_hint_y=None,
+                height=dp(55),
+                spacing=dp(5),
+                padding=[0, dp(5), 0, dp(5)]
+            )
+            
+            week_days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه']
+            
+            self.weekend_checkboxes = {}
+            for day in week_days:
+                day_container = BoxLayout(
+                    orientation='vertical',
+                    size_hint_x=None,
+                    width=dp(45),
+                    spacing=dp(2)
+                )
+                
+                cb = CheckBox(
+                    active=day in weekend_days,
+                    size_hint=(1, None),
+                    height=dp(32),
+                    color=(0.4, 0.7, 1, 1)
+                )
+                self.weekend_checkboxes[day] = cb
+                
+                day_label = RTLLabel(
+                    text=day,
+                    size_hint_y=None,
+                    height=dp(20),
+                    font_size=sp(13),
+                    color=(255, 255, 255, 255) if day in weekend_days else (100, 100, 100, 255),
+                    halign='center'
+                )
+                
+                def make_callback(d, lbl):
+                    def callback(inst, val):
+                        lbl.color = (255, 255, 255, 255) if val else (100, 100, 100, 255)
+                    return callback
+                
+                cb.bind(active=make_callback(day, day_label))
+                
+                day_container.add_widget(cb)
+                day_container.add_widget(day_label)
+                weekend_layout.add_widget(day_container)
+            
+            layout.add_widget(weekend_layout)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 4: تعطیلات رسمی
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='تعطیلات رسمی:',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(22),
+                bold=True,
+                color=(102, 178, 255, 255)
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='فرمت: 1404/01/01',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(15),
+                color=(150, 150, 150, 255)
+            ))
+            
+            # لیست تعطیلات
+            holiday_scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=dp(100),
+                bar_width=dp(6)
+            )
+            
+            self.holidays_container = BoxLayout(
+                orientation='vertical',
+                spacing=dp(4),
+                size_hint_y=None,
+                padding=dp(5)
+            )
+            self.holidays_container.bind(minimum_height=self.holidays_container.setter('height'))
+            
+            holidays = config.get('holidays', [])
+            self.holiday_items = []
+            for h in holidays:
+                self._add_holiday_item(h)
+            
+            holiday_scroll.add_widget(self.holidays_container)
+            layout.add_widget(holiday_scroll)
+            
+            # ردیف افزودن تعطیل (دکمه در راست، فیلد در وسط، لیبل در چپ)
+            add_holiday_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
+            
+            # دکمه در راست
+            add_holiday_btn = PersianButton(
+                text='افزودن',
+                size_hint_x=0.3,
+                size_hint_y=None,
+                height=dp(46),
+                background_color=(0.2, 0.7, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            add_holiday_btn.bind(on_press=self._add_holiday)
+            add_holiday_row.add_widget(add_holiday_btn)
+            
+            # فیلد در وسط
+            self.new_holiday_input = RTLTextInput(
+                text='',
+                multiline=False,
+                size_hint_x=0.4,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(18),
+                hint_text='تاریخ جدید'
+            )
+            self.new_holiday_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.new_holiday_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.new_holiday_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.new_holiday_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.new_holiday_input._hidden_input.bind(focus=self._on_field_focus)
+            add_holiday_row.add_widget(self.new_holiday_input)
+            
+            # لیبل در چپ
+            add_holiday_row.add_widget(RTLLabel(
+                text='تعطیل جدید:',
+                size_hint_x=0.3,
+                font_size=sp(16),
+                color=(200, 200, 200, 255)
+            ))
+            
+            layout.add_widget(add_holiday_row)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
+            
+            # ============================================================
+            # دکمه‌های عملیاتی
+            # ============================================================
+            btn_layout = BoxLayout(
+                spacing=dp(10),
+                size_hint_y=None,
+                height=dp(55)
+            )
+            
+            save_btn = PersianButton(
+                text='ذخیره تنظیمات',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18),
+                bold=True
+            )
+            save_btn.bind(on_press=self.save_leave_settings)
+            btn_layout.add_widget(save_btn)
+            
+            reset_btn = PersianButton(
+                text='بازنشانی',
+                background_color=(0.8, 0.5, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            reset_btn.bind(on_press=self.reset_leave_settings)
+            btn_layout.add_widget(reset_btn)
+            
+            layout.add_widget(btn_layout)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(20)))
+            
+            scroll.add_widget(layout)
+            self.content_area.add_widget(scroll)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش تنظیمات مرخصی: {e}", error_details)
+
+
+    def _on_field_focus(self, instance, value):
+        """وقتی فیلد فوکوس میشه"""
+        if value:
+            Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
+            Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
+
+
+    def _select_all_text(self, instance):
+        """انتخاب کل متن فیلد"""
+        if instance and hasattr(instance, 'select_all'):
+            instance.select_all()
+
+
+    def _scroll_to_field(self, instance):
+        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
+        try:
+            scroll = None
+            for child in self.content_area.children:
+                if isinstance(child, ScrollView):
+                    scroll = child
+                    break
+            
+            if not scroll:
+                return
+            
+            field_pos = instance.to_window(0, 0)
+            field_y = field_pos[1]
+            keyboard_height = 250
+            window_height = Window.height
+            target_y = window_height - keyboard_height - dp(80)
+            
+            content_height = scroll.children[0].height if scroll.children else 1
+            scroll_height = scroll.height
+            
+            if content_height > scroll_height:
+                if field_y > target_y:
+                    field_ratio = (content_height - field_y) / content_height
+                    scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
+                    scroll.scroll_y = scroll_value
+                elif field_y < dp(50):
+                    scroll.scroll_y = 0.9
+        except Exception as e:
+            print(f"خطا در اسکرول: {e}")
+
+
+    def _add_leave_type_item(self, leave_type):
+        """افزودن یک آیتم نوع مرخصی به لیست"""
+        row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(5))
+        
+        label = RTLLabel(
+            text=leave_type,
+            size_hint_x=0.8,
+            font_size=sp(18),
+            color=(255, 255, 255, 255)
+        )
+        row.add_widget(label)
+        
+        remove_btn = PersianButton(
+            text='حذف',
+            size_hint_x=0.2,
+            size_hint_y=None,
+            height=dp(36),
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size=sp(14)
+        )
+        # ذخیره اطلاعات در دکمه
+        remove_btn.row = row
+        remove_btn.leave_type = leave_type
+        remove_btn.bind(on_press=self._remove_leave_type)
+        row.add_widget(remove_btn)
+        
+        self.leave_types_container.add_widget(row)
+        self.leave_type_items.append(leave_type)
+
+
+    def _remove_leave_type(self, instance):
+        """حذف نوع مرخصی از لیست - حذف مستقیم"""
+        leave_type = instance.leave_type
+        row = instance.row
+        
+        if leave_type in self.leave_type_items:
+            self.leave_type_items.remove(leave_type)
+            self.leave_types_container.remove_widget(row)
+
+
+    def _add_leave_type(self, instance):
+        """افزودن نوع مرخصی جدید"""
+        new_type = self.new_leave_type_input.text.strip()
+        if not new_type:
+            self.show_message('خطا', 'لطفاً نام نوع مرخصی را وارد کنید')
+            return
+        
+        if new_type in self.leave_type_items:
+            self.show_message('خطا', 'این نوع مرخصی قبلاً وجود دارد')
+            return
+        
+        self.leave_type_items.append(new_type)
+        self._add_leave_type_item(new_type)
+        self.new_leave_type_input.text = ''
+
+
+    def _add_holiday_item(self, holiday):
+        """افزودن یک آیتم تعطیل به لیست"""
+        row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(5))
+        
+        label = RTLLabel(
+            text=holiday,
+            size_hint_x=0.8,
+            font_size=sp(18),
+            color=(255, 255, 255, 255)
+        )
+        row.add_widget(label)
+        
+        remove_btn = PersianButton(
+            text='حذف',
+            size_hint_x=0.2,
+            size_hint_y=None,
+            height=dp(36),
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size=sp(14)
+        )
+        # ذخیره اطلاعات در دکمه
+        remove_btn.row = row
+        remove_btn.holiday = holiday
+        remove_btn.bind(on_press=self._remove_holiday)
+        row.add_widget(remove_btn)
+        
+        self.holidays_container.add_widget(row)
+        self.holiday_items.append(holiday)
+
+
+    def _remove_holiday(self, instance):
+        """حذف تعطیل از لیست - حذف مستقیم"""
+        holiday = instance.holiday
+        row = instance.row
+        
+        if holiday in self.holiday_items:
+            self.holiday_items.remove(holiday)
+            self.holidays_container.remove_widget(row)
+
+
+    def _add_holiday(self, instance):
+        """افزودن تعطیل جدید"""
+        new_holiday = self.new_holiday_input.text.strip()
+        if not new_holiday:
+            self.show_message('خطا', 'لطفاً تاریخ تعطیل را وارد کنید')
+            return
+        
+        if new_holiday in self.holiday_items:
+            self.show_message('خطا', 'این تاریخ قبلاً ثبت شده است')
+            return
+        
+        self.holiday_items.append(new_holiday)
+        self._add_holiday_item(new_holiday)
+        self.new_holiday_input.text = ''
+
+
+    def save_leave_settings(self, instance):
+        """ذخیره تنظیمات مرخصی"""
+        try:
+            config = AttendanceManager.load_config()
+            
+            if not self.leave_type_items:
+                self.show_message('خطا', 'حداقل یک نوع مرخصی باید وجود داشته باشد')
+                return
+            
+            try:
+                annual_limit = int(self.annual_leave_limit.text.strip())
+                if annual_limit < 1:
+                    self.show_message('خطا', 'سقف مرخصی باید حداقل 1 روز باشد')
+                    return
+            except ValueError:
+                self.show_message('خطا', 'سقف مرخصی باید عدد باشد')
+                return
+            
+            weekend_days = []
+            for day, cb in self.weekend_checkboxes.items():
+                if cb.active:
+                    weekend_days.append(day)
+            
+            config['leave_types'] = self.leave_type_items
+            config['annual_leave_limit'] = annual_limit
+            config['weekend_days'] = weekend_days
+            config['holidays'] = self.holiday_items
+            
+            success = AttendanceManager.save_config(config)
+            
+            if success:
+                self.show_message('موفق', 'تنظیمات مرخصی با موفقیت ذخیره شد')
+                self.switch_tab(5)
+            else:
+                self.show_message('خطا', 'خطا در ذخیره تنظیمات')
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در ذخیره تنظیمات مرخصی: {e}", error_details)
+
+
+    def reset_leave_settings(self, instance):
+        """بازنشانی تنظیمات مرخصی به پیش‌فرض"""
+        try:
+            default_config = AttendanceManager.get_default_config()
+            
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                        size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text='آیا از بازنشانی تنظیمات به مقادیر پیش‌فرض مطمئن هستید؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(255, 255, 255, 255)
+            ))
+            
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+            yes_btn = PersianButton(
+                text='بله',
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                background_color=(0.8, 0.2, 0.2, 1),
+                font_size=sp(16)
+            )
+            no_btn = PersianButton(
+                text='خیر',
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                background_color=(0.3, 0.3, 0.3, 1),
+                font_size=sp(16)
+            )
+            btn_layout.add_widget(yes_btn)
+            btn_layout.add_widget(no_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='تأیید بازنشانی',
+                content=content,
+                size_hint=(0.8, 0.3),
+                background_color=(0.08, 0.08, 0.08, 1)
+            )
+            
+            def do_reset(inst):
+                popup.dismiss()
+                AttendanceManager.save_config(default_config)
+                self.show_message('موفق', 'تنظیمات به حالت پیش‌فرض بازنشانی شد')
+                self.switch_tab(5)
+            
+            def cancel_reset(inst):
+                popup.dismiss()
+            
+            yes_btn.bind(on_press=do_reset)
+            no_btn.bind(on_press=cancel_reset)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در بازنشانی تنظیمات مرخصی: {e}", error_details)
     
     # ========== تب خام سازی ==========
 
@@ -277,6 +915,7 @@ class AdminSettingsScreen(Screen):
             
             # ========== لیست کامل فایل‌های قابل خام سازی ==========
             clean_options = [
+                'حضور و غیاب (attendance.json)',
                 'ویزیت‌های روزانه بازاریاب (daily_log.json)',
                 'خلاصه پایان کار بازاریاب (daily_summary.json)',
                 'توزیع‌های روزانه موزع (delivery_sale.json)',
@@ -295,6 +934,7 @@ class AdminSettingsScreen(Screen):
             ]
             
             self.clean_options_map = {
+                'حضور و غیاب (attendance.json)': 'attendance',
                 'ویزیت‌های روزانه بازاریاب (daily_log.json)': 'daily_log',
                 'خلاصه پایان کار بازاریاب (daily_summary.json)': 'daily_summary',
                 'توزیع‌های روزانه موزع (delivery_sale.json)': 'delivery_sale',
@@ -621,6 +1261,8 @@ class AdminSettingsScreen(Screen):
                 self.show_message('خطا', 'هیچ آیتمی انتخاب نشده')
                 return
             
+            data_path = get_data_path()
+            
             for item in self.clean_selected:
                 key = self.clean_options_map.get(item)
                 if not key:
@@ -628,7 +1270,13 @@ class AdminSettingsScreen(Screen):
                     continue
                 
                 try:
-                    if key == 'daily_log':
+                    if key == 'attendance':
+                        file_path = os.path.join(data_path, 'attendance.json')
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        cleaned.append(item)
+                        
+                    elif key == 'daily_log':
                         save_json('daily_log.json', {})
                         cleaned.append(item)
                         
@@ -718,7 +1366,7 @@ class AdminSettingsScreen(Screen):
             else:
                 self.show_message('خطا', 'هیچ موردی خام سازی نشد')
             
-            self.switch_tab(4)
+            self.switch_tab(3)
             
         except Exception as e:
             error_details = traceback.format_exc()

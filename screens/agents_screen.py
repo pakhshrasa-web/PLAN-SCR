@@ -19,7 +19,8 @@ from utils.rtl_widgets import RTLTextInput, PersianComboBox, PersianButton, RTLL
 from utils.file_manager import get_routes, get_customers, get_settings, save_daily_log, get_daily_logs, add_customer
 from utils.jalali_date import get_today_jalali, get_current_time
 from error_handler import ErrorPopup
-
+from screens.collection_dialog import CollectionDialog
+from screens.collection_report_dialog import CollectionReportDialog
 
 class AgentsScreen(Screen):
     def __init__(self, **kwargs):
@@ -314,6 +315,31 @@ class AgentsScreen(Screen):
             update_products_btn.bind(on_press=self.show_update_products_dialog)
             content.add_widget(update_products_btn)
             
+            # ========== دکمه وصول مطالبات (جدید) ==========
+            collection_btn = PersianButton(
+                text='وصول مطالبات',
+                background_color=(0.8, 0.4, 0.1, 1),  # نارنجی
+                color=(1, 1, 1, 1),
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                bold=True
+            )
+            collection_btn.bind(on_press=self.show_collection_dialog)
+            content.add_widget(collection_btn)
+
+            #  دکمه گزارشات وصول
+            collection_report_btn = PersianButton(
+                text='گزارشات وصول',
+                background_color=(0.3, 0.5, 0.7, 1),
+                color=(1, 1, 1, 1),
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(16)
+            )
+            collection_report_btn.bind(on_press=lambda x: CollectionReportDialog())
+            content.add_widget(collection_report_btn)
+
             # ========== دکمه بازگشت ==========
             back_btn = PersianButton(
                 text='بازگشت', background_color=(0.3, 0.3, 0.3, 1),
@@ -1576,6 +1602,33 @@ class AgentsScreen(Screen):
         if not isinstance(units, list): units = []
         return f'کالاهای موجود: {len(products)} گروه | {len(units)} واحد'
 
+
+    def show_collection_dialog(self, instance):
+        """نمایش دیالوگ وصول مطالبات"""
+        try:
+            agent_name = App.get_running_app().current_username if hasattr(App.get_running_app(), 'current_username') else ''
+            
+            if not agent_name:
+                self.show_message('خطا', 'نام کاربری ایجنت مشخص نیست')
+                return
+            
+            # مسیر پیش فرض: همون مسیر فعلی (اگه انتخاب شده) وگرنه خالی
+            default_route = self.route_spinner.text if self.route_spinner.text else ''
+            
+            CollectionDialog(
+                agent_name=agent_name,
+                route=default_route,
+                on_save_callback=self._on_collection_saved
+            )
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ وصول: {e}", error_details)
+
+
+    def _on_collection_saved(self, collection_id, status):
+        """کال بک بعد از ذخیره موفق وصول"""
+        print(f"وصول {collection_id} با وضعیت {status} ثبت شد")
 
     # ============================================================
     # دیالوگ تحقق ریزتارگت‌ها

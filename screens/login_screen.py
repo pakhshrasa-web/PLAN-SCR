@@ -14,6 +14,7 @@ from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.logger import Logger as logger
+from screens.attendance_screen import AttendanceScreen
 
 from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup
 from utils.user_manager import login
@@ -177,6 +178,19 @@ class LoginScreen(Screen):
             register_btn.bind(on_press=self.open_register)
             content.add_widget(register_btn)
             
+            # ========== دکمه حضور و غیاب ==========
+            attendance_btn = PersianButton(
+                text='حضور و غیاب',
+                size_hint_y=None,
+                height=dp(50),
+                background_color=(0.4, 0.2, 0.6, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            attendance_btn.bind(on_press=self.show_attendance_login_dialog)
+            content.add_widget(attendance_btn)
+            content.add_widget(Label(size_hint_y=None, height=dp(5)))
+
             self.scroll.add_widget(content)
             main_layout.add_widget(self.scroll)
             self.add_widget(main_layout)
@@ -453,7 +467,156 @@ class LoginScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ورود: {e}", error_details)
-    
+
+    def show_attendance_login_dialog(self, instance):
+        """نمایش دیالوگ لاگین حضور و غیاب"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(12))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v))
+            
+            # عنوان
+            content.add_widget(RTLLabel(
+                text='ورود به حضور و غیاب',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(20),
+                bold=True,
+                color=(0.4, 0.8, 1, 1)
+            ))
+            
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # نام کاربری
+            content.add_widget(RTLLabel(
+                text='نام کاربری:',
+                size_hint_y=None,
+                height=dp(22),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            
+            username_input = RTLTextInput(
+                text='',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(48),
+                font_size=sp(18),
+                hint_text='نام کاربری را وارد کنید'
+            )
+            username_input.bg_color = (0.15, 0.15, 0.15, 1)
+            username_input.border_color = (0.3, 0.3, 0.3, 1)
+            username_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            username_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(username_input)
+            
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # رمز عبور
+            content.add_widget(RTLLabel(
+                text='رمز عبور:',
+                size_hint_y=None,
+                height=dp(22),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            
+            password_input = RTLTextInput(
+                text='',
+                password=True,
+                multiline=False,
+                size_hint_y=None,
+                height=dp(48),
+                font_size=sp(18),
+                hint_text='رمز عبور را وارد کنید'
+            )
+            password_input.bg_color = (0.15, 0.15, 0.15, 1)
+            password_input.border_color = (0.3, 0.3, 0.3, 1)
+            password_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            password_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(password_input)
+            
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
+            
+            # دکمه‌ها
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(10))
+            
+            login_btn = PersianButton(
+                text='ورود',
+                background_color=(0.4, 0.2, 0.6, 1),
+                size_hint_y=None,
+                height=dp(42),
+                color=(1, 1, 1, 1),
+                font_size=sp(16),
+                bold=True
+            )
+            
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(42),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(login_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='حضور و غیاب',
+                content=content,
+                size_hint=(0.85, 0.5),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def do_login(instance):
+                username = username_input.text.strip()
+                password = password_input.text.strip()
+                
+                if not username or not password:
+                    self.show_message('خطا', 'لطفاً نام کاربری و رمز عبور را وارد کنید')
+                    return
+                
+                from utils.user_manager import login
+                user = login(username, password)
+                
+                if user:
+                    popup.dismiss()
+                    if not self.manager.has_screen('attendance'):
+                        from screens.attendance_screen import AttendanceScreen
+                        self.manager.add_widget(AttendanceScreen(name='attendance'))
+                    
+                    attendance_screen = self.manager.get_screen('attendance')
+                    attendance_screen.set_user(user)
+                    self.manager.current = 'attendance'
+                else:
+                    self.show_message('خطا', 'نام کاربری یا رمز عبور اشتباه است')
+            
+            def on_cancel(instance):
+                popup.dismiss()
+            
+            login_btn.bind(on_press=do_login)
+            cancel_btn.bind(on_press=on_cancel)
+            
+            # ✅ اصلاح: استفاده از _hidden_input برای فوکوس و Enter
+            password_input._hidden_input.bind(on_text_validate=do_login)
+            username_input._hidden_input.bind(on_text_validate=lambda x: setattr(password_input._hidden_input, 'focus', True))
+            
+            popup.open()
+            
+            # ✅ اصلاح: فوکوس روی _hidden_input
+            Clock.schedule_once(lambda dt: setattr(username_input._hidden_input, 'focus', True), 0.2)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا: {e}", error_details)
+
     # ============================================================
     # نمایش پیام
     # ============================================================
