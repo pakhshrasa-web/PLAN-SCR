@@ -11,9 +11,13 @@ from .settings_login_screen import SettingsLoginScreen
 from .debug_screen import DebugScreen
 from .agents_screen import AgentsScreen
 from .supervisor_screen import SupervisorScreen
-from .supervisor_report_screen import SupervisorReportScreen  # ✅ اضافه کن
+from .supervisor_report_screen import SupervisorReportScreen
 from .distributor_screen import DistributorScreen
 from .distributor_report_screen import DistributorReportScreen
+from .attendance_screen import AttendanceScreen
+from .report_attendance_screen import ReportAttendanceScreen
+from .collection_dialog import CollectionDialog
+from .collection_report_dialog import CollectionReportDialog
 
 __all__ = [
     'LoginScreen',
@@ -26,7 +30,11 @@ __all__ = [
     'DebugScreen',
     'AgentsScreen',
     'SupervisorScreen',
-    'SupervisorReportScreen',  # ✅ اضافه کن
+    'SupervisorReportScreen',
     'DistributorScreen',
-    'DistributorReportScreen'
+    'DistributorReportScreen',
+    'AttendanceScreen',
+    'ReportAttendanceScreen',
+    'CollectionDialog',
+    'CollectionReportDialog'
 ]

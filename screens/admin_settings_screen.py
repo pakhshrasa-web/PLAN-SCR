@@ -300,16 +300,15 @@ class AdminSettingsScreen(Screen):
                 color=(255, 255, 255, 255)
             ))
 
-            # ردیف سقف مرخصی
             row_limit = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
             self.annual_leave_limit = RTLTextInput(
                 text=str(config.get('annual_leave_limit', 30)),
                 multiline=False,
-                size_hint_x=0.5,  # ← افزایش به 0.5
+                size_hint_x=0.5,
                 size_hint_y=None,
                 height=dp(46),
-                font_size=sp(32),
+                font_size=sp(24),
                 hint_text='تعداد روز'
             )
             self.annual_leave_limit.bg_color = (0.15, 0.15, 0.15, 1)
@@ -319,13 +318,12 @@ class AdminSettingsScreen(Screen):
             self.annual_leave_limit._hidden_input.bind(focus=self._on_field_focus)
             row_limit.add_widget(self.annual_leave_limit)
 
-            # ✅ لیبل "روز" با size_hint_x=0.5
             row_limit.add_widget(RTLLabel(
-                text='روز',
+                text='سقف مرخصی سالیانه',
                 size_hint_x=0.5,
                 size_hint_y=None,
                 height=dp(46),
-                font_size=sp(24),
+                font_size=sp(18),
                 color=(255, 255, 255, 255),
                 halign='right',
                 valign='middle'
@@ -335,7 +333,103 @@ class AdminSettingsScreen(Screen):
             layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
             # ============================================================
-            # بخش 2: انواع مرخصی
+            # بخش 2: سقف مرخصی ساعتی در ماه
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='سقف مرخصی ساعتی در ماه (ساعت):',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(22),
+                bold=True,
+                color=(255, 255, 255, 255)
+            ))
+
+            row_hourly_limit = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+
+            self.monthly_hourly_leave_limit = RTLTextInput(
+                text=str(config.get('monthly_hourly_leave_limit', '10:00')),
+                multiline=False,
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(24),
+                hint_text='مثال: 10:00'
+            )
+            self.monthly_hourly_leave_limit.bg_color = (0.15, 0.15, 0.15, 1)
+            self.monthly_hourly_leave_limit.border_color = (0.3, 0.3, 0.3, 1)
+            self.monthly_hourly_leave_limit.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.monthly_hourly_leave_limit._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.monthly_hourly_leave_limit._hidden_input.bind(focus=self._on_field_focus)
+            row_hourly_limit.add_widget(self.monthly_hourly_leave_limit)
+
+            row_hourly_limit.add_widget(RTLLabel(
+                text='سقف مرخصی ساعتی در ماه',
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(18),
+                color=(255, 255, 255, 255),
+                halign='right',
+                valign='middle'
+            ))
+
+            layout.add_widget(row_hourly_limit)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 3: نسبت تبدیل مرخصی ساعتی به روزانه
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='نسبت تبدیل مرخصی ساعتی به روزانه:',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(22),
+                bold=True,
+                color=(255, 255, 255, 255)
+            ))
+
+            layout.add_widget(RTLLabel(
+                text='(هر چند ساعت مرخصی ساعتی معادل ۱ روز مرخصی استحقاقی است)',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(14),
+                color=(150, 150, 150, 255)
+            ))
+
+            row_ratio = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+
+            self.hourly_to_daily_ratio = RTLTextInput(
+                text=str(config.get('hourly_to_daily_ratio', 5)),
+                multiline=False,
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(24),
+                hint_text='مثال: 5'
+            )
+            self.hourly_to_daily_ratio.bg_color = (0.15, 0.15, 0.15, 1)
+            self.hourly_to_daily_ratio.border_color = (0.3, 0.3, 0.3, 1)
+            self.hourly_to_daily_ratio.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.hourly_to_daily_ratio._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.hourly_to_daily_ratio._hidden_input.bind(focus=self._on_field_focus)
+            row_ratio.add_widget(self.hourly_to_daily_ratio)
+
+            row_ratio.add_widget(RTLLabel(
+                text='تبدیل ساعتی به روز',
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(46),
+                font_size=sp(18),
+                color=(255, 255, 255, 255),
+                halign='right',
+                valign='middle'
+            ))
+
+            layout.add_widget(row_ratio)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 4: انواع مرخصی
             # ============================================================
             layout.add_widget(RTLLabel(
                 text='انواع مرخصی:',
@@ -346,7 +440,6 @@ class AdminSettingsScreen(Screen):
                 color=(102, 178, 255, 255)
             ))
             
-            # لیست انواع مرخصی
             leave_list_scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -371,10 +464,8 @@ class AdminSettingsScreen(Screen):
             leave_list_scroll.add_widget(self.leave_types_container)
             layout.add_widget(leave_list_scroll)
             
-            # ردیف افزودن نوع مرخصی (دکمه در راست، فیلد در وسط، لیبل در چپ)
             add_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
             
-            # دکمه در راست
             add_btn = PersianButton(
                 text='افزودن',
                 size_hint_x=0.3,
@@ -387,7 +478,6 @@ class AdminSettingsScreen(Screen):
             add_btn.bind(on_press=self._add_leave_type)
             add_row.add_widget(add_btn)
             
-            # فیلد در وسط
             self.new_leave_type_input = RTLTextInput(
                 text='',
                 multiline=False,
@@ -404,7 +494,6 @@ class AdminSettingsScreen(Screen):
             self.new_leave_type_input._hidden_input.bind(focus=self._on_field_focus)
             add_row.add_widget(self.new_leave_type_input)
             
-            # لیبل در چپ
             add_row.add_widget(RTLLabel(
                 text='نوع جدید:',
                 size_hint_x=0.3,
@@ -416,7 +505,7 @@ class AdminSettingsScreen(Screen):
             layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
             # ============================================================
-            # بخش 3: روزهای تعطیل هفتگی
+            # بخش 5: روزهای تعطیل هفتگی
             # ============================================================
             layout.add_widget(RTLLabel(
                 text='روزهای تعطیل هفتگی:',
@@ -479,7 +568,7 @@ class AdminSettingsScreen(Screen):
             layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
             # ============================================================
-            # بخش 4: تعطیلات رسمی
+            # بخش 6: تعطیلات رسمی
             # ============================================================
             layout.add_widget(RTLLabel(
                 text='تعطیلات رسمی:',
@@ -498,7 +587,6 @@ class AdminSettingsScreen(Screen):
                 color=(150, 150, 150, 255)
             ))
             
-            # لیست تعطیلات
             holiday_scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -523,10 +611,8 @@ class AdminSettingsScreen(Screen):
             holiday_scroll.add_widget(self.holidays_container)
             layout.add_widget(holiday_scroll)
             
-            # ردیف افزودن تعطیل (دکمه در راست، فیلد در وسط، لیبل در چپ)
             add_holiday_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(8))
             
-            # دکمه در راست
             add_holiday_btn = PersianButton(
                 text='افزودن',
                 size_hint_x=0.3,
@@ -539,7 +625,6 @@ class AdminSettingsScreen(Screen):
             add_holiday_btn.bind(on_press=self._add_holiday)
             add_holiday_row.add_widget(add_holiday_btn)
             
-            # فیلد در وسط
             self.new_holiday_input = RTLTextInput(
                 text='',
                 multiline=False,
@@ -556,7 +641,6 @@ class AdminSettingsScreen(Screen):
             self.new_holiday_input._hidden_input.bind(focus=self._on_field_focus)
             add_holiday_row.add_widget(self.new_holiday_input)
             
-            # لیبل در چپ
             add_holiday_row.add_widget(RTLLabel(
                 text='تعطیل جدید:',
                 size_hint_x=0.3,
@@ -769,6 +853,20 @@ class AdminSettingsScreen(Screen):
         self.new_holiday_input.text = ''
 
 
+    def _get_holidays_from_container(self):
+        """گرفتن لیست تعطیلات از container"""
+        holidays = []
+        for child in self.holidays_container.children:
+            if isinstance(child, BoxLayout):
+                for widget in child.children:
+                    if isinstance(widget, RTLLabel):
+                        # ✅ استفاده از _text به جای text
+                        if hasattr(widget, '_text') and widget._text:
+                            holidays.append(widget._text)
+                        break
+        return holidays
+
+
     def save_leave_settings(self, instance):
         """ذخیره تنظیمات مرخصی"""
         try:
@@ -787,19 +885,48 @@ class AdminSettingsScreen(Screen):
                 self.show_message('خطا', 'سقف مرخصی باید عدد باشد')
                 return
             
+            # ✅ اعتبارسنجی سقف مرخصی ساعتی
+            hourly_limit = self.monthly_hourly_leave_limit.text.strip()
+            if not hourly_limit:
+                self.show_message('خطا', 'لطفاً سقف مرخصی ساعتی را وارد کنید')
+                return
+            try:
+                h, m = map(int, hourly_limit.split(':'))
+                if h < 0 or m < 0 or m >= 60:
+                    self.show_message('خطا', 'فرمت سقف مرخصی ساعتی نامعتبر است (مثال: 10:00)')
+                    return
+            except:
+                self.show_message('خطا', 'فرمت سقف مرخصی ساعتی نامعتبر است (مثال: 10:00)')
+                return
+            
+            # ✅ اعتبارسنجی نسبت تبدیل
+            try:
+                ratio = int(self.hourly_to_daily_ratio.text.strip())
+                if ratio < 1:
+                    self.show_message('خطا', 'نسبت تبدیل باید حداقل 1 باشد')
+                    return
+            except ValueError:
+                self.show_message('خطا', 'نسبت تبدیل باید عدد باشد')
+                return
+            
             weekend_days = []
             for day, cb in self.weekend_checkboxes.items():
                 if cb.active:
                     weekend_days.append(day)
             
+            holidays_list = self._get_holidays_from_container()
+            
             config['leave_types'] = self.leave_type_items
             config['annual_leave_limit'] = annual_limit
+            config['monthly_hourly_leave_limit'] = hourly_limit
+            config['hourly_to_daily_ratio'] = ratio
             config['weekend_days'] = weekend_days
-            config['holidays'] = self.holiday_items
+            config['holidays'] = holidays_list
             
             success = AttendanceManager.save_config(config)
             
             if success:
+                self.holiday_items = holidays_list
                 self.show_message('موفق', 'تنظیمات مرخصی با موفقیت ذخیره شد')
                 self.switch_tab(5)
             else:
