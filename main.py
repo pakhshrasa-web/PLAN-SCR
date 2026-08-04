@@ -79,10 +79,10 @@ from screens import (
     AgentsScreen,
     SupervisorScreen,
     DistributorScreen,
-    DistributorReportScreen
+    DistributorReportScreen,
+    AttendanceScreen,
 )
 from screens.supervisor_report_screen import SupervisorReportScreen
-from screens.attendance_screen import AttendanceScreen
 
 # ========== تنظیم فونت ==========
 def setup_font():
@@ -328,11 +328,30 @@ class MainApp(App):
                     'distributor_target_check': 10000000,
                     'distributor_target_credit': 5000000
                 },
+                'attendance_config.json': {
+                    'late_threshold': 15,
+                    'early_leave_threshold': 15,
+                    'max_attendance_days': 30,
+                    'weekend_days': ['پنجشنبه', 'جمعه'],
+                    'holidays': [],
+                    'leave_types': ['ساعتی', 'استحقاقی', 'استعلاجی', 'اضطراری', 'بدون حقوق'],
+                    'statuses': ['حضور', 'غیبت', 'مرخصی', 'ماموریت', 'تاخیر', 'خروج زودتر'],
+                    'annual_leave_limit': 30,
+                    'monthly_hourly_leave_limit': '10:00',
+                    'hourly_to_daily_ratio': 5
+                },
                 'daily_log.json': {},
                 'users.json': {'users': []},
                 'codes.json': {'codes': []},
                 'admin_password.json': {'hashed_password': hashed_default},
-                'targets.json': []
+                'targets.json': [],
+                'detailed_targets.json': [],
+                'supervisor_visits.json': [],
+                'target_settings.json': {
+                    'target_units': ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"],
+                    'target_periods': ["روزانه", "ماهانه", "فصلی", "سالیانه"]
+                },
+                'products.json': {'product_groups': []}
             }
             
             from utils.storage import get_data_path
