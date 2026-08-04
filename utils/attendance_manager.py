@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime
 from utils.jalali_date import get_today_jalali
 from utils.storage import get_data_path
-from utils.file_manager import get_agents  # ✅ استفاده از get_agents
+from utils.file_manager import get_agents, get_settings  # ✅ اضافه شدن get_settings
 
 
 class AttendanceManager:
@@ -29,8 +29,6 @@ class AttendanceManager:
     def get_default_config():
         """دریافت تنظیمات پیش‌فرض"""
         return {
-            'work_start_time': '08:00',
-            'work_end_time': '17:00',
             'late_threshold': 15,
             'early_leave_threshold': 15,
             'max_attendance_days': 30,
@@ -38,7 +36,19 @@ class AttendanceManager:
             'holidays': [],
             'leave_types': ['ساعتی', 'استحقاقی', 'استعلاجی', 'اضطراری', 'بدون حقوق'],
             'statuses': ['حضور', 'غیبت', 'مرخصی', 'ماموریت', 'تاخیر', 'خروج زودتر'],
-            'annual_leave_limit': 30
+            'annual_leave_limit': 30,
+            'monthly_hourly_leave_limit': '10:00',
+            'hourly_to_daily_ratio': 5
+        }
+    
+    @staticmethod
+    def get_work_hours():
+        """دریافت ساعات کاری از settings.json"""
+        settings = get_settings()
+        return {
+            'work_start_time': settings.get('work_start_time', '08:00'),
+            'work_end_time': settings.get('work_end_time', '17:00'),
+            'min_daily_hours': settings.get('min_daily_hours', 7)
         }
     
     @staticmethod
@@ -91,8 +101,6 @@ class AttendanceManager:
             json.dump(config, f, ensure_ascii=False, indent=2)
         return True
     
-    # ✅ حذف متد get_personnel و استفاده از get_agents به جای آن
-    
     @staticmethod
     def check_in(user_id, date=None, time=None, note=''):
         """ثبت ورود - بدون محدودیت روزانه"""
@@ -104,12 +112,15 @@ class AttendanceManager:
         attendance = AttendanceManager.load_attendance()
         
         # دریافت اطلاعات پرسنل از get_agents
-        personnel = get_agents()  # ✅ استفاده از get_agents
+        personnel = get_agents()
         user_info = next((u for u in personnel if u.get('id') == user_id), {})
+        
+        # ✅ دریافت ساعات کاری از settings.json
+        work_hours = AttendanceManager.get_work_hours()
+        work_start = work_hours.get('work_start_time', '08:00')
         
         # بررسی تاخیر
         config = AttendanceManager.load_config()
-        work_start = config.get('work_start_time', '08:00')
         is_late = time > work_start
         late_minutes = 0
         if is_late:
@@ -163,11 +174,14 @@ class AttendanceManager:
         
         # اگر رکوردی برای خروج پیدا نشد، یک رکورد جدید با زمان ورود و خروج همزمان ثبت کن
         if not record:
-            personnel = get_agents()  # ✅ استفاده از get_agents
+            personnel = get_agents()
             user_info = next((u for u in personnel if u.get('id') == user_id), {})
             
+            # ✅ دریافت ساعات کاری از settings.json
+            work_hours = AttendanceManager.get_work_hours()
+            work_start = work_hours.get('work_start_time', '08:00')
+            
             config = AttendanceManager.load_config()
-            work_start = config.get('work_start_time', '08:00')
             is_late = time > work_start
             late_minutes = 0
             if is_late:
@@ -200,9 +214,12 @@ class AttendanceManager:
             AttendanceManager.save_attendance(attendance)
             return True, 'خروج با موفقیت ثبت شد (ورود و خروج همزمان)'
         
+        # ✅ دریافت ساعات کاری از settings.json
+        work_hours = AttendanceManager.get_work_hours()
+        work_end = work_hours.get('work_end_time', '17:00')
+        
         # بررسی خروج زودتر
         config = AttendanceManager.load_config()
-        work_end = config.get('work_end_time', '17:00')
         is_early = time < work_end
         early_minutes = 0
         if is_early:
@@ -227,7 +244,7 @@ class AttendanceManager:
         """ثبت مرخصی"""
         attendance = AttendanceManager.load_attendance()
         
-        personnel = get_agents()  # ✅ استفاده از get_agents
+        personnel = get_agents()
         user_info = next((u for u in personnel if u.get('id') == user_id), {})
         
         record = {
@@ -260,7 +277,7 @@ class AttendanceManager:
         """ثبت ماموریت"""
         attendance = AttendanceManager.load_attendance()
         
-        personnel = get_agents()  # ✅ استفاده از get_agents
+        personnel = get_agents()
         user_info = next((u for u in personnel if u.get('id') == user_id), {})
         
         record = {
