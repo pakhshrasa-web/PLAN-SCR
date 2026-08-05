@@ -201,60 +201,41 @@ class ReportAttendanceScreen(BoxLayout):
             text=months[0] if months else '',
             values=months,
             height=dp(36),
-            size_hint_x=0.36
+            size_hint_x=0.33
         )
         self.month_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.month_combo.main_btn.color = (1, 1, 1, 1)
         self.month_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.month_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='ماه:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         # کامبوباکس نوع گزارش
         self.report_type_combo = PersianComboBox(
             text='روزانه',
             values=['روزانه', 'تجمیعی', 'تفکیک ماهانه'],
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.34
         )
         self.report_type_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.report_type_combo.main_btn.color = (1, 1, 1, 1)
         self.report_type_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.report_type_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='نوع:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         # کامبوباکس خروجی
         self.export_type_combo = PersianComboBox(
             text='همه رکوردها',
             values=['همه رکوردها', 'خلاصه'],
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.33
         )
         self.export_type_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.export_type_combo.main_btn.color = (1, 1, 1, 1)
         self.export_type_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.export_type_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='خروجی:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
         
         content.add_widget(filter_row)
         content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
@@ -1026,20 +1007,14 @@ class ReportAttendanceScreen(BoxLayout):
             text=user_names[0] if user_names else 'همه',
             values=user_names,
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.34
         )
         self.leave_user_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.leave_user_combo.main_btn.color = (1, 1, 1, 1)
         self.leave_user_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.leave_user_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='عامل:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         # 2. کامبوباکس ماه‌ها
         months = self._get_months_list()
@@ -1047,20 +1022,14 @@ class ReportAttendanceScreen(BoxLayout):
             text=months[0] if months else '',
             values=months,
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.33
         )
         self.leave_month_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.leave_month_combo.main_btn.color = (1, 1, 1, 1)
         self.leave_month_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.leave_month_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='ماه:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         # 3. کامبوباکس نوع مرخصی (از تنظیمات)
         config = self._load_leave_config()
@@ -1069,20 +1038,14 @@ class ReportAttendanceScreen(BoxLayout):
             text=leave_types[0] if leave_types else 'همه',
             values=leave_types,
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.33
         )
         self.leave_type_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.leave_type_combo.main_btn.color = (1, 1, 1, 1)
         self.leave_type_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.leave_type_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='نوع مرخصی:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         content.add_widget(filter_row)
         content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
@@ -1729,20 +1692,14 @@ class ReportAttendanceScreen(BoxLayout):
             text=user_names[0] if user_names else 'همه',
             values=user_names,
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.33
         )
         self.mission_user_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.mission_user_combo.main_btn.color = (1, 1, 1, 1)
         self.mission_user_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.mission_user_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='عامل:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         # 2. کامبوباکس ماه‌ها
         months = self._get_months_list()
@@ -1750,40 +1707,28 @@ class ReportAttendanceScreen(BoxLayout):
             text=months[0] if months else '',
             values=months,
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.33
         )
         self.mission_month_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.mission_month_combo.main_btn.color = (1, 1, 1, 1)
         self.mission_month_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.mission_month_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='ماه:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         # 3. کامبوباکس وضعیت
         self.mission_status_combo = PersianComboBox(
             text='همه',
             values=['همه', '⏳ در انتظار', '✅ موفق', '❌ ناموفق'],
             height=dp(36),
-            size_hint_x=0.28
+            size_hint_x=0.34
         )
         self.mission_status_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
         self.mission_status_combo.main_btn.color = (1, 1, 1, 1)
         self.mission_status_combo.main_btn.font_size = sp(14)
         filter_row.add_widget(self.mission_status_combo)
         
-        filter_row.add_widget(RTLLabel(
-            text='وضعیت:',
-            size_hint_x=0.04,
-            font_size=sp(13),
-            color=(1, 1, 1, 1),
-            halign='right'
-        ))
+
         
         content.add_widget(filter_row)
         content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
@@ -1832,7 +1777,9 @@ class ReportAttendanceScreen(BoxLayout):
         content.add_widget(btn_row)
         content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
         
-        # ========== خلاصه آمار ==========
+        # ========== خلاصه آمار (نوار آبی) ==========
+        from utils.persian_text import PersianLabel
+        
         stats_layout = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(4), padding=[dp(6), dp(3), dp(6), dp(3)])
         with stats_layout.canvas.before:
             Color(0.15, 0.2, 0.3, 1)
@@ -1840,51 +1787,75 @@ class ReportAttendanceScreen(BoxLayout):
             stats_layout.bind(pos=lambda i, v: setattr(rect, 'pos', v),
                             size=lambda i, v: setattr(rect, 'size', v))
         
-        self.mission_total_label = RTLLabel(
+        self.mission_total_label = PersianLabel(
             text='تعداد کل: ۰',
-            size_hint_x=0.17,
-            font_size=sp(12),
-            color=(1, 1, 1, 1)
+            size_hint_x=0.14,
+            font_size=sp(11),
+            color=(255, 255, 255, 255),
+            halign='center',
+            valign='middle'
         )
         stats_layout.add_widget(self.mission_total_label)
         
-        self.mission_pending_label = RTLLabel(
+        self.mission_pending_label = PersianLabel(
             text='در انتظار: ۰',
-            size_hint_x=0.17,
-            font_size=sp(12),
-            color=(0.9, 0.8, 0.2, 1)
+            size_hint_x=0.14,
+            font_size=sp(11),
+            color=(230, 204, 51, 255),
+            halign='center',
+            valign='middle'
         )
         stats_layout.add_widget(self.mission_pending_label)
         
-        self.mission_success_label = RTLLabel(
+        self.mission_success_label = PersianLabel(
             text='موفق: ۰',
-            size_hint_x=0.17,
-            font_size=sp(12),
-            color=(0.2, 0.9, 0.2, 1)
+            size_hint_x=0.14,
+            font_size=sp(11),
+            color=(51, 230, 51, 255),
+            halign='center',
+            valign='middle'
         )
         stats_layout.add_widget(self.mission_success_label)
         
-        self.mission_failed_label = RTLLabel(
+        self.mission_failed_label = PersianLabel(
             text='ناموفق: ۰',
-            size_hint_x=0.17,
-            font_size=sp(12),
-            color=(0.9, 0.2, 0.2, 1)
+            size_hint_x=0.14,
+            font_size=sp(11),
+            color=(230, 51, 51, 255),
+            halign='center',
+            valign='middle'
         )
         stats_layout.add_widget(self.mission_failed_label)
         
-        self.mission_score_label = RTLLabel(
+        # ✅ امتیاز ماموریت (مجموع)
+        self.mission_score_label = PersianLabel(
             text='امتیاز: ۰',
-            size_hint_x=0.16,
-            font_size=sp(12),
-            color=(0.4, 0.7, 1, 1)
+            size_hint_x=0.14,
+            font_size=sp(11),
+            color=(102, 178, 255, 255),
+            halign='center',
+            valign='middle'
         )
         stats_layout.add_widget(self.mission_score_label)
         
-        self.mission_target_label = RTLLabel(
+        # ✅ امتیاز کسب شده (فقط موفق‌ها)
+        self.mission_earned_label = PersianLabel(
+            text='کسب شده: ۰',
+            size_hint_x=0.15,
+            font_size=sp(11),
+            color=(51, 230, 51, 255),
+            halign='center',
+            valign='middle'
+        )
+        stats_layout.add_widget(self.mission_earned_label)
+        
+        self.mission_target_label = PersianLabel(
             text='هدف: ۰',
-            size_hint_x=0.16,
-            font_size=sp(12),
-            color=(0.8, 0.8, 0.2, 1)
+            size_hint_x=0.15,
+            font_size=sp(11),
+            color=(204, 204, 51, 255),
+            halign='center',
+            valign='middle'
         )
         stats_layout.add_widget(self.mission_target_label)
         
@@ -2109,24 +2080,57 @@ class ReportAttendanceScreen(BoxLayout):
 
 
     def _update_mission_stats(self, missions):
-        """به‌روزرسانی آمار ماموریت‌ها"""
+        """به‌روزرسانی آمار ماموریت‌ها - شامل امتیاز ماموریت و امتیاز کسب شده"""
         try:
             total = len(missions)
             pending = len([m for m in missions if 'در انتظار' in m.get('status', '')])
-            success = len([m for m in missions if 'موفق' in m.get('status', '')])
+            success = len([m for m in missions if 'موفق' in m.get('status', '') and 'ناموفق' not in m.get('status', '')])
             failed = len([m for m in missions if 'ناموفق' in m.get('status', '')])
+            
+            # ✅ امتیاز ماموریت: مجموع score همه ماموریت‌ها
             total_score = sum([m.get('score', 0) for m in missions])
+            
+            # ✅ امتیاز کسب شده: فقط ماموریت‌های موفق
+            earned_score = 0
+            for m in missions:
+                status = m.get('status', '')
+                if 'موفق' in status and 'ناموفق' not in status:
+                    earned_score += m.get('score', 0)
+            
             total_target = sum([m.get('target', 0) for m in missions])
             
-            self.mission_total_label.text = f'تعداد کل: {total}'
-            self.mission_pending_label.text = f'در انتظار: {pending}'
-            self.mission_success_label.text = f'موفق: {success}'
-            self.mission_failed_label.text = f'ناموفق: {failed}'
-            self.mission_score_label.text = f'امتیاز: {total_score}'
-            self.mission_target_label.text = f'هدف: {total_target:,.0f}'
+            # ✅ به‌روزرسانی با set_text
+            if hasattr(self, 'mission_total_label') and self.mission_total_label:
+                self.mission_total_label.set_text(f'تعداد کل: {total}')
+            
+            if hasattr(self, 'mission_pending_label') and self.mission_pending_label:
+                self.mission_pending_label.set_text(f'در انتظار: {pending}')
+            
+            if hasattr(self, 'mission_success_label') and self.mission_success_label:
+                self.mission_success_label.set_text(f'موفق: {success}')
+            
+            if hasattr(self, 'mission_failed_label') and self.mission_failed_label:
+                self.mission_failed_label.set_text(f'ناموفق: {failed}')
+            
+            # ✅ امتیاز ماموریت (مجموع)
+            if hasattr(self, 'mission_score_label') and self.mission_score_label:
+                self.mission_score_label.set_text(f'امتیاز: {total_score}')
+            
+            # ✅ امتیاز کسب شده (فقط موفق‌ها)
+            if hasattr(self, 'mission_earned_label') and self.mission_earned_label:
+                self.mission_earned_label.set_text(f'امتیاز کسب شده: {earned_score}')
+            else:
+                # اگر ویجت وجود نداشت، از همان mission_score_label استفاده کن
+                if hasattr(self, 'mission_score_label') and self.mission_score_label:
+                    self.mission_score_label.set_text(f'امتیاز: {total_score} | کسب شده: {earned_score}')
+            
+            if hasattr(self, 'mission_target_label') and self.mission_target_label:
+                self.mission_target_label.set_text(f'هدف: {total_target:,.0f}')
             
         except Exception as e:
             print(f"خطا در به‌روزرسانی آمار ماموریت: {e}")
+            import traceback
+            traceback.print_exc()
 
 
     def _refresh_mission_report(self, instance):
@@ -2140,7 +2144,7 @@ class ReportAttendanceScreen(BoxLayout):
 
 
     def _export_mission_excel(self, instance):
-        """خروجی اکسل گزارش ماموریت"""
+        """خروجی اکسل گزارش ماموریت با امتیاز ماموریت و امتیاز کسب شده"""
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -2187,7 +2191,7 @@ class ReportAttendanceScreen(BoxLayout):
             )
             
             # ========== اطلاعات هدر ==========
-            ws.merge_cells('A1:K1')
+            ws.merge_cells('A1:L1')
             title_cell = ws.cell(row=1, column=1, value=f'گزارش ماموریت‌ها - {selected_month if selected_month else "همه ماه‌ها"}')
             title_cell.font = Font(bold=True, size=14, color="FFFFFF")
             title_cell.fill = PatternFill(start_color="1B4F72", end_color="1B4F72", fill_type="solid")
@@ -2203,9 +2207,9 @@ class ReportAttendanceScreen(BoxLayout):
             
             row_start = 4
             
-            # ========== هدر جدول ==========
-            headers = ['ردیف', 'شناسه', 'نوع', 'روش', 'تاریخ شروع', 'تاریخ پایان', 'مدت', 'امتیاز', 'هدف', 'وضعیت', 'توضیحات']
-            col_widths = [6, 12, 12, 10, 14, 14, 8, 8, 16, 14, 30]
+            # ========== هدر جدول با ستون امتیاز کسب شده ==========
+            headers = ['ردیف', 'شناسه', 'نوع', 'روش', 'تاریخ شروع', 'تاریخ پایان', 'مدت', 'امتیاز ماموریت', 'امتیاز کسب شده', 'هدف', 'وضعیت', 'توضیحات']
+            col_widths = [6, 12, 12, 10, 14, 14, 8, 14, 14, 16, 14, 30]
             
             for col_idx, header in enumerate(headers, 1):
                 cell = ws.cell(row=row_start, column=col_idx, value=header)
@@ -2218,6 +2222,15 @@ class ReportAttendanceScreen(BoxLayout):
             for idx, mission in enumerate(all_missions, 1):
                 row = row_start + idx
                 
+                status = mission.get('status', '')
+                score = mission.get('score', 0)
+                
+                # ✅ محاسبه امتیاز کسب شده
+                if 'موفق' in status and 'ناموفق' not in status:
+                    earned_score = score
+                else:
+                    earned_score = 0
+                
                 values = [
                     idx,
                     mission.get('id', ''),
@@ -2226,9 +2239,10 @@ class ReportAttendanceScreen(BoxLayout):
                     mission.get('start_date', ''),
                     mission.get('end_date', ''),
                     mission.get('duration', ''),
-                    mission.get('score', ''),
+                    score,  # امتیاز ماموریت
+                    earned_score,  # امتیاز کسب شده
                     mission.get('target', 0),
-                    mission.get('status', ''),
+                    status,
                     mission.get('description', '')
                 ]
                 
@@ -2241,6 +2255,30 @@ class ReportAttendanceScreen(BoxLayout):
                     else:
                         cell.fill = PatternFill(start_color="1A3A2D", end_color="1A3A2D", fill_type="solid")
                     cell.font = Font(color="FFFFFF")
+            
+            # ========== جمع‌بندی در انتهای جدول ==========
+            summary_row = row_start + len(all_missions) + 2
+            ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=3)
+            ws.cell(row=summary_row, column=1, value='خلاصه:')
+            ws.cell(row=summary_row, column=1).font = Font(bold=True, size=12, color="FFD700")
+            
+            # محاسبه جمع کل
+            total_score = sum([m.get('score', 0) for m in all_missions])
+            total_earned = 0
+            for m in all_missions:
+                status = m.get('status', '')
+                if 'موفق' in status and 'ناموفق' not in status:
+                    total_earned += m.get('score', 0)
+            total_target = sum([m.get('target', 0) for m in all_missions])
+            
+            ws.cell(row=summary_row, column=7, value=f'امتیاز ماموریت: {total_score}')
+            ws.cell(row=summary_row, column=7).font = Font(bold=True, size=11, color="FFFFFF")
+            
+            ws.cell(row=summary_row + 1, column=7, value=f'امتیاز کسب شده: {total_earned}')
+            ws.cell(row=summary_row + 1, column=7).font = Font(bold=True, size=11, color="00FF00")
+            
+            ws.cell(row=summary_row + 2, column=7, value=f'هدف کل: {total_target:,.0f}')
+            ws.cell(row=summary_row + 2, column=7).font = Font(bold=True, size=11, color="FFD700")
             
             # ========== تنظیم عرض ستون‌ها ==========
             for i, width in enumerate(col_widths, 1):
