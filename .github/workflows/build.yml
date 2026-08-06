@@ -69,6 +69,7 @@ jobs:
         p4a.ndk_version = 25b
         p4a.branch = develop
         icon.filename = icon/kivy-icon-512.png
+        presplash.filename = icon/kivy-icon-512.png
 
         [buildozer]
         log_level = 2
