@@ -109,12 +109,14 @@ def number_to_words(n):
 
 class PersianLabel(Image):
     def __init__(self, text="", font_size=24, color=(255, 255, 255, 255), **kwargs):
+        # ✅ ذخیره پارامترهای مهم قبل از حذف
+        self._halign = kwargs.pop('halign', 'center')
+        self._valign = kwargs.pop('valign', 'middle')
+        self._text_size = kwargs.pop('text_size', None)
+        
         # حذف پارامترهای غیرمجاز
         kwargs.pop('bold', None)
         kwargs.pop('markup', None)
-        kwargs.pop('halign', None)
-        kwargs.pop('valign', None)
-        kwargs.pop('text_size', None)
         kwargs.pop('font_name', None)
         kwargs.pop('size_hint_x', None)
         kwargs.pop('size_hint_y', None)
@@ -123,14 +125,24 @@ class PersianLabel(Image):
         self._text = text
         self._font_size = font_size
         
-        # تبدیل رنگ به int
+        # ✅ تبدیل رنگ به int
         if isinstance(color, (tuple, list)):
-            self._color = tuple(int(c) for c in color)
+            if len(color) == 4 and all(c <= 1 for c in color):
+                # اگر مقادیر بین 0 و 1 هستند، به RGB تبدیل کن
+                self._color = tuple(int(c * 255) for c in color)
+            else:
+                self._color = tuple(int(c) for c in color)
         else:
             self._color = (255, 255, 255, 255)
         
         self._font_path = self._find_font()
         print(f"فونت انتخاب شده برای PersianLabel: {self._font_path}")
+        
+        # ✅ تنظیم اندازه
+        if self._text_size:
+            self.width = self._text_size[0]
+            self.height = self._text_size[1] if len(self._text_size) > 1 else self.height
+        
         self._update_texture()
     
     def _update_texture(self):
@@ -164,9 +176,7 @@ class PersianLabel(Image):
             # ========== 2. بارگذاری فونت ==========
             font = None
             
-            # ============================================================
-            # اصلاح: چک کردن اینکه _font_path None نباشه
-            # ============================================================
+            # ✅ چک کردن اینکه _font_path None نباشه
             if self._font_path and os.path.exists(self._font_path):
                 try:
                     font = ImageFont.truetype(self._font_path, self._font_size)
@@ -174,9 +184,7 @@ class PersianLabel(Image):
                 except Exception as e:
                     print(f"خطا در بارگذاری فونت: {e}")
             
-            # ============================================================
             # اگر فونت پیدا نشد، از فونت پیش‌فرض استفاده کن
-            # ============================================================
             if font is None:
                 # سعی کن از فونت سیستمی استفاده کنی
                 system_fonts = [
@@ -223,17 +231,43 @@ class PersianLabel(Image):
             
             # ========== 4. ایجاد تصویر با اندازه مناسب ==========
             padding = 20
-            width = max(text_width + (padding * 2), 50)
-            height = max(text_height + (padding * 2), 30)
+            
+            # ✅ اگر text_size مشخص شده، از آن استفاده کن
+            if self._text_size:
+                width = self._text_size[0]
+                height = self._text_size[1] if len(self._text_size) > 1 else text_height + (padding * 2)
+            else:
+                width = max(text_width + (padding * 2), 50)
+                height = max(text_height + (padding * 2), 30)
             
             print(f"اندازه نهایی: {width}x{height}")
             
             img = PILImage.new('RGBA', (width, height), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             
-            # ========== 5. رسم متن در موقعیت درست ==========
+            # ========== 5. محاسبه موقعیت متن بر اساس halign و valign ==========
             offset_x = padding - min(left, 0)
             offset_y = padding - min(top, 0)
+            
+            # ✅ تنظیم بر اساس halign
+            if self._halign == 'center':
+                offset_x = (width - text_width) // 2
+            elif self._halign == 'right':
+                offset_x = width - text_width - padding
+            else:  # left
+                offset_x = padding
+            
+            # ✅ تنظیم بر اساس valign
+            if self._valign == 'center':
+                offset_y = (height - text_height) // 2
+            elif self._valign == 'bottom':
+                offset_y = height - text_height - padding
+            else:  # top
+                offset_y = padding
+            
+            # اصلاح offset با در نظر گرفتن bbox
+            offset_x = max(offset_x, 0)
+            offset_y = max(offset_y, 0)
             
             if isinstance(self._color, (tuple, list)):
                 color = tuple(int(c) for c in self._color)
@@ -288,11 +322,11 @@ class PersianLabel(Image):
         font_list = [
             'fonts/Amiri-Regular.ttf',
             'fonts/Lateef-Regular.ttf',
-            'fonts/NotoNasrArabic-Regular.ttf',
+            'fonts/NotoNaskhArabic-Regular.ttf',
             'fonts/Vazirmatn-Regular.ttf',
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'Amiri-Regular.ttf'),
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'Lateef-Regular.ttf'),
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'NotoNasrArabic-Regular.ttf'),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'NotoNaskhArabic-Regular.ttf'),
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'Vazirmatn-Regular.ttf'),
         ]
         
@@ -306,4 +340,15 @@ class PersianLabel(Image):
     
     def set_text(self, text):
         self._text = text
+        self._update_texture()
+    
+    def set_color(self, color):
+        """تغییر رنگ متن"""
+        if isinstance(color, (tuple, list)):
+            if len(color) == 4 and all(c <= 1 for c in color):
+                self._color = tuple(int(c * 255) for c in color)
+            else:
+                self._color = tuple(int(c) for c in color)
+        else:
+            self._color = (255, 255, 255, 255)
         self._update_texture()

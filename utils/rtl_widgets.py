@@ -40,31 +40,47 @@ def fix_persian_text(text):
 
 
 # ============================================================
-# ✅ PersianPopup - پاپ‌آپ با عنوان فارسی
+# ✅ PersianPopup - پاپ‌آپ با عنوان فارسی و راست‌چین
 # ============================================================
 
 class PersianPopup(Popup):
-    """پاپ‌آپ با عنوان فارسی و فونت اختصاصی"""
+    """پاپ‌آپ با عنوان فارسی، راست‌چین و فونت اختصاصی"""
     
     def __init__(self, **kwargs):
         # دریافت عنوان
         title_text = kwargs.pop('title', '')
+        # دریافت حداکثر ارتفاع
+        self._max_height = kwargs.pop('max_height', dp(600))
         
         super().__init__(**kwargs)
         
         # ✅ اصلاح عنوان با arabic_reshaper و bidi
         fixed_title = fix_persian_text(title_text)
         
-        # تنظیم عنوان با فونت فارسی
+        # تنظیم عنوان با فونت فارسی و راست‌چین
         self.title = fixed_title
         self.title_font = 'PersianFont'
         self.title_color = (1, 1, 1, 1)
         self.title_size = sp(22)
+        self.title_align = 'right'  # ✅ راست‌چین
         
         # اگر عنوان خالی بود، هدر رو مخفی کن
         if not title_text:
             self.title_size = 0
             self.separator_height = 0
+        
+        # ✅ تنظیم خودکار ارتفاع
+        self.size_hint = (kwargs.get('size_hint_x', 0.85), None)
+        self.height = kwargs.get('height', self._max_height)
+        
+        # ✅ پس‌زمینه تیره یکدست
+        self.background_color = (0.08, 0.08, 0.08, 1)
+        self.background = ''
+        self.background_normal = ''
+        
+        # ✅ تنظیم حاشیه
+        self.separator_color = (0.2, 0.2, 0.2, 1)
+        self.separator_height = dp(1)
 
 
 # ============================================================
@@ -584,63 +600,129 @@ class PersianButton(Button):
         self.label.set_text(text)
 
 
+
 # ============================================================
-# RTLMessageLabel
+# RTLMessageLabel - نسخه پایدار با Label معمولی
 # ============================================================
 
 class RTLMessageLabel(BoxLayout):
-    """لیبل مخصوص نمایش پیام‌های بزرگ با اسکرول خودکار"""
+    """لیبل مخصوص نمایش پیام‌های بزرگ با اسکرول خودکار - نسخه پایدار"""
     
     def __init__(self, **kwargs):
         self._text = kwargs.pop('text', '')
-        self._font_size = kwargs.pop('font_size', sp(22))
+        self._font_size = kwargs.pop('font_size', sp(18))
         self._color = kwargs.pop('color', (1, 1, 1, 1))
-        self._max_height = kwargs.pop('height', dp(300))
+        self._max_height = kwargs.pop('height', dp(400))
         
         super().__init__(**kwargs)
         
         self.orientation = 'vertical'
         self.size_hint_y = None
         self.height = self._max_height
-        self.padding = dp(10)
+        self.padding = [dp(15), dp(10), dp(15), dp(10)]
         
+        # ✅ تبدیل رنگ
+        if isinstance(self._color, tuple):
+            if len(self._color) == 4 and all(c <= 1 for c in self._color):
+                color_rgb = tuple(int(c * 255) for c in self._color)
+            else:
+                color_rgb = tuple(int(c) for c in self._color[:3]) + (255,)
+        else:
+            color_rgb = (255, 255, 255, 255)
+        
+        # ✅ اسکرول
         self.scroll = ScrollView(
             do_scroll_x=False,
             do_scroll_y=True,
             size_hint=(1, 1),
-            bar_width=dp(6),
+            bar_width=dp(8),
+            bar_color=(0.3, 0.5, 0.8, 0.8),
+            bar_inactive_color=(0.2, 0.2, 0.2, 0.5),
             scroll_type=['bars', 'content']
         )
         
-        color_rgb = tuple(int(c * 255) if c <= 1 else int(c) for c in self._color)
+        # ✅ پردازش متن فارسی
+        try:
+            import arabic_reshaper
+            from bidi.algorithm import get_display
+            reshaped = arabic_reshaper.reshape(self._text)
+            display_text = get_display(reshaped)
+        except:
+            display_text = self._text
         
-        self.label = PersianLabel(
-            text=self._text,
+        # ✅ استفاده از Label معمولی با text_size
+        from kivy.uix.label import Label
+        
+        self.label = Label(
+            text=display_text,
             font_size=self._font_size,
             color=color_rgb,
             size_hint_y=None,
             halign='right',
-            valign='top'
+            valign='top',
+            text_size=(self.width - dp(30), None),
+            font_name='fonts/Amiri-Regular.ttf'
         )
         
-        self.label.bind(texture_size=self._update_label_height)
+        # ✅ تنظیم ارتفاع اولیه
+        self.label.height = dp(50)
         
+        # ✅ اضافه کردن به اسکرول
         self.scroll.add_widget(self.label)
         self.add_widget(self.scroll)
+        
+        # ✅ اتصال رویدادها
+        self.label.bind(texture_size=self._update_label_height)
+        self.bind(size=self._update_text_size)
+        
+        # ✅ به‌روزرسانی پس از ساخت
+        Clock.schedule_once(lambda dt: self._update_label_height(self.label, self.label.texture_size), 0.3)
+    
+    def _update_text_size(self, instance, value):
+        """به‌روزرسانی text_size هنگام تغییر اندازه"""
+        if self.width > dp(10):
+            self.label.text_size = (self.width - dp(30), None)
+            Clock.schedule_once(lambda dt: self._update_label_height(self.label, self.label.texture_size), 0.1)
     
     def _update_label_height(self, instance, texture_size):
-        content_height = texture_size[1] + dp(20)
-        self.label.height = content_height
-        
-        if content_height < self._max_height:
-            self.height = content_height + dp(20)
-        else:
+        """به‌روزرسانی ارتفاع لیبل بر اساس محتوا"""
+        try:
+            if texture_size and texture_size[1] > 0:
+                content_height = texture_size[1] + dp(20)
+            else:
+                # تخمین ارتفاع
+                lines = self._text.count('\n') + 1 if self._text else 1
+                line_height = self._font_size + dp(10)
+                content_height = (lines * line_height) + dp(20)
+            
+            content_height = max(content_height, dp(50))
+            self.label.height = content_height
+            
+            total_height = content_height + dp(20)
+            if total_height < self._max_height:
+                self.height = total_height
+            else:
+                self.height = self._max_height
+                
+        except Exception as e:
+            print(f"خطا در محاسبه ارتفاع RTLMessageLabel: {e}")
             self.height = self._max_height
     
     def set_text(self, text):
+        """تنظیم متن جدید"""
         self._text = text
-        self.label.set_text(text)
-        Clock.schedule_once(lambda dt: self._update_label_height(self.label, self.label.texture_size), 0.1)
+        
+        try:
+            import arabic_reshaper
+            from bidi.algorithm import get_display
+            reshaped = arabic_reshaper.reshape(text)
+            display_text = get_display(reshaped)
+        except:
+            display_text = text
+        
+        self.label.text = display_text
+        self.label.text_size = (self.width - dp(30), None)
+        Clock.schedule_once(lambda dt: self._update_label_height(self.label, self.label.texture_size), 0.2)
     
     def get_text(self):
         return self._text
