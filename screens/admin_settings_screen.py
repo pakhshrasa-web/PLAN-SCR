@@ -1002,7 +1002,9 @@ class AdminSettingsScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در بازنشانی تنظیمات مرخصی: {e}", error_details)
     
-    # ========== تب خام سازی ==========
+    # ============================================================
+    # تب خام سازی داده‌ها
+    # ============================================================
 
     def show_clean_tab(self):
         """نمایش تب خام سازی داده‌ها با انتخاب نوع داده"""
@@ -1042,41 +1044,45 @@ class AdminSettingsScreen(Screen):
             
             # ========== لیست کامل فایل‌های قابل خام سازی ==========
             clean_options = [
-                'حضور و غیاب (attendance.json)',
-                'ویزیت‌های روزانه بازاریاب (daily_log.json)',
-                'خلاصه پایان کار بازاریاب (daily_summary.json)',
-                'توزیع‌های روزانه موزع (delivery_sale.json)',
-                'خلاصه پایان کار موزع (distributor_summary.json)',
-                'تارگت‌های اصلی (targets.json)',
-                'ریزتارگت‌ها (detailed_targets.json)',
-                'سرکشی‌های سوپروایزر (supervisor_visits.json)',
-                'عامل‌ها (definitions.json > agents)',
-                'مسیرها (definitions.json > routes)',
-                'مشتریان (definitions.json > customers)',
-                'تنظیمات تارگت (target_settings.json)',
-                'محصولات/گروه کالا (products.json)',
-                'کدهای ثبت نام (codes.json)',
-                'کاربران (users.json)',
-                'تنظیمات عمومی (settings.json)',
+                'حضور و غیاب',
+                'مرخصی',
+                'ماموریت',
+                'ویزیت‌های روزانه بازاریاب',
+                'خلاصه پایان کار بازاریاب',
+                'توزیع‌های روزانه موزع',
+                'خلاصه پایان کار موزع',
+                'تارگت‌های اصلی',
+                'ریزتارگت‌ها',
+                'سرکشی‌های سوپروایزر',
+                'عامل‌ها',
+                'مسیرها',
+                'مشتریان',
+                'تنظیمات تارگت',
+                'محصولات',
+                'کدهای ثبت نام',
+                'کاربران',
+                'تنظیمات عمومی',
             ]
             
             self.clean_options_map = {
-                'حضور و غیاب (attendance.json)': 'attendance',
-                'ویزیت‌های روزانه بازاریاب (daily_log.json)': 'daily_log',
-                'خلاصه پایان کار بازاریاب (daily_summary.json)': 'daily_summary',
-                'توزیع‌های روزانه موزع (delivery_sale.json)': 'delivery_sale',
-                'خلاصه پایان کار موزع (distributor_summary.json)': 'distributor_summary',
-                'تارگت‌های اصلی (targets.json)': 'targets',
-                'ریزتارگت‌ها (detailed_targets.json)': 'detailed_targets',
-                'سرکشی‌های سوپروایزر (supervisor_visits.json)': 'supervisor_visits',
-                'عامل‌ها (definitions.json > agents)': 'def_agents',
-                'مسیرها (definitions.json > routes)': 'def_routes',
-                'مشتریان (definitions.json > customers)': 'def_customers',
-                'تنظیمات تارگت (target_settings.json)': 'target_settings',
-                'محصولات/گروه کالا (products.json)': 'products',
-                'کدهای ثبت نام (codes.json)': 'codes',
-                'کاربران (users.json)': 'users',
-                'تنظیمات عمومی (settings.json)': 'settings',
+                'حضور و غیاب': 'attendance',
+                'مرخصی': 'leave_requests',
+                'ماموریت': 'missions',
+                'ویزیت‌های روزانه بازاریاب': 'daily_log',
+                'خلاصه پایان کار بازاریاب': 'daily_summary',
+                'توزیع‌های روزانه موزع': 'delivery_sale',
+                'خلاصه پایان کار موزع': 'distributor_summary',
+                'تارگت‌های اصلی': 'targets',
+                'ریزتارگت‌ها': 'detailed_targets',
+                'سرکشی‌های سوپروایزر': 'supervisor_visits',
+                'عامل‌ها': 'def_agents',
+                'مسیرها': 'def_routes',
+                'مشتریان': 'def_customers',
+                'تنظیمات تارگت': 'target_settings',
+                'محصولات': 'products',
+                'کدهای ثبت نام': 'codes',
+                'کاربران': 'users',
+                'تنظیمات عمومی': 'settings',
             }
             
             self.clean_selected = []
@@ -1216,7 +1222,7 @@ class AdminSettingsScreen(Screen):
 
 
     def _remove_single_from_list(self, item):
-        """حذف یک آیتم خاص"""
+        """حذف یک آیتم خاص از لیست"""
         try:
             if item in self.clean_selected:
                 self.clean_selected.remove(item)
@@ -1354,7 +1360,7 @@ class AdminSettingsScreen(Screen):
             
             popup = PersianPopup(
                 title='تأیید خام سازی', content=content,
-                size_hint=(0.85, 0.55), background_color=(0.08, 0.08, 0.08, 1), auto_dismiss=False
+                size_hint=(0.85, 0.6), background_color=(0.08, 0.08, 0.08, 1), auto_dismiss=False
             )
             
             def do_clean(inst):
@@ -1377,7 +1383,7 @@ class AdminSettingsScreen(Screen):
 
 
     def _perform_clean_selected(self):
-        """اجرای خام سازی"""
+        """اجرای خام سازی داده‌های انتخاب شده"""
         try:
             from utils.file_manager import load_json, save_json
             
@@ -1399,6 +1405,18 @@ class AdminSettingsScreen(Screen):
                 try:
                     if key == 'attendance':
                         file_path = os.path.join(data_path, 'attendance.json')
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        cleaned.append(item)
+                    
+                    elif key == 'leave_requests':
+                        file_path = os.path.join(data_path, 'leave_requests.json')
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        cleaned.append(item)
+                    
+                    elif key == 'missions':
+                        file_path = os.path.join(data_path, 'do_missions.json')
                         if os.path.exists(file_path):
                             os.remove(file_path)
                         cleaned.append(item)
@@ -1972,41 +1990,102 @@ class AdminSettingsScreen(Screen):
         pass
     
     def show_message(self, title, message):
+        """نمایش پیام با پشتیبانی از متن طولانی"""
         try:
-            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
+            from kivy.uix.scrollview import ScrollView
+            from kivy.uix.label import Label
+            from kivy.uix.boxlayout import BoxLayout
+            from kivy.metrics import dp, sp
+            from kivy.graphics import Color, Rectangle
+            from utils.rtl_widgets import PersianPopup, PersianButton
+            
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v))
             
-            content.add_widget(RTLLabel(
-                text=message,
+            # پردازش متن فارسی
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                reshaped = arabic_reshaper.reshape(message)
+                display_text = get_display(reshaped)
+            except:
+                display_text = message
+            
+            # لیبل با فونت 15 و چینش وسط با کمی تمایل به چپ
+            msg_label = Label(
+                text=display_text,
+                font_size=sp(15),
+                color=(1, 1, 1, 1),
                 size_hint_y=None,
-                height=dp(100),
-                font_size=sp(20),
-                color=(1, 1, 1, 1)
-            ))
+                halign='center',
+                valign='top',
+                text_size=(dp(550), None),
+                font_name='fonts/Amiri-Regular.ttf',
+                padding=(dp(20), 0, dp(0), 0)
+            )
+            
+            # محاسبه ارتفاع
+            lines = message.count('\n') + 1
+            if len(message) > 50 and lines == 1:
+                approx_chars_per_line = 35
+                lines = (len(message) // approx_chars_per_line) + 1
+            
+            line_height = sp(15) + dp(6)
+            label_height = max(lines * line_height + dp(25), dp(50))
+            label_height = min(label_height, dp(490))
+            
+            msg_label.height = label_height
+            msg_label.text_size = (dp(550), label_height)
+            
+            # اسکرول
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=label_height + dp(10),
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 0.8),
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+            )
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
+            
+            # دکمه
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(20),
+                height=dp(45),
+                font_size=sp(16),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
+            
+            # پاپ‌آپ
             popup = PersianPopup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.5),
+                size_hint=(0.9, None),
+                height=label_height + dp(250),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
             btn.bind(on_press=popup.dismiss)
             popup.open()
+            
         except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
+            print(f"خطا در نمایش پیام: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback به ErrorPopup
+            try:
+                from error_handler import ErrorPopup
+                ErrorPopup.show_error(str(message))
+            except:
+                pass
     
     def go_back(self, instance):
         self.manager.current = 'login'

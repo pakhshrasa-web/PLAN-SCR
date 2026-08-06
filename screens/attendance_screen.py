@@ -3132,22 +3132,61 @@ class AttendanceScreen(Screen):
         self.update_summary()
     
     def show_message(self, title, message):
-        """نمایش پیام"""
+        """نمایش پیام با پشتیبانی از متن طولانی"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
-                           size=lambda i, v: setattr(rect, 'size', v))
+                        size=lambda i, v: setattr(rect, 'size', v))
             
-            content.add_widget(RTLLabel(
-                text=message,
+            from kivy.uix.scrollview import ScrollView
+            from kivy.uix.label import Label
+            
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                reshaped = arabic_reshaper.reshape(message)
+                display_text = get_display(reshaped)
+            except:
+                display_text = message
+            
+            msg_label = Label(
+                text=display_text,
+                font_size=sp(15),
+                color=(1, 1, 1, 1),
                 size_hint_y=None,
-                height=dp(60),
-                font_size=sp(16),
-                color=(1, 1, 1, 1)
-            ))
+                halign='center',
+                valign='top',
+                text_size=(dp(550), None),
+                font_name='fonts/Amiri-Regular.ttf',
+                padding=(dp(20), 0, dp(0), 0)
+            )
+            
+            lines = message.count('\n') + 1
+            if len(message) > 50 and lines == 1:
+                approx_chars_per_line = 35
+                lines = (len(message) // approx_chars_per_line) + 1
+            
+            line_height = sp(15) + dp(6)
+            label_height = max(lines * line_height + dp(25), dp(50))
+            label_height = min(label_height, dp(490))  # ✅ افزایش ارتفاع
+            
+            msg_label.height = label_height
+            msg_label.text_size = (dp(550), label_height)
+            
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=label_height + dp(10),
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 0.8),
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+            )
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
             
             btn = PersianButton(
                 text='باشه',
@@ -3162,7 +3201,8 @@ class AttendanceScreen(Screen):
             popup = PersianPopup(
                 title=title,
                 content=content,
-                size_hint=(0.8, 0.35),
+                size_hint=(0.9, None),
+                height=label_height + dp(250),  # ✅ افزایش ارتفاع
                 background_color=(0.08, 0.08, 0.08, 1)
             )
             btn.bind(on_press=popup.dismiss)

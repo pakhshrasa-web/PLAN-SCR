@@ -4861,8 +4861,9 @@ class SupervisorScreen(Screen):
         self.manager.current = 'login'
 
     def show_message(self, title, message):
-        """نمایش پیام به کاربر"""
+        """نمایش پیام با پشتیبانی از متن طولانی"""
         try:
+            # جلوگیری از نمایش همزمان
             if hasattr(self, '_active_message_popup') and self._active_message_popup:
                 try:
                     self._active_message_popup.dismiss()
@@ -4870,32 +4871,80 @@ class SupervisorScreen(Screen):
                     pass
                 self._active_message_popup = None
             
+            from kivy.uix.boxlayout import BoxLayout
+            from kivy.uix.scrollview import ScrollView
+            from kivy.uix.label import Label
+            from kivy.metrics import dp, sp
+            from kivy.graphics import Color, Rectangle
+            from utils.rtl_widgets import PersianPopup, PersianButton
+            
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
-
-            msg_label = RTLMessageLabel(
-                text=message,
-                font_size=sp(22) if len(message) < 100 else sp(18),
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v))
+            
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                reshaped = arabic_reshaper.reshape(message)
+                display_text = get_display(reshaped)
+            except:
+                display_text = message
+            
+            msg_label = Label(
+                text=display_text,
+                font_size=sp(15),
                 color=(1, 1, 1, 1),
-                height=dp(250)
+                size_hint_y=None,
+                halign='center',
+                valign='top',
+                text_size=(dp(550), None),
+                font_name='fonts/Amiri-Regular.ttf',
+                padding=(dp(20), 0, dp(0), 0)
             )
-            content.add_widget(msg_label)
-
+            
+            lines = message.count('\n') + 1
+            if len(message) > 50 and lines == 1:
+                approx_chars_per_line = 35
+                lines = (len(message) // approx_chars_per_line) + 1
+            
+            line_height = sp(15) + dp(6)
+            label_height = max(lines * line_height + dp(25), dp(50))
+            label_height = min(label_height, dp(490))
+            
+            msg_label.height = label_height
+            msg_label.text_size = (dp(550), label_height)
+            
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=label_height + dp(10),
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 0.8),
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+            )
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
+            
             btn = PersianButton(
                 text='باشه',
-                size_hint_y=None, height=dp(55),
-                font_size=sp(22), color=(1, 1, 1, 1),
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(16),
+                color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
-
+            
             popup = PersianPopup(
-                title=title, content=content,
-                size_hint=(0.9, 0.6), background_color=(0.08, 0.08, 0.08, 1)
+                title=title,
+                content=content,
+                size_hint=(0.9, None),
+                height=label_height + dp(250),
+                background_color=(0.08, 0.08, 0.08, 1)
             )
             
             self._active_message_popup = popup
@@ -4906,6 +4955,14 @@ class SupervisorScreen(Screen):
             
             btn.bind(on_press=dismiss_and_clean)
             popup.open()
-
+            
         except Exception as e:
+            self._active_message_popup = None
             print(f"خطا در نمایش پیام: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                from error_handler import ErrorPopup
+                ErrorPopup.show_error(str(message))
+            except:
+                pass

@@ -8,11 +8,12 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.textinput import TextInput  # ✅ اضافه شد
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
 
-from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup
+from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup
 from utils.auth import get_admin_password, set_admin_password, verify_password
 from error_handler import ErrorPopup
 from constants import ADMIN_EMAIL
@@ -22,21 +23,15 @@ class SettingsLoginScreen(Screen):
     def __init__(self, **kwargs):
         try:
             super().__init__(**kwargs)
-            # پس‌زمینه تیره
             with self.canvas.before:
                 Color(0.08, 0.08, 0.08, 1)
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
                 self.bind(pos=self._update_bg, size=self._update_bg)
             
-            # تغییر به resize برای اسکرول دقیق
             Window.softinput_mode = 'resize'
-            
-            # متغیر برای ذخیره فیلدهای قابل فوکوس
             self.focusable_fields = []
             
             self.build_ui()
-            
-            # اتصال رویدادهای کیبورد
             Window.bind(on_keyboard=self._on_keyboard)
             
         except Exception as e:
@@ -50,7 +45,6 @@ class SettingsLoginScreen(Screen):
     
     def build_ui(self):
         try:
-            # ایجاد ScrollView برای اسکرول خودکار
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -80,22 +74,25 @@ class SettingsLoginScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(10)))
             
-            self.password_input = RTLTextInput(
-                hint_text='رمز عبور مدیر',
-                password=True,
+            # ✅ استفاده از TextInput به جای RTLTextInput
+            self.password_input = TextInput(
+                hint_text='Enter manager password',
+                password=True,  # ✅ ستاره‌ای می‌شود
                 multiline=False,
                 size_hint_y=None,
                 height=dp(100),
-                font_size=sp(32)
+                font_size=sp(32),
+                halign='right',
+                font_name='PersianFont',
+                background_color=(0.15, 0.15, 0.15, 1),
+                foreground_color=(1, 1, 1, 1),
+                cursor_color=(0.2, 0.5, 0.9, 1),
+                padding=[dp(14), dp(14), dp(14), dp(14)]
             )
-            self.password_input.bg_color = (0.15, 0.15, 0.15, 1)
-            self.password_input.border_color = (0.3, 0.3, 0.3, 1)
-            self.password_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.password_input._hidden_input.foreground_color = (1, 1, 1, 1)
             
             # اتصال رویداد فوکوس
-            self.password_input._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.password_input._hidden_input)
+            self.password_input.bind(focus=self._on_field_focus)
+            self.focusable_fields.append(self.password_input)
             
             content.add_widget(self.password_input)
             
@@ -130,14 +127,11 @@ class SettingsLoginScreen(Screen):
             btn_layout.add_widget(back_btn)
             
             content.add_widget(btn_layout)
-            
-            # اضافه کردن فضای خالی در پایین برای اسکرول
             content.add_widget(Label(size_hint_y=None, height=dp(50)))
             
             scroll.add_widget(content)
             self.add_widget(scroll)
             
-            # تنظیم فوکوس روی فیلد رمز عبور
             Clock.schedule_once(lambda dt: self._focus_password(), 0.1)
             
         except Exception as e:
@@ -146,29 +140,20 @@ class SettingsLoginScreen(Screen):
             raise
     
     def _focus_password(self):
-        """تنظیم فوکوس روی فیلد رمز عبور"""
         if hasattr(self, 'password_input'):
-            self.password_input._hidden_input.focus = True
-    
-    # ============================================================
-    # مدیریت فوکوس و انتخاب خودکار متن
-    # ============================================================
+            self.password_input.focus = True
     
     def _on_field_focus(self, instance, value):
-        """وقتی فیلد فوکوس میشه یا فوکوس رو از دست میده"""
         if value:
             Clock.schedule_once(lambda dt: self._select_all_text(instance), 0.1)
             Clock.schedule_once(lambda dt: self._scroll_to_field(instance), 0.3)
     
     def _select_all_text(self, instance):
-        """انتخاب کل متن فیلد"""
         if instance and hasattr(instance, 'select_all'):
             instance.select_all()
     
     def _scroll_to_field(self, instance):
-        """اسکرول دقیق به موقعیت فیلد بالای کیبورد"""
         try:
-            # پیدا کردن ScrollView
             scroll = None
             for child in self.children:
                 if isinstance(child, ScrollView):
@@ -178,24 +163,17 @@ class SettingsLoginScreen(Screen):
             if not scroll:
                 return
             
-            # موقعیت فیلد در پنجره
             field_pos = instance.to_window(0, 0)
             field_y = field_pos[1]
-            
-            # ارتفاع کیبورد (تقریبی)
             keyboard_height = 250
             window_height = Window.height
-            
-            # موقعیت هدف (بالای کیبورد با فاصله)
             target_y = window_height - keyboard_height - dp(100)
             
-            # محاسبه مقدار اسکرول
             content_height = scroll.children[0].height if scroll.children else 1
             scroll_height = scroll.height
             
             if content_height > scroll_height:
                 if field_y > target_y:
-                    # نسبت موقعیت فیلد به کل محتوا
                     field_ratio = (content_height - field_y) / content_height
                     scroll_value = min(0.95, max(0.05, field_ratio + 0.1))
                     scroll.scroll_y = scroll_value
@@ -203,20 +181,11 @@ class SettingsLoginScreen(Screen):
         except Exception as e:
             print(f"خطا در اسکرول به فیلد: {e}")
     
-    # ============================================================
-    # مدیریت کلیدهای کیبورد
-    # ============================================================
-    
     def _on_keyboard(self, window, key, *args):
-        """مدیریت کلیدهای کیبورد"""
         if key == 13:  # Enter
             self.check_login(None)
             return True
         return False
-    
-    # ============================================================
-    # توابع اصلی
-    # ============================================================
     
     def check_login(self, instance):
         try:
@@ -234,7 +203,6 @@ class SettingsLoginScreen(Screen):
             else:
                 self.show_message('خطا', 'رمز عبور اشتباه است')
                 self.password_input.text = ''
-                # دوباره فوکوس روی فیلد
                 Clock.schedule_once(lambda dt: self._focus_password(), 0.1)
                 
         except Exception as e:
@@ -245,26 +213,71 @@ class SettingsLoginScreen(Screen):
         self.manager.current = 'login'
     
     def show_message(self, title, message):
+        """نمایش پیام با پشتیبانی از متن طولانی"""
         try:
-            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
+            from kivy.uix.boxlayout import BoxLayout
+            from kivy.uix.scrollview import ScrollView
+            from kivy.uix.label import Label
+            from kivy.metrics import dp, sp
+            from kivy.graphics import Color, Rectangle
+            from utils.rtl_widgets import PersianPopup, PersianButton
+            
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                           size=lambda i, v: setattr(rect, 'size', v))
             
-            content.add_widget(RTLLabel(
-                text=message,
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                reshaped = arabic_reshaper.reshape(message)
+                display_text = get_display(reshaped)
+            except:
+                display_text = message
+            
+            msg_label = Label(
+                text=display_text,
+                font_size=sp(15),
+                color=(1, 1, 1, 1),
                 size_hint_y=None,
-                height=dp(80),
-                font_size=sp(20),
-                color=(1, 1, 1, 1)
-            ))
+                halign='center',
+                valign='top',
+                text_size=(dp(550), None),
+                font_name='fonts/Amiri-Regular.ttf',
+                padding=(dp(20), 0, dp(0), 0)
+            )
+            
+            lines = message.count('\n') + 1
+            if len(message) > 50 and lines == 1:
+                approx_chars_per_line = 35
+                lines = (len(message) // approx_chars_per_line) + 1
+            
+            line_height = sp(15) + dp(6)
+            label_height = max(lines * line_height + dp(25), dp(50))
+            label_height = min(label_height, dp(490))
+            
+            msg_label.height = label_height
+            msg_label.text_size = (dp(550), label_height)
+            
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=label_height + dp(10),
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 0.8),
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+            )
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
+            
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
-                height=dp(50),
-                font_size=sp(18),
+                height=dp(45),
+                font_size=sp(16),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
@@ -273,11 +286,19 @@ class SettingsLoginScreen(Screen):
             popup = PersianPopup(
                 title=title,
                 content=content,
-                size_hint=(0.85, 0.4),
+                size_hint=(0.9, None),
+                height=label_height + dp(250),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
             btn.bind(on_press=popup.dismiss)
             popup.open()
+            
         except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
+            print(f"خطا در نمایش پیام: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                from error_handler import ErrorPopup
+                ErrorPopup.show_error(str(message))
+            except:
+                pass

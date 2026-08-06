@@ -9,6 +9,7 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.textinput import TextInput  # ✅ اضافه شد برای رمز عبور ستاره‌ای
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
@@ -16,8 +17,8 @@ from kivy.utils import platform
 from kivy.logger import Logger as logger
 from screens.attendance_screen import AttendanceScreen
 
-from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup
-from utils.user_manager import login
+from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup, PersianComboBox
+from utils.user_manager import login, get_users
 from utils.backup_manager import create_backup, restore_backup, validate_backup_file
 from utils.file_picker_backup import BackupFilePicker
 from error_handler import ErrorPopup
@@ -47,6 +48,24 @@ class LoginScreen(Screen):
     def _update_bg(self, instance, value):
         self.bg_rect.pos = instance.pos
         self.bg_rect.size = instance.size
+    
+    def _get_user_names(self):
+        """دریافت لیست نام کاربران برای کامبوباکس"""
+        try:
+            users = get_users()
+            if not users:
+                return []
+            # استخراج نام کاربری یا نام کامل
+            names = []
+            for u in users:
+                if u.get('name'):
+                    names.append(u.get('name'))
+                elif u.get('username'):
+                    names.append(u.get('username'))
+            return names
+        except Exception as e:
+            print(f"خطا در دریافت کاربران: {e}")
+            return []
     
     def build_ui(self):
         try:
@@ -123,36 +142,59 @@ class LoginScreen(Screen):
             content.add_widget(title)
             content.add_widget(Label(size_hint_y=None, height=dp(10)))
             
-            # ========== فیلد نام کاربری ==========
-            self.username = RTLTextInput(
-                hint_text='نام کاربری',
+            # ========== ✅ تغییر ۱: کامبوباکس نام کاربری ==========
+            content.add_widget(RTLLabel(
+                text='انتخاب کاربر:',
                 size_hint_y=None,
-                height=dp(100),
-                font_size=sp(26)
+                height=dp(30),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            
+            user_names = self._get_user_names()
+            if not user_names:
+                user_names = ['هیچ کاربری ثبت نشده']
+            
+            self.username_combo = PersianComboBox(
+                text=user_names[0] if user_names else '',
+                values=user_names,
+                height=dp(70)
             )
-            self.username.bg_color = (0.15, 0.15, 0.15, 1)
-            self.username.border_color = (0.3, 0.3, 0.3, 1)
-            self.username.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.username._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.username._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.username._hidden_input)
-            content.add_widget(self.username)
+            self.username_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.username_combo.main_btn.color = (1, 1, 1, 1)
+            self.username_combo.main_btn.font_size = sp(20)
+            content.add_widget(self.username_combo)
+            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== فیلد رمز عبور ==========
-            self.password = RTLTextInput(
-                hint_text='رمز عبور',
-                password=True,
+            # ========== ✅ تغییر ۲: فیلد رمز عبور با TextInput ستاره‌ای ==========
+            content.add_widget(RTLLabel(
+                text='رمز عبور:',
                 size_hint_y=None,
-                height=dp(100),
-                font_size=sp(26)
+                height=dp(30),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            
+            self.password = TextInput(
+                hint_text='Enter Password',
+                password=True,  # ✅ ستاره‌ای می‌شود
+                multiline=False,
+                size_hint_y=None,
+                height=dp(80),
+                font_size=sp(26),
+                halign='right',
+                font_name='PersianFont',
+                background_color=(0.15, 0.15, 0.15, 1),
+                foreground_color=(1, 1, 1, 1),
+                cursor_color=(0.2, 0.5, 0.9, 1),
+                padding=[dp(14), dp(14), dp(14), dp(14)]
             )
-            self.password.bg_color = (0.15, 0.15, 0.15, 1)
-            self.password.border_color = (0.3, 0.3, 0.3, 1)
-            self.password.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.password._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.password._hidden_input.bind(focus=self._on_field_focus)
-            self.focusable_fields.append(self.password._hidden_input)
+            
+            # اتصال رویداد فوکوس
+            self.password.bind(focus=self._on_field_focus)
+            self.focusable_fields.append(self.password)
+            
             content.add_widget(self.password)
             
             # ========== دکمه ورود ==========
@@ -442,16 +484,37 @@ class LoginScreen(Screen):
     
     def check_login(self, instance):
         try:
-            user = login(self.username.text, self.password.text)
-            if user:
-                role = user.get('role', '')
-                username = user.get('username', '')  # ✅ اسم کاربر
+            # دریافت نام کاربری از کامبوباکس
+            selected_name = self.username_combo.text
+            
+            # پیدا کردن کاربر با نام انتخاب شده
+            users = get_users()
+            user = None
+            for u in users:
+                if u.get('name') == selected_name or u.get('username') == selected_name:
+                    user = u
+                    break
+            
+            if not user:
+                self.show_message('خطا', 'کاربر انتخاب شده یافت نشد')
+                return
+            
+            # بررسی رمز عبور با نام کاربری واقعی
+            username = user.get('username', '')
+            password = self.password.text
+            
+            # لاگین با نام کاربری و رمز عبور
+            logged_in_user = login(username, password)
+            
+            if logged_in_user:
+                role = logged_in_user.get('role', '')
+                username = logged_in_user.get('username', '')
                 
                 from kivy.app import App
                 app = App.get_running_app()
                 if app:
                     app.current_user_role = role
-                    app.current_username = username  # ✅ ذخیره اسم کاربر
+                    app.current_username = username
                     print(f"نقش کاربر در App ذخیره شد: {role} - {username}")
                 
                 self.current_user_role = role
@@ -463,7 +526,11 @@ class LoginScreen(Screen):
                 else:
                     self.manager.current = 'user'
             else:
-                self.show_message('خطا', 'نام کاربری یا رمز عبور اشتباه است')
+                self.show_message('خطا', 'رمز عبور اشتباه است')
+                self.password.text = ''
+                # ✅ اصلاح: استفاده از setattr
+                Clock.schedule_once(lambda dt: setattr(self.password, 'focus', True), 0.1)
+                
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ورود: {e}", error_details)
@@ -490,32 +557,32 @@ class LoginScreen(Screen):
             
             content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
-            # نام کاربری
+            # نام کاربری - کامبوباکس
             content.add_widget(RTLLabel(
-                text='نام کاربری:',
+                text='انتخاب کاربر:',
                 size_hint_y=None,
                 height=dp(22),
                 font_size=sp(14),
                 color=(1, 1, 1, 1)
             ))
             
-            username_input = RTLTextInput(
-                text='',
-                multiline=False,
-                size_hint_y=None,
-                height=dp(48),
-                font_size=sp(18),
-                hint_text='نام کاربری را وارد کنید'
+            user_names = self._get_user_names()
+            if not user_names:
+                user_names = ['هیچ کاربری ثبت نشده']
+            
+            username_combo = PersianComboBox(
+                text=user_names[0] if user_names else '',
+                values=user_names,
+                height=dp(55)
             )
-            username_input.bg_color = (0.15, 0.15, 0.15, 1)
-            username_input.border_color = (0.3, 0.3, 0.3, 1)
-            username_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            username_input._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(username_input)
+            username_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            username_combo.main_btn.color = (1, 1, 1, 1)
+            username_combo.main_btn.font_size = sp(16)
+            content.add_widget(username_combo)
             
             content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
-            # رمز عبور
+            # رمز عبور - TextInput ستاره‌ای
             content.add_widget(RTLLabel(
                 text='رمز عبور:',
                 size_hint_y=None,
@@ -524,19 +591,20 @@ class LoginScreen(Screen):
                 color=(1, 1, 1, 1)
             ))
             
-            password_input = RTLTextInput(
-                text='',
+            password_input = TextInput(
+                hint_text='Enter Password',
                 password=True,
                 multiline=False,
                 size_hint_y=None,
-                height=dp(48),
+                height=dp(55),
                 font_size=sp(18),
-                hint_text='رمز عبور را وارد کنید'
+                halign='right',
+                font_name='PersianFont',
+                background_color=(0.15, 0.15, 0.15, 1),
+                foreground_color=(1, 1, 1, 1),
+                cursor_color=(0.2, 0.5, 0.9, 1),
+                padding=[dp(14), dp(14), dp(14), dp(14)]
             )
-            password_input.bg_color = (0.15, 0.15, 0.15, 1)
-            password_input.border_color = (0.3, 0.3, 0.3, 1)
-            password_input.border_color_focus = (0.2, 0.5, 0.9, 1)
-            password_input._hidden_input.foreground_color = (1, 1, 1, 1)
             content.add_widget(password_input)
             
             content.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
@@ -570,48 +638,61 @@ class LoginScreen(Screen):
             popup = PersianPopup(
                 title='حضور و غیاب',
                 content=content,
-                size_hint=(0.85, 0.5),
+                size_hint=(0.85, 0.55),
                 background_color=(0.08, 0.08, 0.08, 1),
                 auto_dismiss=False
             )
             
             def do_login(instance):
-                username = username_input.text.strip()
+                selected_name = username_combo.text
+                
+                # پیدا کردن کاربر
+                users = get_users()
+                user = None
+                for u in users:
+                    if u.get('name') == selected_name or u.get('username') == selected_name:
+                        user = u
+                        break
+                
+                if not user:
+                    self.show_message('خطا', 'کاربر انتخاب شده یافت نشد')
+                    return
+                
+                username = user.get('username', '')
                 password = password_input.text.strip()
                 
                 if not username or not password:
                     self.show_message('خطا', 'لطفاً نام کاربری و رمز عبور را وارد کنید')
                     return
                 
-                from utils.user_manager import login
-                user = login(username, password)
+                logged_in_user = login(username, password)
                 
-                if user:
+                if logged_in_user:
                     popup.dismiss()
                     if not self.manager.has_screen('attendance'):
                         from screens.attendance_screen import AttendanceScreen
                         self.manager.add_widget(AttendanceScreen(name='attendance'))
                     
                     attendance_screen = self.manager.get_screen('attendance')
-                    attendance_screen.set_user(user)
+                    attendance_screen.set_user(logged_in_user)
                     self.manager.current = 'attendance'
                 else:
                     self.show_message('خطا', 'نام کاربری یا رمز عبور اشتباه است')
+                    password_input.text = ''
+                    # ✅ اصلاح: استفاده از setattr
+                    Clock.schedule_once(lambda dt: setattr(password_input, 'focus', True), 0.1)
             
             def on_cancel(instance):
                 popup.dismiss()
             
             login_btn.bind(on_press=do_login)
             cancel_btn.bind(on_press=on_cancel)
-            
-            # ✅ اصلاح: استفاده از _hidden_input برای فوکوس و Enter
-            password_input._hidden_input.bind(on_text_validate=do_login)
-            username_input._hidden_input.bind(on_text_validate=lambda x: setattr(password_input._hidden_input, 'focus', True))
+            password_input.bind(on_text_validate=do_login)
             
             popup.open()
             
-            # ✅ اصلاح: فوکوس روی _hidden_input
-            Clock.schedule_once(lambda dt: setattr(username_input._hidden_input, 'focus', True), 0.2)
+            # ✅ اصلاح: استفاده از setattr
+            Clock.schedule_once(lambda dt: setattr(username_combo.main_btn, 'focus', True), 0.2)
             
         except Exception as e:
             error_details = traceback.format_exc()
@@ -622,42 +703,99 @@ class LoginScreen(Screen):
     # ============================================================
     
     def show_message(self, title, message):
+        """نمایش پیام با پشتیبانی از متن طولانی"""
         try:
-            from utils.rtl_widgets import RTLMessageLabel
+            from kivy.uix.scrollview import ScrollView
+            from kivy.uix.label import Label
+            from kivy.uix.boxlayout import BoxLayout
+            from kivy.metrics import dp, sp
+            from kivy.graphics import Color, Rectangle
+            from utils.rtl_widgets import PersianPopup, PersianButton
             
-            content = BoxLayout(orientation='vertical', padding=dp(25), spacing=dp(15))
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v))
             
-            msg_label = RTLMessageLabel(
-                text=message,
-                font_size=sp(20) if len(message) < 100 else sp(16),
+            # پردازش متن فارسی
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                reshaped = arabic_reshaper.reshape(message)
+                display_text = get_display(reshaped)
+            except:
+                display_text = message
+            
+            # لیبل با فونت 15 و چینش وسط با کمی تمایل به چپ
+            msg_label = Label(
+                text=display_text,
+                font_size=sp(15),
                 color=(1, 1, 1, 1),
-                height=dp(250)
+                size_hint_y=None,
+                halign='center',
+                valign='top',
+                text_size=(dp(550), None),
+                font_name='fonts/Amiri-Regular.ttf',
+                padding=(dp(20), 0, dp(0), 0)
             )
-            content.add_widget(msg_label)
             
+            # محاسبه ارتفاع
+            lines = message.count('\n') + 1
+            if len(message) > 50 and lines == 1:
+                approx_chars_per_line = 35
+                lines = (len(message) // approx_chars_per_line) + 1
+            
+            line_height = sp(15) + dp(6)
+            label_height = max(lines * line_height + dp(25), dp(50))
+            label_height = min(label_height, dp(490))
+            
+            msg_label.height = label_height
+            msg_label.text_size = (dp(550), label_height)
+            
+            # اسکرول
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=None,
+                height=label_height + dp(10),
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 0.8),
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+            )
+            scroll.add_widget(msg_label)
+            content.add_widget(scroll)
+            
+            # دکمه
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
-                height=dp(55),
-                font_size=sp(22),
+                height=dp(45),
+                font_size=sp(16),
                 color=(1, 1, 1, 1),
                 background_color=(0.2, 0.6, 1, 1)
             )
             content.add_widget(btn)
             
+            # پاپ‌آپ
             popup = PersianPopup(
                 title=title,
                 content=content,
-                size_hint=(0.9, 0.6),
+                size_hint=(0.9, None),
+                height=label_height + dp(250),
                 background_color=(0.08, 0.08, 0.08, 1)
             )
             btn.bind(on_press=popup.dismiss)
             popup.open()
+            
         except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش پیام: {e}", error_details)
+            print(f"خطا در نمایش پیام: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback به ErrorPopup
+            try:
+                from error_handler import ErrorPopup
+                ErrorPopup.show_error(str(message))
+            except:
+                pass
