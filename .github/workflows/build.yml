@@ -68,6 +68,8 @@ jobs:
         android.add_src = fonts/
         p4a.ndk_version = 25b
         p4a.branch = develop
+        icon.filename = icon/kivy-icon-512.png
+
         [buildozer]
         log_level = 2
         warn_on_root = 1
@@ -145,9 +147,12 @@ jobs:
       run: |
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
-        
+        mkdir -p .buildozer/android/app/icon  
+
         cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "No fonts"
         cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "No data"
+        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || echo "No icon" 
+
     - name: Update version and version_code
       run: |
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
