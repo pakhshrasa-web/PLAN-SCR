@@ -83,6 +83,7 @@ from screens import (
     AttendanceScreen,
 )
 from screens.supervisor_report_screen import SupervisorReportScreen
+from screens.total_report_screen import TotalReportScreen
 
 # ========== تنظیم فونت ==========
 def setup_font():
@@ -234,6 +235,7 @@ class MainApp(App):
             sm.add_widget(SupervisorReportScreen(name='supervisor_report'))  
             sm.add_widget(DistributorScreen(name='distributor'))
             sm.add_widget(DistributorReportScreen(name='distributor_report'))
+            sm.add_widget(TotalReportScreen(name='total_report')) 
 
             Window.bind(on_keyboard=self.on_keyboard)
             
@@ -290,6 +292,12 @@ class MainApp(App):
                 return True
             elif current_screen == 'agents':
                 self.root.current = 'user'
+                return True
+            elif current_screen == 'total_report':  # ✅ اضافه شد
+                self.root.current = 'login'
+                return True
+            elif current_screen == 'attendance':  # ✅ اضافه شد
+                self.root.current = 'login'
                 return True
         
         return False
