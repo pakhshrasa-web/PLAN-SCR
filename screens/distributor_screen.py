@@ -1211,8 +1211,29 @@ class DistributorScreen(Screen):
         try:
             popup.dismiss()
             
+            # ✅ دریافت نام کاربر جاری
+            from kivy.app import App
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            # ✅ اگر current_username خالی بود، از نام موزع استفاده کن
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            # ✅ اگر باز هم خالی بود، از 'موزع' استفاده کن
+            if not current_username:
+                current_username = 'موزع'
+            
             data = self.temp_delivery_data.copy()
             data.update({
+                'agent_name': current_username,  # ✅ اصلاح: نام کاربر جاری
+                'distributor_name': current_username,  # ✅ اصلاح: نام کاربر جاری
                 'delivery_status': 'ناموفق',
                 'fail_reason': reason,
                 'fail_description': description,
@@ -3658,82 +3679,102 @@ class DistributorScreen(Screen):
 
 
     def _save_and_close(self, popup, settle_type, discount, discount_amount,
-                        other_percent, other_amount, other_deductions_total,
-                        cash, total_check, total_received, final_remaining, description):
-        """ذخیره نهایی و بستن تمام دیالوگ‌ها"""
-        try:
-            data = {
-                'agent_name': '',
-                'distributor_name': 'موزع',
-                'route': self.current_route,
-                'customer_name': self.temp_delivery_data.get('customer_name', ''),
-                'customer_id': '',
-                'invoice_number': self.temp_delivery_data.get('invoice_number', ''),
-                'invoice_amount': self.temp_delivery_data.get('invoice_amount', 0),
-                'delivery_status': 'موفق',
-                'full_delivery': self.temp_delivery_data.get('full_delivery', True),
-                'returned_quantity': self.temp_delivery_data.get('returned_quantity', 0),
-                'returned_amount': self.temp_delivery_data.get('returned_amount', 0),
-                'return_reason': self.temp_delivery_data.get('return_reason', None),
-                'payment_method': 'ترکیبی',
-                'settlement_type': settle_type,
-                'discount_percent': discount,
-                'discount_amount': discount_amount,
-                'other_deductions_percent': other_percent,
-                'other_deductions_amount': other_amount,
-                'other_deductions_total': other_deductions_total,
-                'cash_amount': cash,
-                'check_amount': total_check,
-                'total_received': total_received,
-                'remaining_amount': final_remaining,
-                'checks': self.temp_checks.copy(),
-                'description': description
-            }
-            
-            success, message, _ = save_delivery(data)
-            
-            if success:
-                # ============================================================
-                # تغییر: بستن تمام دیالوگ‌ها
-                # ============================================================
-                # بستن دیالوگ خلاصه
-                popup.dismiss()
+                            other_percent, other_amount, other_deductions_total,
+                            cash, total_check, total_received, final_remaining, description):
+            """ذخیره نهایی و بستن تمام دیالوگ‌ها"""
+            try:
+                # ✅ دریافت نام کاربر جاری
+                from kivy.app import App
+                app = App.get_running_app()
+                current_username = app.current_username if hasattr(app, 'current_username') else ''
                 
-                # بستن دیالوگ تسویه
-                if hasattr(self, '_settlement_popup'):
-                    self._settlement_popup.dismiss()
-                    self._settlement_popup = None
+                # ✅ اگر current_username خالی بود، از نام موزع استفاده کن
+                if not current_username:
+                    # تلاش برای دریافت از user_manager
+                    try:
+                        from utils.user_manager import get_current_user
+                        user = get_current_user()
+                        if user:
+                            current_username = user.get('username', '') or user.get('name', '')
+                    except:
+                        pass
                 
-                # نمایش پیام موفقیت
-                self.show_message('موفق', 'توزیع با موفقیت ثبت شد')
+                # ✅ اگر باز هم خالی بود، از 'موزع' استفاده کن
+                if not current_username:
+                    current_username = 'موزع'
                 
-                # پاک کردن داده‌های موقت
-                self.temp_delivery_data = {}
-                self.temp_checks = []
-                self._settlement_widgets = {}
-                self.payment_methods = {
-                    'نقد': False,
-                    'چک': False,
-                    'نسیه': False
+                data = {
+                    'agent_name': current_username,  # ✅ اصلاح: نام کاربر جاری
+                    'distributor_name': current_username,  # ✅ اصلاح: نام کاربر جاری
+                    'route': self.current_route,
+                    'customer_name': self.temp_delivery_data.get('customer_name', ''),
+                    'customer_id': '',
+                    'invoice_number': self.temp_delivery_data.get('invoice_number', ''),
+                    'invoice_amount': self.temp_delivery_data.get('invoice_amount', 0),
+                    'delivery_status': 'موفق',
+                    'full_delivery': self.temp_delivery_data.get('full_delivery', True),
+                    'returned_quantity': self.temp_delivery_data.get('returned_quantity', 0),
+                    'returned_amount': self.temp_delivery_data.get('returned_amount', 0),
+                    'return_reason': self.temp_delivery_data.get('return_reason', None),
+                    'payment_method': 'ترکیبی',
+                    'settlement_type': settle_type,
+                    'discount_percent': discount,
+                    'discount_amount': discount_amount,
+                    'other_deductions_percent': other_percent,
+                    'other_deductions_amount': other_amount,
+                    'other_deductions_total': other_deductions_total,
+                    'cash_amount': cash,
+                    'check_amount': total_check,
+                    'total_received': total_received,
+                    'remaining_amount': final_remaining,
+                    'checks': self.temp_checks.copy(),
+                    'description': description
                 }
                 
-                # بازگشت به حالت اولیه
-                self.selected_customer = None
-                self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
-                self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
+                success, message, _ = save_delivery(data)
                 
-                # غیرفعال کردن تایمرها
-                try:
-                    Clock.unschedule(self._check_settlement_type_change)
-                except:
-                    pass
-                
-            else:
-                self.show_message('خطا', message)
-                
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا: {e}", error_details)
+                if success:
+                    # ============================================================
+                    # تغییر: بستن تمام دیالوگ‌ها
+                    # ============================================================
+                    # بستن دیالوگ خلاصه
+                    popup.dismiss()
+                    
+                    # بستن دیالوگ تسویه
+                    if hasattr(self, '_settlement_popup'):
+                        self._settlement_popup.dismiss()
+                        self._settlement_popup = None
+                    
+                    # نمایش پیام موفقیت
+                    self.show_message('موفق', 'توزیع با موفقیت ثبت شد')
+                    
+                    # پاک کردن داده‌های موقت
+                    self.temp_delivery_data = {}
+                    self.temp_checks = []
+                    self._settlement_widgets = {}
+                    self.payment_methods = {
+                        'نقد': False,
+                        'چک': False,
+                        'نسیه': False
+                    }
+                    
+                    # بازگشت به حالت اولیه
+                    self.selected_customer = None
+                    self.selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
+                    self.selected_customer_label.color = (0.5, 0.5, 0.5, 1)
+                    
+                    # غیرفعال کردن تایمرها
+                    try:
+                        Clock.unschedule(self._check_settlement_type_change)
+                    except:
+                        pass
+                    
+                else:
+                    self.show_message('خطا', message)
+                    
+            except Exception as e:
+                error_details = traceback.format_exc()
+                ErrorPopup.show_error(f"خطا: {e}", error_details)
     
     # ============================================================
     # توابع کمکی

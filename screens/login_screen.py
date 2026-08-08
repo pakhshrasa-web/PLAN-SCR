@@ -9,7 +9,7 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
-from kivy.uix.textinput import TextInput  # ✅ اضافه شد برای رمز عبور ستاره‌ای
+from kivy.uix.textinput import TextInput
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.clock import Clock
@@ -55,7 +55,6 @@ class LoginScreen(Screen):
             users = get_users()
             if not users:
                 return []
-            # استخراج نام کاربری یا نام کامل
             names = []
             for u in users:
                 if u.get('name'):
@@ -92,7 +91,7 @@ class LoginScreen(Screen):
             
             settings_btn = PersianButton(
                 text='مدیریت',
-                size_hint_x=0.2,
+                size_hint_x=0.25,
                 background_color=(1, 0.8, 0.1, 1),
                 size_hint_y=None,
                 height=dp(40),
@@ -104,7 +103,7 @@ class LoginScreen(Screen):
             
             backup_btn = PersianButton(
                 text='بکاپ',
-                size_hint_x=0.2,
+                size_hint_x=0.25,
                 background_color=(0.2, 0.5, 0.8, 1),
                 size_hint_y=None,
                 height=dp(40),
@@ -116,7 +115,7 @@ class LoginScreen(Screen):
             
             restore_btn = PersianButton(
                 text='بازیابی',
-                size_hint_x=0.2,
+                size_hint_x=0.25,
                 background_color=(0.8, 0.5, 0.2, 1),
                 size_hint_y=None,
                 height=dp(40),
@@ -126,7 +125,7 @@ class LoginScreen(Screen):
             restore_btn.bind(on_press=self.do_restore)
             header_layout.add_widget(restore_btn)
             
-            header_layout.add_widget(Label(text='', size_hint_x=0.4))
+            header_layout.add_widget(Label(text='', size_hint_x=0.25))
             content.add_widget(header_layout)
             
             content.add_widget(Label(size_hint_y=None, height=dp(10)))
@@ -142,7 +141,7 @@ class LoginScreen(Screen):
             content.add_widget(title)
             content.add_widget(Label(size_hint_y=None, height=dp(10)))
             
-            # ========== ✅ تغییر ۱: کامبوباکس نام کاربری ==========
+            # ========== کامبوباکس نام کاربری ==========
             content.add_widget(RTLLabel(
                 text='انتخاب کاربر:',
                 size_hint_y=None,
@@ -167,7 +166,7 @@ class LoginScreen(Screen):
             
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
             
-            # ========== ✅ تغییر ۲: فیلد رمز عبور با TextInput ستاره‌ای ==========
+            # ========== فیلد رمز عبور ==========
             content.add_widget(RTLLabel(
                 text='رمز عبور:',
                 size_hint_y=None,
@@ -178,11 +177,11 @@ class LoginScreen(Screen):
             
             self.password = TextInput(
                 hint_text='Enter Password',
-                password=True,  # ✅ ستاره‌ای می‌شود
+                password=True,
                 multiline=False,
                 size_hint_y=None,
                 height=dp(80),
-                font_size=sp(26),
+                font_size=sp(24),
                 halign='right',
                 font_name='PersianFont',
                 background_color=(0.15, 0.15, 0.15, 1),
@@ -191,7 +190,6 @@ class LoginScreen(Screen):
                 padding=[dp(14), dp(14), dp(14), dp(14)]
             )
             
-            # اتصال رویداد فوکوس
             self.password.bind(focus=self._on_field_focus)
             self.focusable_fields.append(self.password)
             
@@ -199,9 +197,9 @@ class LoginScreen(Screen):
             
             # ========== دکمه ورود ==========
             btn = PersianButton(
-                text='ورود',
+                text='ورود به برنامه',
                 size_hint_y=None,
-                height=dp(60),
+                height=dp(50),
                 background_color=(0.2, 0.6, 1, 1),
                 color=(1, 1, 1, 1)
             )
@@ -213,7 +211,7 @@ class LoginScreen(Screen):
             register_btn = PersianButton(
                 text='ثبت نام',
                 size_hint_y=None,
-                height=dp(60),
+                height=dp(50),
                 background_color=(0.2, 0.7, 0.2, 1),
                 color=(1, 1, 1, 1)
             )
@@ -231,6 +229,19 @@ class LoginScreen(Screen):
             )
             attendance_btn.bind(on_press=self.show_attendance_login_dialog)
             content.add_widget(attendance_btn)
+            
+            # ========== ✅ دکمه گزارش عملکرد روزانه (زیر حضور و غیاب) ==========
+            report_btn = PersianButton(
+                text='گزارش عملکرد روزانه',
+                size_hint_y=None,
+                height=dp(50),
+                background_color=(0.2, 0.6, 0.8, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            report_btn.bind(on_press=self.show_report_login_dialog)
+            content.add_widget(report_btn)
+            
             content.add_widget(Label(size_hint_y=None, height=dp(5)))
 
             self.scroll.add_widget(content)
@@ -308,16 +319,14 @@ class LoginScreen(Screen):
                 break
     
     # ============================================================
-    # بکاپ و بازیابی (فقط رابط کاربری)
+    # بکاپ و بازیابی
     # ============================================================
     
     def do_backup(self, instance):
-        """ایجاد بکاپ"""
         success, message, backup_path = create_backup()
         self.show_message('موفق' if success else 'خطا', message)
     
     def do_restore(self, instance):
-        """باز کردن دیالوگ انتخاب فایل بکاپ"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -376,7 +385,6 @@ class LoginScreen(Screen):
             ErrorPopup.show_error(f"خطا در بازیابی: {e}", error_details)
     
     def _on_backup_file_selected(self, file_path):
-        """پس از انتخاب فایل بکاپ"""
         try:
             logger.info(f"فایل بکاپ انتخاب شد: {file_path}")
             
@@ -395,7 +403,6 @@ class LoginScreen(Screen):
             ErrorPopup.show_error(f"خطا در انتخاب فایل بکاپ: {e}", error_details)
     
     def _confirm_restore(self, backup_path):
-        """دیالوگ تأیید بازیابی"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
             with content.canvas.before:
@@ -460,7 +467,6 @@ class LoginScreen(Screen):
             self.confirm_popup.dismiss()
     
     def _perform_restore(self, backup_path):
-        """اجرای بازیابی"""
         self._dismiss_confirm_popup()
         success, message = restore_backup(backup_path)
         self.show_message('موفق' if success else 'خطا', message)
@@ -482,12 +488,17 @@ class LoginScreen(Screen):
     def open_register(self, instance):
         self.manager.current = 'register'
     
+    def open_report(self, instance):
+        """باز کردن صفحه گزارش عملکرد روزانه"""
+        if not self.manager.has_screen('total_report'):
+            from screens.total_report_screen import TotalReportScreen
+            self.manager.add_widget(TotalReportScreen(name='total_report'))
+        self.manager.current = 'total_report'
+    
     def check_login(self, instance):
         try:
-            # دریافت نام کاربری از کامبوباکس
             selected_name = self.username_combo.text
             
-            # پیدا کردن کاربر با نام انتخاب شده
             users = get_users()
             user = None
             for u in users:
@@ -499,11 +510,9 @@ class LoginScreen(Screen):
                 self.show_message('خطا', 'کاربر انتخاب شده یافت نشد')
                 return
             
-            # بررسی رمز عبور با نام کاربری واقعی
             username = user.get('username', '')
             password = self.password.text
             
-            # لاگین با نام کاربری و رمز عبور
             logged_in_user = login(username, password)
             
             if logged_in_user:
@@ -528,7 +537,6 @@ class LoginScreen(Screen):
             else:
                 self.show_message('خطا', 'رمز عبور اشتباه است')
                 self.password.text = ''
-                # ✅ اصلاح: استفاده از setattr
                 Clock.schedule_once(lambda dt: setattr(self.password, 'focus', True), 0.1)
                 
         except Exception as e:
@@ -536,7 +544,6 @@ class LoginScreen(Screen):
             ErrorPopup.show_error(f"خطا در ورود: {e}", error_details)
 
     def show_attendance_login_dialog(self, instance):
-        """نمایش دیالوگ لاگین حضور و غیاب"""
         try:
             content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(12))
             with content.canvas.before:
@@ -545,7 +552,6 @@ class LoginScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
                         size=lambda i, v: setattr(rect, 'size', v))
             
-            # عنوان
             content.add_widget(RTLLabel(
                 text='ورود به حضور و غیاب',
                 size_hint_y=None,
@@ -557,7 +563,6 @@ class LoginScreen(Screen):
             
             content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
-            # نام کاربری - کامبوباکس
             content.add_widget(RTLLabel(
                 text='انتخاب کاربر:',
                 size_hint_y=None,
@@ -582,7 +587,6 @@ class LoginScreen(Screen):
             
             content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
             
-            # رمز عبور - TextInput ستاره‌ای
             content.add_widget(RTLLabel(
                 text='رمز عبور:',
                 size_hint_y=None,
@@ -609,7 +613,6 @@ class LoginScreen(Screen):
             
             content.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
             
-            # دکمه‌ها
             btn_layout = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(10))
             
             login_btn = PersianButton(
@@ -646,7 +649,6 @@ class LoginScreen(Screen):
             def do_login(instance):
                 selected_name = username_combo.text
                 
-                # پیدا کردن کاربر
                 users = get_users()
                 user = None
                 for u in users:
@@ -679,7 +681,6 @@ class LoginScreen(Screen):
                 else:
                     self.show_message('خطا', 'نام کاربری یا رمز عبور اشتباه است')
                     password_input.text = ''
-                    # ✅ اصلاح: استفاده از setattr
                     Clock.schedule_once(lambda dt: setattr(password_input, 'focus', True), 0.1)
             
             def on_cancel(instance):
@@ -691,7 +692,175 @@ class LoginScreen(Screen):
             
             popup.open()
             
-            # ✅ اصلاح: استفاده از setattr
+            Clock.schedule_once(lambda dt: setattr(username_combo.main_btn, 'focus', True), 0.2)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا: {e}", error_details)
+
+    def show_report_login_dialog(self, instance):
+        """نمایش دیالوگ لاگین گزارش عملکرد روزانه"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(12))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                        size=lambda i, v: setattr(rect, 'size', v))
+            
+            # عنوان
+            content.add_widget(RTLLabel(
+                text='ورود به گزارش عملکرد روزانه',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(20),
+                bold=True,
+                color=(0.4, 0.8, 1, 1)
+            ))
+            
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # کامبوباکس کاربران
+            content.add_widget(RTLLabel(
+                text='انتخاب کاربر:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            
+            users = get_users()
+            user_names = []
+            for u in users:
+                name = u.get('name', '') or u.get('username', '')
+                if name:
+                    user_names.append(name)
+            
+            if not user_names:
+                user_names = ['هیچ کاربری ثبت نشده']
+            
+            username_combo = PersianComboBox(
+                text=user_names[0] if user_names else '',
+                values=user_names,
+                height=dp(60)
+            )
+            username_combo.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            username_combo.main_btn.color = (1, 1, 1, 1)
+            username_combo.main_btn.font_size = sp(18)
+            content.add_widget(username_combo)
+            
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # رمز عبور
+            content.add_widget(RTLLabel(
+                text='رمز عبور:',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            
+            password_input = TextInput(
+                hint_text='Enter Password',
+                password=True,
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(18),
+                halign='right',
+                font_name='PersianFont',
+                background_color=(0.15, 0.15, 0.15, 1),
+                foreground_color=(1, 1, 1, 1),
+                cursor_color=(0.2, 0.5, 0.9, 1),
+                padding=[dp(14), dp(14), dp(14), dp(14)]
+            )
+            content.add_widget(password_input)
+            
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
+            
+            # دکمه‌ها
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(10))
+            
+            login_btn = PersianButton(
+                text='ورود',
+                background_color=(0.2, 0.6, 0.2, 1),
+                size_hint_y=None,
+                height=dp(42),
+                color=(1, 1, 1, 1),
+                font_size=sp(16),
+                bold=True
+            )
+            
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(42),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(login_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='ورود',
+                content=content,
+                size_hint=(0.85, 0.55),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def do_login(instance):
+                selected_name = username_combo.text
+                
+                users = get_users()
+                user = None
+                for u in users:
+                    name = u.get('name', '') or u.get('username', '')
+                    if name == selected_name:
+                        user = u
+                        break
+                
+                if not user:
+                    self.show_message('خطا', 'کاربر انتخاب شده یافت نشد')
+                    return
+                
+                username = user.get('username', '')
+                password = password_input.text.strip()
+                
+                if not username or not password:
+                    self.show_message('خطا', 'لطفاً نام کاربری و رمز عبور را وارد کنید')
+                    return
+                
+                logged_in_user = login(username, password)
+                
+                if logged_in_user:
+                    popup.dismiss()
+                    # رفتن به صفحه گزارش عملکرد
+                    if not self.manager.has_screen('total_report'):
+                        from screens.total_report_screen import TotalReportScreen
+                        self.manager.add_widget(TotalReportScreen(name='total_report'))
+                    
+                    report_screen = self.manager.get_screen('total_report')
+                    report_screen.current_user = logged_in_user
+                    report_screen.show_report_tab()
+                    self.manager.current = 'total_report'
+                else:
+                    self.show_message('خطا', 'نام کاربری یا رمز عبور اشتباه است')
+                    password_input.text = ''
+                    Clock.schedule_once(lambda dt: setattr(password_input, 'focus', True), 0.1)
+            
+            def on_cancel(instance):
+                popup.dismiss()
+            
+            login_btn.bind(on_press=do_login)
+            cancel_btn.bind(on_press=on_cancel)
+            password_input.bind(on_text_validate=do_login)
+            
+            popup.open()
+            
             Clock.schedule_once(lambda dt: setattr(username_combo.main_btn, 'focus', True), 0.2)
             
         except Exception as e:
@@ -719,7 +888,6 @@ class LoginScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
                         size=lambda i, v: setattr(rect, 'size', v))
             
-            # پردازش متن فارسی
             try:
                 import arabic_reshaper
                 from bidi.algorithm import get_display
@@ -728,7 +896,6 @@ class LoginScreen(Screen):
             except:
                 display_text = message
             
-            # لیبل با فونت 15 و چینش وسط با کمی تمایل به چپ
             msg_label = Label(
                 text=display_text,
                 font_size=sp(15),
@@ -741,7 +908,6 @@ class LoginScreen(Screen):
                 padding=(dp(20), 0, dp(0), 0)
             )
             
-            # محاسبه ارتفاع
             lines = message.count('\n') + 1
             if len(message) > 50 and lines == 1:
                 approx_chars_per_line = 35
@@ -754,7 +920,6 @@ class LoginScreen(Screen):
             msg_label.height = label_height
             msg_label.text_size = (dp(550), label_height)
             
-            # اسکرول
             scroll = ScrollView(
                 do_scroll_x=False,
                 do_scroll_y=True,
@@ -767,7 +932,6 @@ class LoginScreen(Screen):
             scroll.add_widget(msg_label)
             content.add_widget(scroll)
             
-            # دکمه
             btn = PersianButton(
                 text='باشه',
                 size_hint_y=None,
@@ -778,7 +942,6 @@ class LoginScreen(Screen):
             )
             content.add_widget(btn)
             
-            # پاپ‌آپ
             popup = PersianPopup(
                 title=title,
                 content=content,
@@ -793,7 +956,6 @@ class LoginScreen(Screen):
             print(f"خطا در نمایش پیام: {e}")
             import traceback
             traceback.print_exc()
-            # Fallback به ErrorPopup
             try:
                 from error_handler import ErrorPopup
                 ErrorPopup.show_error(str(message))

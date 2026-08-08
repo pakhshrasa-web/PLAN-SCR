@@ -3015,8 +3015,7 @@ class ReportScreen(Screen):
                 size_hint_y=None,
                 halign='center',
                 valign='middle',
-                width=dp(280),
-                text_size=(dp(280), None)
+                width=dp(280)
             )
             msg_label.bind(texture_size=msg_label.setter('size'))
             content.add_widget(msg_label)

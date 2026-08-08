@@ -2263,7 +2263,7 @@ class AttendanceScreen(Screen):
             text=f'تعداد: {len(selected)} ماموریت انتخاب شده',
             size_hint_y=None,
             height=dp(40),
-            font_size=sp(18),
+            font_size=sp(15),
             bold=True,
             color=(1, 1, 1, 1)
         ))
@@ -2283,7 +2283,7 @@ class AttendanceScreen(Screen):
         ))
         content.add_widget(info_row)
         
-        # ✅ نمایش توضیحات
+        # ✅ نمایش توضیحات با اسکرول افقی
         desc_text = ""
         for i, m in enumerate(selected[:10], 1):
             desc = m.get('description', 'بدون توضیحات')
@@ -2298,13 +2298,15 @@ class AttendanceScreen(Screen):
             
             desc_container = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(250))
             
+            # ✅ اسکرول افقی و عمودی
             scroll = ScrollView(
-                do_scroll_x=False,
-                do_scroll_y=True,
+                do_scroll_x=True,      # ✅ فعال کردن اسکرول افقی
+                do_scroll_y=True,      # ✅ فعال کردن اسکرول عمودی
                 size_hint=(1, 1),
                 bar_width=dp(8),
                 bar_color=(0.3, 0.5, 0.8, 0.8),
-                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5),
+                scroll_type=['bars', 'content']
             )
             
             try:
@@ -2315,20 +2317,30 @@ class AttendanceScreen(Screen):
             except:
                 display_text = desc_text
             
+            # ✅ محاسبه عرض مورد نیاز برای اسکرول افقی
+            max_line_length = 0
+            for line in desc_text.split('\n'):
+                max_line_length = max(max_line_length, len(line))
+            
+            # ✅ تنظیم عرض بر اساس طولانی‌ترین خط
+            char_width = sp(16) * 0.8  # تقریباً عرض هر کاراکتر
+            label_width = max(dp(500), max_line_length * char_width + dp(40))
+            
             label = Label(
                 text=display_text,
                 font_size=sp(16),
                 color=(0.9, 0.9, 0.9, 1),
-                size_hint_y=None,
+                size_hint=(None, None),  # ✅ None, None برای اسکرول افقی
                 halign='right',
                 valign='top',
-                text_size=(dp(500), None),
+                text_size=(label_width, None),  # ✅ عرض ثابت برای اسکرول افقی
                 font_name='fonts/Amiri-Regular.ttf'
             )
             
             lines = desc_text.count('\n') + 1
             line_height = sp(16) + dp(8)
             label.height = max(lines * line_height + dp(20), dp(50))
+            label.width = label_width
             
             scroll.add_widget(label)
             desc_container.add_widget(scroll)

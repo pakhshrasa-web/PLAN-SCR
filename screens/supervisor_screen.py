@@ -631,27 +631,52 @@ class SupervisorScreen(Screen):
 
 
     def _create_target(self, agent_name, target_type, target_value_int, 
-                    period_type, duration_int, start_date, description):
-        """ایجاد تارگت جدید (استخراج شده برای استفاده مجدد)"""
-        success, message, target = create_target(
-            agent_name=agent_name,
-            target_type=target_type,
-            target_value=target_value_int,
-            period_type=period_type,
-            duration=duration_int,
-            start_date=start_date,
-            description=description,
-            created_by='supervisor'
-        )
+                        period_type, duration_int, start_date, description):
+        """ایجاد تارگت جدید - تاریخ پایان توسط target_manager محاسبه می‌شود"""
+        try:
+            from kivy.app import App
+            from utils.target_manager import create_target
+            
+            # ✅ دریافت نام کاربر جاری
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            if not current_username:
+                current_username = 'supervisor'
+            
+            # ✅ ایجاد تارگت - تاریخ پایان داخل create_target محاسبه می‌شود
+            success, message, target = create_target(
+                agent_name=agent_name,
+                target_type=target_type,
+                target_value=target_value_int,
+                period_type=period_type,
+                duration=duration_int,
+                start_date=start_date,
+                description=description,
+                created_by=current_username
+            )
 
-        if success:
-            self.target_value_input.text = ''
-            self.duration_input.text = '1'
-            self.start_date_input.text = get_today_jalali()
-            self.description_input.text = ''
-            self.show_message('موفق', message)
-        else:
-            self.show_message('خطا', message)
+            if success:
+                self.target_value_input.text = ''
+                self.duration_input.text = '1'
+                self.start_date_input.text = get_today_jalali()
+                self.description_input.text = ''
+                self.show_message('موفق', message)
+            else:
+                self.show_message('خطا', message)
+                
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در ایجاد تارگت: {e}", error_details)
 
     # ============================================================
     # دیالوگ نمایش لیست تارگت‌ها با فیلتر
@@ -2207,26 +2232,49 @@ class SupervisorScreen(Screen):
 
     def _create_detailed_target(self, agent_name, product_group, target_count_int,
                                 unit, period, duration_int, linked_id, start_date):
-        """ایجاد ریزتارگت جدید (استخراج شده برای استفاده مجدد)"""
-        success, message, target = create_detailed_target(
-            agent_name=agent_name,
-            product_group=product_group,
-            target_count=target_count_int,
-            unit=unit,
-            period=period,
-            duration=duration_int,
-            linked_target_id=linked_id,
-            start_date=start_date,
-            created_by='supervisor'
-        )
+        """ایجاد ریزتارگت جدید با نام کاربر جاری"""
+        try:
+            from kivy.app import App
+            
+            # ✅ دریافت نام کاربر جاری
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            if not current_username:
+                current_username = 'supervisor'
+            
+            success, message, target = create_detailed_target(
+                agent_name=agent_name,
+                product_group=product_group,
+                target_count=target_count_int,
+                unit=unit,
+                period=period,
+                duration=duration_int,
+                linked_target_id=linked_id,
+                start_date=start_date,
+                created_by=current_username  # ✅ اضافه شد
+            )
 
-        if success:
-            self.dt_target_count.text = '0'
-            self.dt_duration.text = '1'
-            self.dt_start_date.text = get_today_jalali()
-            self.show_message('موفق', message)
-        else:
-            self.show_message('خطا', message)
+            if success:
+                self.dt_target_count.text = '0'
+                self.dt_duration.text = '1'
+                self.dt_start_date.text = get_today_jalali()
+                self.show_message('موفق', message)
+            else:
+                self.show_message('خطا', message)
+                
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در ایجاد ریزتارگت: {e}", error_details)
 
     def _show_detailed_targets_list(self, instance):
         """نمایش لیست ریزتارگت‌ها با فیلتر در دیالوگ"""
@@ -3161,12 +3209,30 @@ class SupervisorScreen(Screen):
     def _show_dt_status_selection_dialog(self, temp_updates, all_targets, parent_popup):
         """نمایش دیالوگ انتخاب وضعیت برای ریزتارگت‌ها (سوپروایزر)"""
         try:
+            from kivy.app import App
+            
+            # ✅ دریافت نام کاربر جاری
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            if not current_username:
+                current_username = 'supervisor'
+            
             content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
-                        size=lambda i, v: setattr(rect, 'size', v))
+                            size=lambda i, v: setattr(rect, 'size', v))
 
             content.add_widget(RTLLabel(
                 text=f'انتخاب وضعیت برای {len(temp_updates)} ریزتارگت',
@@ -3240,16 +3306,16 @@ class SupervisorScreen(Screen):
                 today = get_today_jalali()
                 filename = os.path.basename(self.dt_fulfill_file_path) if hasattr(self, 'dt_fulfill_file_path') and self.dt_fulfill_file_path else ''
                 
-                # ✅ چک تکراری - قبل از همه، کل عملیات رو متوقف کن
+                # ✅ چک تکراری
                 if filename:
                     for update in temp_updates:
                         t = update['target']
                         processed = t.get('processed_files', {})
                         if processed.get(today) == filename:
                             self.show_message('خطا', f'این فایل قبلاً برای امروز ({today}) ثبت شده است.')
-                            return  # ✅ کلاً متوقف کن
+                            return
                 
-                # حالا ثبت کن
+                # ✅ ثبت با نام کاربر
                 for update in temp_updates:
                     t = update['target']
                     target_id = t.get('id', '')
@@ -3272,6 +3338,8 @@ class SupervisorScreen(Screen):
                     
                     t['achieved_value'] = sum(t['daily_achievements'].values())
                     t['status'] = selected_status
+                    t['fulfilled_by'] = current_username  # ✅ ذخیره نام کاربر
+                    t['fulfilled_date'] = today  # ✅ ذخیره تاریخ تحقق
 
                 path = os.path.join(get_data_path(), 'detailed_targets.json')
                 with open(path, 'w', encoding='utf-8') as f:
@@ -3921,13 +3989,35 @@ class SupervisorScreen(Screen):
             ErrorPopup.show_error(f"خطا: {e}", error_details)
 
     def _perform_fulfillment(self, target_ids, achieved_values):
+        """نهایی‌سازی تارگت‌های اصلی با نام کاربر"""
         try:
-            success, message = finalize_targets(target_ids, achieved_values)
+            from kivy.app import App
+            
+            # ✅ دریافت نام کاربر جاری
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            if not current_username:
+                current_username = 'supervisor'
+            
+            # ارسال نام کاربر به تابع finalize_targets
+            success, message = finalize_targets(target_ids, achieved_values, finalized_by=current_username)
+            
             if success:
                 self.show_message('موفق', 'عملیات نهایی سازی با موفقیت انجام شد')
                 self.show_fulfillment_targets(None)
             else:
                 self.show_message('خطا', message)
+                
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نهایی‌سازی تارگت‌ها: {e}", error_details)
@@ -4461,9 +4551,28 @@ class SupervisorScreen(Screen):
             print(f"خطا در به‌روزرسانی مشتریان: {e}")
 
     def submit_market_check(self, instance):
-        """ثبت سرکشی بررسی بازار"""
+        """ثبت سرکشی بررسی بازار - با ذخیره نام کاربر"""
         try:
             from utils.supervisor_visits_manager import create_supervisor_visit
+            from kivy.app import App
+            
+            # ✅ دریافت نام کاربر جاری
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            # اگر خالی بود، از user_manager بگیر
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            # اگر باز هم خالی بود، از 'supervisor' استفاده کن
+            if not current_username:
+                current_username = 'supervisor'
 
             data = {
                 'route': self.market_route_spinner.text,
@@ -4484,7 +4593,9 @@ class SupervisorScreen(Screen):
                 'target_achievement': self.market_target_achievement.text,
                 'supervisor_opinion': self.market_supervisor_opinion.text.strip(),
                 'need_followup': self.market_need_followup.text,
-                'next_visit_date': self.market_next_visit_date.text.strip()
+                'next_visit_date': self.market_next_visit_date.text.strip(),
+                'created_by': current_username,  # ✅ اضافه شد
+                'agent_name': current_username   # ✅ اضافه شد برای هماهنگی
             }
 
             if not data['route'] or data['route'] == '':

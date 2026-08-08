@@ -18,6 +18,7 @@ from .attendance_screen import AttendanceScreen
 from .report_attendance_screen import ReportAttendanceScreen
 from .collection_dialog import CollectionDialog
 from .collection_report_dialog import CollectionReportDialog
+from .total_report_screen import TotalReportScreen
 
 __all__ = [
     'LoginScreen',
@@ -36,5 +37,6 @@ __all__ = [
     'AttendanceScreen',
     'ReportAttendanceScreen',
     'CollectionDialog',
-    'CollectionReportDialog'
+    'CollectionReportDialog',
+    'TotalReportScreen'
 ]

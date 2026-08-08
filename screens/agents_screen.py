@@ -1635,7 +1635,7 @@ class AgentsScreen(Screen):
     # ============================================================
 
     def show_target_fulfillment_dialog(self, instance):
-        """نمایش دیالوگ تحقق ریزتارگت‌ها"""
+        """نمایش دیالوگ تحقق ریزتارگت‌ها - فقط برای کاربر جاری"""
         try:
             import openpyxl
             import os
@@ -1644,6 +1644,15 @@ class AgentsScreen(Screen):
             from utils.detailed_target_manager import get_all_detailed_targets
             from utils.file_picker_import import ImportFilePicker
             
+            # ✅ دریافت نام کاربر جاری و ذخیره در self.fulfillment_agent
+            agent_name = App.get_running_app().current_username if hasattr(App.get_running_app(), 'current_username') else ''
+            
+            if not agent_name:
+                self.show_message('خطا', 'نام کاربری ایجنت مشخص نیست')
+                return
+            
+            self.fulfillment_agent = agent_name  # ✅ ذخیره در متغیر کلاس
+            
             content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
@@ -1651,13 +1660,20 @@ class AgentsScreen(Screen):
                 content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
                         size=lambda i, v: setattr(rect, 'size', v))
             
+            # نمایش نام کاربر جاری
+            content.add_widget(RTLLabel(
+                text=f'👤 کاربر: {agent_name}',
+                size_hint_y=None, height=dp(30),
+                font_size=sp(16), bold=True, color=(0.4, 0.8, 1, 1)
+            ))
+            
             # ========== دکمه‌های عملیات ==========
             action_btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(6))
             
             self.fulfillment_file_picker = ImportFilePicker(
                 on_select=lambda filepath: self._on_fulfillment_file_selected(
                     [filepath] if not isinstance(filepath, list) else filepath,
-                    None, self.fulfillment_grid
+                    None, self.fulfillment_grid, agent_name
                 ),
                 size_hint_x=0.35, size_hint_y=None, height=dp(45)
             )
@@ -1700,7 +1716,7 @@ class AgentsScreen(Screen):
             
             self.fulfillment_scroll = ScrollView(
                 do_scroll_x=False, do_scroll_y=True,
-                size_hint_y=0.55, scroll_type=['bars', 'content'], bar_width=dp(6)
+                size_hint_y=0.50, scroll_type=['bars', 'content'], bar_width=dp(6)
             )
             self.fulfillment_grid = GridLayout(cols=1, spacing=dp(3), size_hint_y=None, padding=dp(3))
             self.fulfillment_grid.bind(minimum_height=self.fulfillment_grid.setter('height'))
@@ -1746,7 +1762,7 @@ class AgentsScreen(Screen):
                     return
                 
                 all_targets = get_all_detailed_targets()
-                self._do_save_fulfillment(all_targets, popup)
+                self._do_save_fulfillment(all_targets, popup, agent_name)
             
             self.fulfillment_save_btn.bind(on_press=save_fulfillment)
             
@@ -1764,7 +1780,7 @@ class AgentsScreen(Screen):
                     header_font = Font(bold=True, size=11, color="FFFFFF")
                     header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
                     thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
-                                       top=Side(style='thin'), bottom=Side(style='thin'))
+                                    top=Side(style='thin'), bottom=Side(style='thin'))
                     headers = ['شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'کسر تارگت', 'واحد']
                     for col, header in enumerate(headers, 1):
                         cell = ws.cell(row=1, column=col, value=header)
@@ -1786,7 +1802,7 @@ class AgentsScreen(Screen):
                     for i, width in enumerate(column_widths, 1):
                         ws.column_dimensions[get_column_letter(i)].width = width
                     today = get_today_jalali().replace('/', '-')
-                    filename = f'گزارش_تحقق_{today}_{datetime.now().strftime("%H%M%S")}.xlsx'
+                    filename = f'گزارش_تحقق_{agent_name}_{today}_{datetime.now().strftime("%H%M%S")}.xlsx'
                     export_dir = get_backup_path()
                     os.makedirs(export_dir, exist_ok=True)
                     filepath = os.path.join(export_dir, filename)
@@ -1806,16 +1822,18 @@ class AgentsScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش دیالوگ تحقق: {e}", error_details)
 
 
-    def _do_save_fulfillment(self, all_targets, parent_popup):
-        """اجرای واقعی ذخیره تحقق - به‌روزرسانی برای روز جاری"""
+    def _do_save_fulfillment(self, all_targets, parent_popup, agent_name):
+        """اجرای واقعی ذخیره تحقق - فقط برای کاربر جاری"""
         today = get_today_jalali()
         updated = 0
         
         for item in self.fulfillment_data:
             target_id = item.get('id')
             achieved = item.get('achieved', 0)
+            item_agent = item.get('agent_name', '')
             
-            if target_id and achieved > 0:
+            # ✅ فقط ریزتارگت‌های کاربر جاری را بروزرسانی کن
+            if target_id and achieved > 0 and (agent_name in item_agent or item_agent in agent_name):
                 for t in all_targets:
                     if t.get('id') == target_id:
                         t['achieved_value'] = achieved
@@ -1835,13 +1853,13 @@ class AgentsScreen(Screen):
             self.fulfillment_save_btn.text = 'ثبت شد'
             self.fulfillment_save_btn.background_color = (0.3, 0.3, 0.3, 1)
             
-            self.show_message('موفق', f'{updated} ریزتارگت برای امروز ({today}) بروزرسانی شد')
+            self.show_message('موفق', f'{updated} ریزتارگت برای {agent_name} در تاریخ {today} بروزرسانی شد')
         else:
-            self.show_message('خطا', 'هیچ تارگتی بروزرسانی نشد')
+            self.show_message('اطلاع', f'هیچ ریزتارگتی برای {agent_name} بروزرسانی نشد')
 
 
-    def _on_fulfillment_file_selected(self, selection, status_label, grid):
-        """پردازش فایل اکسل انتخاب شده"""
+    def _on_fulfillment_file_selected(self, selection, status_label, grid, agent_name):
+        """پردازش فایل اکسل انتخاب شده - فقط برای کاربر جاری"""
         try:
             import openpyxl
             import os
@@ -1881,19 +1899,28 @@ class AgentsScreen(Screen):
             self.fulfillment_inputs = []
             grid.clear_widgets()
             
+            # ✅ شمارش ریزتارگت‌های کاربر جاری
+            user_targets_count = 0
+            
             for row in ws.iter_rows(min_row=2, values_only=True):
                 if not row or not row[id_col - 1]:
                     continue
                 
                 target_id = str(row[id_col - 1]).strip() if row[id_col - 1] else ''
-                agent_name = str(row[agent_col - 1]).strip() if agent_col and row[agent_col - 1] else ''
+                item_agent = str(row[agent_col - 1]).strip() if agent_col and row[agent_col - 1] else ''
                 product_group = str(row[product_col - 1]).strip() if row[product_col - 1] else ''
                 daily_target = int(row[daily_col - 1]) if row[daily_col - 1] else 0
                 unit = str(row[unit_col - 1]).strip() if unit_col and row[unit_col - 1] else ''
                 
+                # ✅ فقط ریزتارگت‌های کاربر جاری را نمایش بده
+                if agent_name not in item_agent and item_agent not in agent_name:
+                    continue
+                
+                user_targets_count += 1
+                
                 idx = len(self.fulfillment_data)
                 self.fulfillment_data.append({
-                    'id': target_id, 'agent_name': agent_name,
+                    'id': target_id, 'agent_name': item_agent,
                     'product_group': product_group, 'daily_target': daily_target,
                     'unit': unit, 'achieved': 0
                 })
@@ -1959,12 +1986,152 @@ class AgentsScreen(Screen):
             
             wb.close()
             
-            if status_label is not None:
-                status_label.text = f'{filename} ({len(self.fulfillment_data)} ردیف)'
+            if user_targets_count == 0:
+                if status_label is not None:
+                    status_label.text = f'⚠️ هیچ ریزتارگتی برای {agent_name} یافت نشد'
+                    status_label.color = (0.8, 0.6, 0, 1)
+                grid.clear_widgets()
+                grid.add_widget(RTLLabel(
+                    text=f'هیچ ریزتارگتی برای "{agent_name}" در این فایل یافت نشد',
+                    size_hint_y=None, height=dp(40), font_size=sp(16), color=(0.8, 0.6, 0, 1)
+                ))
+            elif status_label is not None:
+                status_label.text = f'{filename} ({user_targets_count} ردیف برای {agent_name})'
+                status_label.color = (0.2, 0.8, 0.2, 1)
             
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در خواندن فایل: {e}", error_details)
+
+
+    def _auto_calculate_fulfillment(self, instance):
+        """محاسبه خودکار تحقق بر اساس daily_log.json - فقط برای کاربر جاری"""
+        try:
+            if not self.fulfillment_data:
+                self.show_message('خطا', 'ابتدا فایل ریزتارگت را انتخاب کنید')
+                return
+            
+            agent_name = getattr(self, 'fulfillment_agent', '')
+            if not agent_name:
+                self.show_message('خطا', 'نام کاربری ایجنت مشخص نیست')
+                return
+            
+            today = get_today_jalali()
+            logs = get_daily_logs()
+            today_logs = logs.get(today, [])
+            
+            if not today_logs or not isinstance(today_logs, list):
+                self.show_message('اطلاع', f'هیچ ویزیتی برای تاریخ {today} ثبت نشده است')
+                return
+            
+            # ✅ فقط لاگ‌های کاربر جاری را فیلتر کن
+            user_logs = []
+            for log in today_logs:
+                if isinstance(log, dict):
+                    log_agent = log.get('agent_name', '')
+                    if agent_name in log_agent or log_agent in agent_name:
+                        user_logs.append(log)
+            
+            if not user_logs:
+                self.show_message('اطلاع', f'هیچ ویزیتی برای {agent_name} در تاریخ {today} ثبت نشده است')
+                return
+            
+            self._do_auto_calculate(user_logs, agent_name)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در محاسبه خودکار: {e}", error_details)
+
+
+    def _auto_calculate_fulfillment(self, instance):
+        """محاسبه خودکار تحقق بر اساس daily_log.json - فقط برای کاربر جاری"""
+        try:
+            if not self.fulfillment_data:
+                self.show_message('خطا', 'ابتدا فایل ریزتارگت را انتخاب کنید')
+                return
+            
+            agent_name = getattr(self, 'fulfillment_agent', '')
+            if not agent_name:
+                # ✅ اگر fulfillment_agent تنظیم نشده، از current_username بگیر
+                agent_name = App.get_running_app().current_username if hasattr(App.get_running_app(), 'current_username') else ''
+                
+            if not agent_name:
+                self.show_message('خطا', 'نام کاربری ایجنت مشخص نیست')
+                return
+            
+            today = get_today_jalali()
+            logs = get_daily_logs()
+            today_logs = logs.get(today, [])
+            
+            if not today_logs or not isinstance(today_logs, list):
+                self.show_message('اطلاع', f'هیچ ویزیتی برای تاریخ {today} ثبت نشده است')
+                return
+            
+            # ✅ فقط لاگ‌های کاربر جاری را فیلتر کن
+            user_logs = []
+            for log in today_logs:
+                if isinstance(log, dict):
+                    log_agent = log.get('agent_name', '')
+                    if agent_name in log_agent or log_agent in agent_name:
+                        user_logs.append(log)
+            
+            if not user_logs:
+                self.show_message('اطلاع', f'هیچ ویزیتی برای {agent_name} در تاریخ {today} ثبت نشده است')
+                return
+            
+            # ✅ اصلاح: ارسال هر دو پارامتر
+            self._do_auto_calculate(user_logs, agent_name)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در محاسبه خودکار: {e}", error_details)
+
+
+    def _do_auto_calculate(self, user_logs, agent_name):
+        """اجرای واقعی محاسبه خودکار - فقط برای کاربر جاری"""
+        product_sales = {}
+        
+        for log in user_logs:
+            if not isinstance(log, dict):
+                continue
+            if log.get('visit_status') != 'موفق' or log.get('sales_status') != 'موفق':
+                continue
+            
+            detailed_sales = log.get('detailed_sales', [])
+            if detailed_sales and isinstance(detailed_sales, list):
+                for item in detailed_sales:
+                    if not isinstance(item, dict):
+                        continue
+                    product = item.get('product', '')
+                    count = item.get('count', 0)
+                    if product and count > 0:
+                        product_sales[product] = product_sales.get(product, 0) + count
+        
+        if not product_sales:
+            today = get_today_jalali()
+            self.show_message('اطلاع', f'برای {agent_name} در تاریخ {today} فروشی با ریز فروش ثبت نشده است')
+            return
+        
+        total_matched = 0
+        
+        for i, item in enumerate(self.fulfillment_data):
+            product_group = item.get('product_group', '')
+            if product_group in product_sales:
+                sale_count = product_sales[product_group]
+                self.fulfillment_data[i]['achieved'] = sale_count
+                
+                for inp_data in self.fulfillment_inputs:
+                    if inp_data['index'] == i:
+                        achieved_input = inp_data['achieved_input']
+                        if hasattr(achieved_input, 'text'):
+                            achieved_input.text = str(sale_count)
+                        break
+                total_matched += 1
+        
+        if total_matched > 0:
+            self.show_message('موفق', f'{total_matched} گروه کالا برای {agent_name} بروزرسانی شد')
+        else:
+            self.show_message('اطلاع', 'گروه‌های کالا با ریزتارگت‌ها تطبیق نداشت')
 
 
     def _update_fulfillment_remaining(self, index, value):
@@ -2004,75 +2171,6 @@ class AgentsScreen(Screen):
                     break
         except Exception as e:
             print(f"خطا در بروزرسانی کسر تارگت: {e}")
-
-
-    def _auto_calculate_fulfillment(self, instance):
-        """محاسبه خودکار تحقق بر اساس daily_log.json و تاریخ امروز"""
-        try:
-            if not self.fulfillment_data:
-                self.show_message('خطا', 'ابتدا فایل ریزتارگت را انتخاب کنید')
-                return
-            
-            today = get_today_jalali()
-            logs = get_daily_logs()
-            today_logs = logs.get(today, [])
-            
-            if not today_logs or not isinstance(today_logs, list):
-                self.show_message('اطلاع', f'هیچ ویزیتی برای تاریخ {today} ثبت نشده است')
-                return
-            
-            self._do_auto_calculate(today_logs)
-            
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در محاسبه خودکار: {e}", error_details)
-
-
-    def _do_auto_calculate(self, today_logs):
-        """اجرای واقعی محاسبه خودکار"""
-        product_sales = {}
-        
-        for log in today_logs:
-            if not isinstance(log, dict):
-                continue
-            if log.get('visit_status') != 'موفق' or log.get('sales_status') != 'موفق':
-                continue
-            
-            detailed_sales = log.get('detailed_sales', [])
-            if detailed_sales and isinstance(detailed_sales, list):
-                for item in detailed_sales:
-                    if not isinstance(item, dict):
-                        continue
-                    product = item.get('product', '')
-                    count = item.get('count', 0)
-                    if product and count > 0:
-                        product_sales[product] = product_sales.get(product, 0) + count
-        
-        if not product_sales:
-            today = get_today_jalali()
-            self.show_message('اطلاع', f'برای تاریخ {today} فروشی با ریز فروش ثبت نشده است')
-            return
-        
-        total_matched = 0
-        
-        for i, item in enumerate(self.fulfillment_data):
-            product_group = item.get('product_group', '')
-            if product_group in product_sales:
-                sale_count = product_sales[product_group]
-                self.fulfillment_data[i]['achieved'] = sale_count
-                
-                for inp_data in self.fulfillment_inputs:
-                    if inp_data['index'] == i:
-                        achieved_input = inp_data['achieved_input']
-                        if hasattr(achieved_input, 'text'):
-                            achieved_input.text = str(sale_count)
-                        break
-                total_matched += 1
-        
-        if total_matched > 0:
-            self.show_message('موفق', f'{total_matched} گروه کالا بروزرسانی شد')
-        else:
-            self.show_message('اطلاع', 'گروه‌های کالا با ریزتارگت‌ها تطبیق نداشت')
 
 
     # ============================================================
