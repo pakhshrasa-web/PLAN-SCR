@@ -380,7 +380,7 @@ def get_detailed_targets_filtered(
     دریافت ریزتارگت‌ها با فیلترهای دلخواه
     
     Args:
-        agent_name: نام عامل (None = همه)
+        agent_name: نام عامل (تطابق جزئی)
         product_group: گروه کالا (None = همه)
         status: وضعیت (None = همه)
         period: دوره (None = همه)
@@ -399,9 +399,16 @@ def get_detailed_targets_filtered(
         
         result = data
         
-        # فیلتر عامل
+        # ✅ فیلتر عامل با تطابق جزئی
         if agent_name:
-            result = [t for t in result if isinstance(t, dict) and t.get('agent_name') == agent_name]
+            filtered = []
+            for t in result:
+                if not isinstance(t, dict):
+                    continue
+                t_agent = t.get('agent_name', '')
+                if agent_name in t_agent or t_agent in agent_name:
+                    filtered.append(t)
+            result = filtered
         
         # فیلتر گروه کالا
         if product_group:

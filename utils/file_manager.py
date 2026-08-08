@@ -345,3 +345,201 @@ def delete_product_group(name):
         save_json('products.json', data)
         return True
     return False
+
+
+def get_do_missions():
+    """
+    دریافت لیست ماموریت‌ها از فایل do_missions.json
+    
+    Returns:
+        list: لیست ماموریت‌ها
+    """
+    try:
+        data = load_json('do_missions.json')
+        if data is None:
+            return []
+        
+        # اگر دیکشنری با کلید تاریخ بود، تبدیل به لیست
+        if isinstance(data, dict):
+            missions_list = []
+            for date, missions in data.items():
+                if isinstance(missions, list):
+                    for m in missions:
+                        if isinstance(m, dict):
+                            m['date'] = date
+                            missions_list.append(m)
+            return missions_list
+        
+        # اگر لیست بود، همان را برگردان
+        if isinstance(data, list):
+            return data
+        
+        return []
+        
+    except Exception as e:
+        print(f"⚠️ خطا در دریافت ماموریت‌ها: {e}")
+        return []
+
+
+def save_do_mission(mission_data):
+    """
+    ذخیره یک ماموریت جدید در فایل do_missions.json
+    
+    Args:
+        mission_data: دیکشنری اطلاعات ماموریت
+    
+    Returns:
+        (success, message, mission_id)
+    """
+    try:
+        import uuid
+        from utils.jalali_date import get_today_jalali, get_current_time
+        
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            missions = {}
+        
+        # تولید شناسه یکتا
+        mission_id = f"MSN-{uuid.uuid4().hex[:4].upper()}"
+        mission_data['id'] = mission_id
+        
+        # اضافه کردن تاریخ و زمان
+        mission_data['created_at'] = f"{get_today_jalali()} {get_current_time()}"
+        
+        # ذخیره بر اساس تاریخ
+        today = get_today_jalali()
+        if today not in missions:
+            missions[today] = []
+        
+        missions[today].append(mission_data)
+        
+        if save_json('do_missions.json', missions):
+            return True, "ماموریت با موفقیت ثبت شد", mission_id
+        else:
+            return False, "خطا در ذخیره ماموریت", None
+            
+    except Exception as e:
+        print(f"❌ خطا در ذخیره ماموریت: {e}")
+        return False, f"خطا: {str(e)}", None
+
+
+def update_do_mission(mission_id, updated_data):
+    """
+    به‌روزرسانی یک ماموریت
+    
+    Args:
+        mission_id: شناسه ماموریت
+        updated_data: دیکشنری اطلاعات جدید
+    
+    Returns:
+        (success, message)
+    """
+    try:
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            return False, "هیچ ماموریتی یافت نشد"
+        
+        for date, items in missions.items():
+            if isinstance(items, list):
+                for i, item in enumerate(items):
+                    if isinstance(item, dict) and item.get('id') == mission_id:
+                        for key, value in updated_data.items():
+                            item[key] = value
+                        missions[date][i] = item
+                        
+                        if save_json('do_missions.json', missions):
+                            return True, "ماموریت با موفقیت به‌روزرسانی شد"
+                        else:
+                            return False, "خطا در ذخیره تغییرات"
+        
+        return False, "ماموریت یافت نشد"
+        
+    except Exception as e:
+        print(f"❌ خطا در به‌روزرسانی ماموریت: {e}")
+        return False, f"خطا: {str(e)}"
+
+
+def delete_do_mission(mission_id):
+    """
+    حذف یک ماموریت
+    
+    Args:
+        mission_id: شناسه ماموریت
+    
+    Returns:
+        (success, message)
+    """
+    try:
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            return False, "هیچ ماموریتی یافت نشد"
+        
+        for date, items in missions.items():
+            if isinstance(items, list):
+                for i, item in enumerate(items):
+                    if isinstance(item, dict) and item.get('id') == mission_id:
+                        del missions[date][i]
+                        if not missions[date]:
+                            del missions[date]
+                        
+                        if save_json('do_missions.json', missions):
+                            return True, "ماموریت با موفقیت حذف شد"
+                        else:
+                            return False, "خطا در ذخیره تغییرات"
+        
+        return False, "ماموریت یافت نشد"
+        
+    except Exception as e:
+        print(f"❌ خطا در حذف ماموریت: {e}")
+        return False, f"خطا: {str(e)}"
+
+
+def get_do_missions_by_date(date=None):
+    """
+    دریافت ماموریت‌های یک تاریخ مشخص
+    
+    Args:
+        date: تاریخ به فرمت jalali (اگر None باشد، امروز)
+    
+    Returns:
+        list: لیست ماموریت‌های آن تاریخ
+    """
+    try:
+        from utils.jalali_date import get_today_jalali
+        
+        if not date:
+            date = get_today_jalali()
+        
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            return []
+        
+        return missions.get(date, [])
+        
+    except Exception as e:
+        print(f"⚠️ خطا در دریافت ماموریت‌های تاریخ {date}: {e}")
+        return []
+
+
+def get_do_missions_by_agent(agent_name, date=None):
+    """
+    دریافت ماموریت‌های یک عامل در تاریخ مشخص
+    
+    Args:
+        agent_name: نام عامل
+        date: تاریخ (اگر None باشد، همه تاریخ‌ها)
+    
+    Returns:
+        list: لیست ماموریت‌های آن عامل
+    """
+    try:
+        if date:
+            missions = get_do_missions_by_date(date)
+            return [m for m in missions if isinstance(m, dict) and m.get('agent_name') == agent_name]
+        else:
+            all_missions = get_do_missions()
+            return [m for m in all_missions if isinstance(m, dict) and m.get('agent_name') == agent_name]
+        
+    except Exception as e:
+        print(f"⚠️ خطا در دریافت ماموریت‌های عامل {agent_name}: {e}")
+        return []

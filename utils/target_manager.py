@@ -36,7 +36,6 @@ def _load_targets() -> List[Dict]:
                 data = json.load(f)
                 if isinstance(data, list):
                     return data
-                # ✅ اگه دیکشنری یا هر چیز دیگه بود، لیست خالی برگردون
                 return []
         return []
     except Exception as e:
@@ -57,43 +56,141 @@ def _save_targets(targets: List[Dict]) -> bool:
 
 
 def _generate_target_id() -> str:
-    """تولید آیدی یکتا برای تارگت"""
+    """تولید شناسه یکتا برای تارگت"""
     chars = string.ascii_uppercase + string.digits
     random_part = ''.join(random.choices(chars, k=4))
     return f"TG{random_part}"
 
 
-def _calculate_end_date(start_date: str, duration: int) -> str:
+# ============================================================
+# ✅ توابع محاسبه تاریخ با پشتیبانی از دوره‌ها
+# ============================================================
+
+# utils/target_manager.py
+
+# ============================================================
+# ✅ توابع محاسبه تاریخ با پشتیبانی از دوره‌ها (مثل ریزتارگت)
+# ============================================================
+
+def _add_days(date_str: str, days: int) -> str:
+    """افزودن تعداد روز به تاریخ شمسی"""
+    try:
+        gregorian = convert_to_gregorian(date_str)
+        if not gregorian or gregorian == date_str:
+            return date_str
+        dt = datetime.strptime(gregorian, '%Y-%m-%d')
+        new_dt = dt + timedelta(days=days)
+        return to_jalali(new_dt.year, new_dt.month, new_dt.day)
+    except Exception as e:
+        logger.error(f"خطا در add_days: {e}")
+        return date_str
+
+
+def _add_months(date_str: str, months: int) -> str:
     """
-    محاسبه تاریخ پایان از تاریخ شروع و مدت
-    start_date: فرمت سال/ماه/روز (مثال: 1405/01/31)
+    افزودن تعداد ماه به تاریخ شمسی و برگرداندن آخرین روز ماه
+    
+    Args:
+        date_str: تاریخ به فرمت 1405/05/01
+        months: تعداد ماه
+    
+    Returns:
+        تاریخ جدید به فرمت 1405/05/31 (آخرین روز ماه)
     """
     try:
-        # تبدیل تاریخ شمسی به میلادی
-        gregorian_date = convert_to_gregorian(start_date)
-        if not gregorian_date or gregorian_date == start_date:
-            logger.error(f"خطا در تبدیل تاریخ: {start_date}")
-            return start_date
+        parts = date_str.split('/')
+        if len(parts) != 3:
+            return date_str
         
-        # تبدیل به datetime
-        date_obj = datetime.strptime(gregorian_date, '%Y-%m-%d')
+        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
         
-        # اضافه کردن مدت به روز
-        end_date_obj = date_obj + timedelta(days=duration)
+        # ✅ محاسبه ماه جدید
+        new_month = month + months
+        new_year = year
         
-        # تبدیل به شمسی
-        end_date_str = to_jalali(
-            end_date_obj.year,
-            end_date_obj.month,
-            end_date_obj.day
-        )
+        while new_month > 12:
+            new_month -= 12
+            new_year += 1
         
-        return end_date_str
+        while new_month < 1:
+            new_month += 12
+            new_year -= 1
+        
+        # ✅ برگرداندن آخرین روز ماه
+        if 1 <= new_month <= 6:
+            max_day = 31
+        elif 7 <= new_month <= 11:
+            max_day = 30
+        else:  # اسفند
+            max_day = 29 if new_year % 4 == 0 else 28
+        
+        return f"{new_year:04d}/{new_month:02d}/{max_day:02d}"
         
     except Exception as e:
-        logger.error(f"خطا در محاسبه تاریخ پایان: {e}")
+        logger.error(f"خطا در add_months: {e}")
+        return date_str
+
+
+def _add_years(date_str: str, years: int) -> str:
+    """افزودن تعداد سال به تاریخ شمسی (مثل ریزتارگت)"""
+    try:
+        parts = date_str.split('/')
+        if len(parts) != 3:
+            return date_str
+        
+        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        new_year = year + years
+        
+        # محاسبه حداکثر روز ماه
+        if 1 <= month <= 6:
+            max_day = 31
+        elif 7 <= month <= 11:
+            max_day = 30
+        else:  # اسفند
+            max_day = 29 if new_year % 4 == 0 else 28
+        
+        if day > max_day:
+            day = max_day
+        
+        return f"{new_year:04d}/{month:02d}/{day:02d}"
+        
+    except Exception as e:
+        logger.error(f"خطا در add_years: {e}")
+        return date_str
+
+
+def _calculate_end_date(start_date: str, period_type: str, duration: int) -> str:
+    """
+    محاسبه تاریخ پایان بر اساس دوره و مدت (مثل ریزتارگت)
+    """
+    try:
+        logger.info(f"_calculate_end_date: start={start_date}, period={period_type}, duration={duration}")
+        
+        if period_type == 'daily':
+            result = _add_days(start_date, duration)
+        elif period_type == 'weekly':
+            result = _add_days(start_date, duration * 7)
+        elif period_type == 'monthly':
+            result = _add_months(start_date, duration)
+        elif period_type == 'seasonal':
+            result = _add_months(start_date, duration * 3)
+        elif period_type == 'yearly':
+            result = _add_years(start_date, duration)
+        else:
+            logger.warning(f"نوع دوره نامشخص: {period_type} - استفاده از پیش‌فرض روزانه")
+            result = _add_days(start_date, duration)
+        
+        logger.info(f"_calculate_end_date: نتیجه={result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"خطا در _calculate_end_date: {e}")
         return start_date
 
+
+# ============================================================
+# تابع اصلی ایجاد تارگت
+# ============================================================
 
 def create_target(
     agent_name: str,
@@ -106,23 +203,25 @@ def create_target(
     created_by: str = 'supervisor'
 ) -> Tuple[bool, str, Optional[Dict]]:
     """
-    ایجاد تارگت جدید
+    ایجاد تارگت جدید با محاسبه تاریخ پایان بر اساس دوره
     
     Args:
-        agent_name: نام عامل
-        target_type: نوع تارگت
-        target_value: میزان هدف
-        period_type: نوع دوره (daily, weekly, monthly, quarterly, yearly)
-        duration: مدت به روز
-        start_date: تاریخ شروع
-        description: توضیحات
-        created_by: ایجادکننده
+        agent_name: نام عامل (بازاریاب)
+        target_type: نوع تارگت (تعدادی, مبلغی, تعداد فاکتور, ...)
+        target_value: مقدار هدف
+        period_type: نوع دوره (daily, weekly, monthly, seasonal, yearly)
+        duration: تعداد دوره‌ها
+        start_date: تاریخ شروع (فرمت: 1405/01/31)
+        description: توضیحات (اختیاری)
+        created_by: نام ایجادکننده (سوپروایزر)
     
     Returns:
         Tuple[bool, str, Optional[Dict]]: (موفقیت, پیام, دیتای تارگت)
     """
     try:
-        # اعتبارسنجی
+        # ============================================================
+        # اعتبارسنجی فیلدها
+        # ============================================================
         if not agent_name:
             return False, 'نام عامل الزامی است', None
 
@@ -141,17 +240,24 @@ def create_target(
         if not start_date:
             return False, 'تاریخ شروع الزامی است', None
 
-        # اعتبارسنجی تاریخ
         if not validate_jalali_date(start_date):
             return False, 'فرمت تاریخ نامعتبر است (مثال: 1405/01/31)', None
 
-        # محاسبه تاریخ پایان
-        end_date = _calculate_end_date(start_date, duration)
+        # ============================================================
+        # ✅ محاسبه تاریخ پایان بر اساس دوره
+        # ============================================================
+        end_date = _calculate_end_date(start_date, period_type, duration)
+        
+        logger.info(f"ایجاد تارگت: {agent_name} - {target_type} - {start_date} تا {end_date}")
 
-        # تولید آیدی
+        # ============================================================
+        # تولید شناسه یکتا
+        # ============================================================
         target_id = _generate_target_id()
 
-        # ایجاد تارگت
+        # ============================================================
+        # ایجاد دیکشنری تارگت
+        # ============================================================
         target = {
             'target_id': target_id,
             'agent_name': agent_name,
@@ -159,33 +265,47 @@ def create_target(
             'target_value': target_value,
             'period_type': period_type,
             'duration': duration,
-            'description': description,
+            'description': description or '',
             'start_date': start_date,
-            'end_date': end_date,
+            'end_date': end_date,  # ✅ تاریخ پایان محاسبه شده
             'status': 'در انتظار',
             'is_active': True,
             'is_locked': False,
             'achieved_value': 0,
             'created_at': datetime.now().isoformat(),
-            'created_by': created_by,
+            'created_by': created_by or 'supervisor',
             'finalized_at': ''
         }
 
-        # بارگذاری تارگت‌های موجود
+        # ============================================================
+        # بررسی تکراری بودن
+        # ============================================================
+        is_allowed, dup_msg, existing = check_duplicate_target(agent_name, target_type, period_type)
+        if not is_allowed:
+            return False, dup_msg, None
+
+        # ============================================================
+        # ذخیره در فایل
+        # ============================================================
         targets = _load_targets()
         targets.append(target)
 
-        # ذخیره
         if _save_targets(targets):
-            logger.info(f"تارگت جدید ایجاد شد: {target_id}")
+            logger.info(f"✅ تارگت جدید ایجاد شد: {target_id} - تاریخ پایان: {end_date} - توسط: {created_by}")
             return True, f'تارگت با شناسه {target_id} ثبت شد', target
         else:
             return False, 'خطا در ذخیره تارگت', None
 
     except Exception as e:
         logger.error(f"خطا در ایجاد تارگت: {e}")
+        import traceback
+        traceback.print_exc()
         return False, f'خطا: {str(e)}', None
 
+
+# ============================================================
+# توابع دریافت و فیلتر
+# ============================================================
 
 def get_all_targets() -> List[Dict]:
     """دریافت همه تارگت‌ها"""
@@ -232,9 +352,7 @@ def get_targets_filtered(
     if period_type:
         result = [t for t in result if t.get('period_type') == period_type]
 
-    # مرتب‌سازی بر اساس تاریخ ایجاد (جدیدترین اول)
     result.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-
     return result
 
 
@@ -245,38 +363,22 @@ def get_targets_filtered(
 def get_active_targets_by_agent(agent_name: str, start_date: str = None, end_date: str = None) -> List[Dict]:
     """
     دریافت تارگت‌های فعال یا در انتظار یک عامل در بازه زمانی مشخص
-    
-    Args:
-        agent_name: نام عامل
-        start_date: تاریخ شروع بازه (اختیاری)
-        end_date: تاریخ پایان بازه (اختیاری)
-    
-    Returns:
-        List[Dict]: لیست تارگت‌های قابل تحقق
     """
     try:
         if not agent_name:
-            logger.warning("نام عامل خالی است")
             return []
         
         targets = _load_targets()
         result = []
         
-        logger.info(f"جستجوی تارگت‌ها برای عامل: {agent_name}")
-        logger.info(f"تعداد کل تارگت‌ها: {len(targets)}")
-        
         for target in targets:
-            # فیلتر بر اساس عامل
-            target_agent = target.get('agent_name', '')
-            if target_agent != agent_name:
+            if target.get('agent_name') != agent_name:
                 continue
             
-            # فقط تارگت‌های با وضعیت 'فعال' یا 'در انتظار' (قابل تحقق)
             status = target.get('status', '')
             if status not in ['فعال', 'در انتظار']:
                 continue
             
-            # فیلتر بر اساس بازه زمانی (تاریخ شروع تارگت)
             target_start = target.get('start_date', '')
             if start_date and target_start < start_date:
                 continue
@@ -284,31 +386,18 @@ def get_active_targets_by_agent(agent_name: str, start_date: str = None, end_dat
                 continue
             
             result.append(target)
-            logger.info(f"تارگت پیدا شد: {target.get('target_id')} - {target.get('status')}")
         
-        # مرتب‌سازی بر اساس تاریخ شروع
         result.sort(key=lambda x: x.get('start_date', ''))
-        
-        logger.info(f"تعداد تارگت‌های یافت شده: {len(result)}")
         return result
         
     except Exception as e:
-        logger.error(f"خطا در دریافت تارگت‌ها: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"خطا در دریافت تارگت‌های فعال: {e}")
         return []
 
 
 def finalize_targets(target_ids: List[str], achieved_values: Dict[str, int]) -> Tuple[bool, str]:
     """
     نهایی‌سازی تارگت‌های انتخاب شده
-    
-    Args:
-        target_ids: لیست شناسه‌های تارگت
-        achieved_values: دیکشنری {target_id: achieved_value}
-    
-    Returns:
-        Tuple[bool, str]: (موفقیت, پیام)
     """
     try:
         targets = _load_targets()
@@ -317,12 +406,10 @@ def finalize_targets(target_ids: List[str], achieved_values: Dict[str, int]) -> 
         for i, target in enumerate(targets):
             target_id = target.get('target_id')
             if target_id in target_ids:
-                # بررسی اینکه تارگت قابل نهایی‌سازی باشد (فعال یا در انتظار)
                 status = target.get('status', '')
                 if status not in ['فعال', 'در انتظار']:
                     continue
                 
-                # به‌روزرسانی مقدار محقق شده
                 achieved = achieved_values.get(target_id, 0)
                 targets[i]['achieved_value'] = achieved
                 targets[i]['status'] = 'تکمیل شده'
@@ -346,26 +433,16 @@ def finalize_targets(target_ids: List[str], achieved_values: Dict[str, int]) -> 
 def read_excel_summary(filepath: str) -> Dict[str, int]:
     """
     خواندن داده‌های خلاصه از فایل اکسل
-    
-    Args:
-        filepath: مسیر فایل اکسل
-    
-    Returns:
-        Dict[str, int]: دیکشنری شامل مقادیر خلاصه
     """
     try:
         import openpyxl
         
         wb = openpyxl.load_workbook(filepath, data_only=True)
         
-        # بررسی وجود شیت خلاصه آمار
         if 'خلاصه آمار' not in wb.sheetnames:
-            logger.warning(f"شیت 'خلاصه آمار' در فایل {filepath} یافت نشد")
             return {}
         
         ws = wb['خلاصه آمار']
-        
-        # خواندن داده‌ها از شیت خلاصه آمار
         summary_data = {}
         for row in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=True):
             if row and len(row) >= 2:
@@ -373,7 +450,6 @@ def read_excel_summary(filepath: str) -> Dict[str, int]:
                 value = row[1]
                 if value is not None:
                     try:
-                        # حذف کاما و تبدیل به عدد
                         if isinstance(value, str):
                             value = value.replace(',', '').replace(' ', '')
                         summary_data[key] = int(value)
@@ -381,33 +457,22 @@ def read_excel_summary(filepath: str) -> Dict[str, int]:
                         summary_data[key] = 0
         
         wb.close()
-        logger.info(f"داده‌های خلاصه خوانده شد: {len(summary_data)} آیتم")
         return summary_data
         
     except Exception as e:
         logger.error(f"خطا در خواندن فایل اکسل: {e}")
-        import traceback
-        traceback.print_exc()
         return {}
 
 
 def can_edit_target(target: Dict) -> bool:
     """
     بررسی اینکه آیا تارگت قابل ویرایش است یا نه
-    
-    شرایط:
-    - اگر وضعیت 'تکمیل شده' باشد، تا ۵ روز بعد از نهایی‌سازی قابل ویرایش است
-    - وضعیت‌های دیگر ('در انتظار' و 'فعال') همیشه قابل ویرایش هستند
     """
     try:
-        # بررسی وضعیت
         status = target.get('status', '')
-        
-        # تارگت‌های غیرتکمیل شده همیشه قابل ویرایش هستند
         if status != 'تکمیل شده':
             return True
 
-        # تارگت‌های تکمیل شده: فقط تا ۵ روز بعد از نهایی‌سازی قابل ویرایش هستند
         finalized_at = target.get('finalized_at', '')
         if not finalized_at:
             return True
@@ -416,7 +481,6 @@ def can_edit_target(target: Dict) -> bool:
         now = datetime.now()
         days_diff = (now - finalized_date).days
 
-        # فقط تا ۵ روز بعد از نهایی‌سازی قابل ویرایش است
         return days_diff <= 5
 
     except Exception as e:
@@ -427,24 +491,15 @@ def can_edit_target(target: Dict) -> bool:
 def update_target(target_id: str, updates: Dict) -> Tuple[bool, str]:
     """
     به‌روزرسانی تارگت
-    
-    Args:
-        target_id: شناسه تارگت
-        updates: دیکشنری شامل فیلدهای قابل تغییر
-    
-    Returns:
-        Tuple[bool, str]: (موفقیت, پیام)
     """
     try:
         targets = _load_targets()
 
         for i, target in enumerate(targets):
             if target.get('target_id') == target_id:
-                # بررسی قابلیت ویرایش
                 if not can_edit_target(target):
-                    return False, 'این تارگت قابل ویرایش نیست (زمان ویرایش گذشته یا تکمیل شده)'
+                    return False, 'این تارگت قابل ویرایش نیست'
 
-                # اعمال تغییرات
                 allowed_fields = [
                     'target_type', 'target_value', 'duration',
                     'start_date', 'description', 'is_active', 'status'
@@ -452,26 +507,24 @@ def update_target(target_id: str, updates: Dict) -> Tuple[bool, str]:
 
                 for field, value in updates.items():
                     if field in allowed_fields:
-                        # اگر تاریخ شروع تغییر کرد، تاریخ پایان هم محاسبه بشه
                         if field == 'start_date':
                             if validate_jalali_date(value):
                                 duration_val = updates.get('duration', target.get('duration', 0))
-                                target['end_date'] = _calculate_end_date(value, duration_val)
+                                period_type = target.get('period_type', 'daily')
+                                target['end_date'] = _calculate_end_date(value, period_type, duration_val)
                             else:
                                 return False, 'تاریخ شروع نامعتبر است'
-
                         target[field] = value
 
-                # اگر مدت تغییر کرد، تاریخ پایان مجدداً محاسبه بشه
                 if 'duration' in updates and 'start_date' in target:
+                    period_type = target.get('period_type', 'daily')
                     target['end_date'] = _calculate_end_date(
                         target['start_date'],
+                        period_type,
                         updates['duration']
                     )
 
-                # ذخیره
                 if _save_targets(targets):
-                    logger.info(f"تارگت {target_id} به‌روزرسانی شد")
                     return True, 'تارگت با موفقیت به‌روزرسانی شد'
                 else:
                     return False, 'خطا در ذخیره تارگت'
@@ -485,7 +538,7 @@ def update_target(target_id: str, updates: Dict) -> Tuple[bool, str]:
 
 def delete_target(target_id: str) -> Tuple[bool, str]:
     """
-    حذف تارگت (فقط در صورت عدم قفل بودن و قابل ویرایش بودن)
+    حذف تارگت
     """
     try:
         targets = _load_targets()
@@ -493,12 +546,11 @@ def delete_target(target_id: str) -> Tuple[bool, str]:
         for i, target in enumerate(targets):
             if target.get('target_id') == target_id:
                 if not can_edit_target(target):
-                    return False, 'این تارگت قابل حذف نیست (زمان ویرایش گذشته یا تکمیل شده)'
+                    return False, 'این تارگت قابل حذف نیست'
 
                 targets.pop(i)
 
                 if _save_targets(targets):
-                    logger.info(f"تارگت {target_id} حذف شد")
                     return True, 'تارگت با موفقیت حذف شد'
                 else:
                     return False, 'خطا در ذخیره تارگت'
@@ -516,30 +568,16 @@ def get_target_statistics() -> Dict:
     """
     try:
         targets = _load_targets()
-
-        total = len(targets)
-        pending = len([t for t in targets if t.get('status') == 'در انتظار'])
-        active = len([t for t in targets if t.get('status') == 'فعال'])
-        completed = len([t for t in targets if t.get('status') == 'تکمیل شده'])
-        cancelled = len([t for t in targets if t.get('status') == 'لغو شده'])
-
         return {
-            'total': total,
-            'pending': pending,
-            'active': active,
-            'completed': completed,
-            'cancelled': cancelled
+            'total': len(targets),
+            'pending': len([t for t in targets if t.get('status') == 'در انتظار']),
+            'active': len([t for t in targets if t.get('status') == 'فعال']),
+            'completed': len([t for t in targets if t.get('status') == 'تکمیل شده']),
+            'cancelled': len([t for t in targets if t.get('status') == 'لغو شده'])
         }
-
     except Exception as e:
         logger.error(f"خطا در دریافت آمار تارگت‌ها: {e}")
-        return {
-            'total': 0,
-            'pending': 0,
-            'active': 0,
-            'completed': 0,
-            'cancelled': 0
-        }
+        return {'total': 0, 'pending': 0, 'active': 0, 'completed': 0, 'cancelled': 0}
 
 
 def export_targets_to_excel(targets: List[Dict], filename: str = None) -> Tuple[bool, str, str]:
@@ -559,10 +597,10 @@ def export_targets_to_excel(targets: List[Dict], filename: str = None) -> Tuple[
         wb = openpyxl.Workbook()
         ws1 = wb.active
         ws1.title = "تارگت‌ها"
+        ws1.sheet_view.rightToLeft = True
         
         header_font = Font(bold=True, size=11, color="FFFFFF")
         header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
-        header_alignment = Alignment(horizontal="center", vertical="center")
         thin_border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
@@ -571,20 +609,20 @@ def export_targets_to_excel(targets: List[Dict], filename: str = None) -> Tuple[
         )
         
         headers = ['شناسه', 'عامل', 'نوع تارگت', 'میزان هدف', 'دوره', 'مدت (روز)',
-                   'تاریخ شروع', 'تاریخ پایان', 'وضعیت', 'مقدار محقق شده', 'توضیحات']
+                   'تاریخ شروع', 'تاریخ پایان', 'وضعیت', 'مقدار محقق شده', 'توضیحات', 'ایجاد شده توسط']
         
         for col, header in enumerate(headers, 1):
             cell = ws1.cell(row=1, column=col, value=header)
             cell.font = header_font
             cell.fill = header_fill
-            cell.alignment = header_alignment
+            cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = thin_border
         
         period_display_map = {
             'daily': 'روزانه',
             'weekly': 'هفتگی',
             'monthly': 'ماهانه',
-            'quarterly': 'فصلی',
+            'seasonal': 'فصلی',
             'yearly': 'سالانه'
         }
         
@@ -603,8 +641,9 @@ def export_targets_to_excel(targets: List[Dict], filename: str = None) -> Tuple[
             ws1.cell(row=row, column=9, value=target.get('status', ''))
             ws1.cell(row=row, column=10, value=target.get('achieved_value', 0))
             ws1.cell(row=row, column=11, value=target.get('description', ''))
+            ws1.cell(row=row, column=12, value=target.get('created_by', ''))
         
-        column_widths = [12, 18, 14, 16, 12, 12, 14, 14, 14, 18, 30]
+        column_widths = [14, 20, 16, 16, 14, 12, 14, 14, 14, 18, 30, 18]
         for i, width in enumerate(column_widths, 1):
             ws1.column_dimensions[get_column_letter(i)].width = width
         
@@ -625,19 +664,16 @@ def export_targets_to_excel(targets: List[Dict], filename: str = None) -> Tuple[
         wb.save(filepath)
         
         if os.path.exists(filepath):
-            size = os.path.getsize(filepath)
-            print(f"فایل اکسل تارگت‌ها ذخیره شد: {filepath} ({size} bytes)")
             return True, f'فایل با موفقیت ذخیره شد:\n{filename}', filepath
         else:
             return False, 'فایل ساخته نشد', ''
         
     except ImportError:
-        return False, 'ماژول openpyxl نصب نیست.\nلطفاً با دستور زیر نصب کنید:\npip install openpyxl', ''
+        return False, 'ماژول openpyxl نصب نیست', ''
     except Exception as e:
-        print(f"خطا در خروجی اکسل تارگت‌ها: {e}")
-        import traceback
-        traceback.print_exc()
-        return False, f'خطا در ایجاد فایل اکسل:\n{str(e)}', ''
+        logger.error(f"خطا در خروجی اکسل: {e}")
+        return False, f'خطا: {str(e)}', ''
+
 
 def get_targets_filtered_advanced(
     agent_name: str = None,
@@ -650,18 +686,6 @@ def get_targets_filtered_advanced(
 ) -> List[Dict]:
     """
     دریافت تارگت‌ها با فیلترهای پیشرفته
-    
-    Args:
-        agent_name: نام عامل (None = همه)
-        target_type: نوع تارگت (None = همه)
-        status: وضعیت (None = همه)
-        period_type: نوع دوره (None = همه)
-        target_id: جستجوی شامل در شناسه تارگت (None = همه)
-        start_date: تاریخ شروع بازه (None = بدون فیلتر)
-        end_date: تاریخ پایان بازه (None = بدون فیلتر)
-    
-    Returns:
-        List[Dict]: لیست فیلتر شده
     """
     try:
         targets = _load_targets()
@@ -682,19 +706,16 @@ def get_targets_filtered_advanced(
         if period_type:
             result = [t for t in result if isinstance(t, dict) and t.get('period_type') == period_type]
         
-        # جستجوی شامل در شناسه تارگت
         if target_id:
             search_term = target_id.strip().upper()
             result = [t for t in result if isinstance(t, dict) and search_term in str(t.get('target_id', '')).upper()]
         
-        # فیلتر بازه زمانی
         if start_date:
             result = [t for t in result if isinstance(t, dict) and t.get('start_date', '') >= start_date]
         
         if end_date:
             result = [t for t in result if isinstance(t, dict) and t.get('start_date', '') <= end_date]
         
-        # مرتب‌سازی
         result.sort(key=lambda x: x.get('created_at', '') if isinstance(x, dict) else '', reverse=True)
         
         return result
@@ -702,33 +723,25 @@ def get_targets_filtered_advanced(
     except Exception as e:
         logger.error(f"خطا در فیلتر تارگت‌ها: {e}")
         return []
-    
+
+
 def check_duplicate_target(agent_name: str, target_type: str, period_type: str) -> Tuple[bool, str, Optional[Dict]]:
     """
     بررسی تکراری نبودن تارگت
-    
-    Args:
-        agent_name: نام عامل
-        target_type: نوع تارگت
-        period_type: نوع دوره (daily, weekly, monthly, quarterly, yearly)
-    
-    Returns:
-        Tuple[bool, str, Optional[Dict]]: (مجاز است؟, پیام, تارگت مشابه در صورت وجود)
     """
     all_targets = _load_targets()
     if not isinstance(all_targets, list):
         return True, '', None
     
-    # نگاشت دوره برای نمایش فارسی
     period_display_map = {
         'daily': 'روزانه',
         'weekly': 'هفتگی',
         'monthly': 'ماهانه',
-        'quarterly': 'فصلی',
+        'seasonal': 'فصلی',
         'yearly': 'سالانه'
     }
     
-    # ۱. بررسی تکراری بودن دقیق (عامل + نوع + دوره)
+    # ۱. بررسی تکراری بودن دقیق
     for t in all_targets:
         if not isinstance(t, dict):
             continue
@@ -738,9 +751,9 @@ def check_duplicate_target(agent_name: str, target_type: str, period_type: str) 
             t.get('status') in ['در انتظار', 'فعال']):
             
             period_display = period_display_map.get(period_type, period_type)
-            return False, f'در دوره انتخابی، تارگت {target_type} {period_display} برای {agent_name} قبلاً تعریف شده است.اطلاعات تکراری است.', t
+            return False, f'در دوره انتخابی، تارگت {target_type} {period_display} برای {agent_name} قبلاً تعریف شده است.', t
     
-    # ۲. بررسی تکراری بودن با دوره متفاوت (عامل + نوع)
+    # ۲. بررسی تکراری بودن با دوره متفاوت
     for t in all_targets:
         if not isinstance(t, dict):
             continue
@@ -758,50 +771,6 @@ def check_duplicate_target(agent_name: str, target_type: str, period_type: str) 
     return True, '', None
 
 
-def check_duplicate_detailed_target(agent_name: str, product_group: str, period: str, linked_target_id: str) -> Tuple[bool, str, Optional[Dict]]:
-    """
-    بررسی تکراری نبودن ریزتارگت
-    
-    Args:
-        agent_name: نام عامل
-        product_group: گروه کالا
-        period: دوره (روزانه، ماهانه، فصلی، سالیانه)
-        linked_target_id: شناسه تارگت مادر
-    
-    Returns:
-        Tuple[bool, str, Optional[Dict]]: (مجاز است؟, پیام, ریزتارگت مشابه در صورت وجود)
-    """
-    all_targets = _load()
-    if not isinstance(all_targets, list):
-        return True, '', None
-    
-    # ۱. بررسی تکراری بودن دقیق (عامل + گروه کالا + دوره + تارگت مادر)
-    for t in all_targets:
-        if not isinstance(t, dict):
-            continue
-        if (t.get('agent_name') == agent_name and 
-            t.get('product_group') == product_group and 
-            t.get('period') == period and
-            t.get('linked_target_id') == linked_target_id and
-            t.get('status') in ['در انتظار', 'فعال']):
-            
-            return False, f'ریزتارگت "{product_group}" با دوره {period} برای {agent_name} قبلاً تعریف شده است.اطلاعات تکراری است.', t
-    
-    # ۲. بررسی تکراری بودن با دوره متفاوت (عامل + گروه کالا + تارگت مادر)
-    for t in all_targets:
-        if not isinstance(t, dict):
-            continue
-        if (t.get('agent_name') == agent_name and 
-            t.get('product_group') == product_group and 
-            t.get('period') != period and
-            t.get('linked_target_id') == linked_target_id and
-            t.get('status') in ['در انتظار', 'فعال']):
-            
-            existing_period = t.get('period', '')
-            return False, f'برای {agent_name} ریزتارگت "{product_group}" با دوره {existing_period} ثبت شده است.آیا از ایجاد ریزتارگت با دوره {period} اطمینان دارید؟', t
-    
-    return True, '', None
-
 # ============================================================
 # تابع تست
 # ============================================================
@@ -812,34 +781,26 @@ def test_target_manager():
     print("تست مدیریت تارگت‌ها")
     print("=" * 50)
 
-    # ایجاد تارگت تست با period_type
+    # ایجاد تارگت تست با دوره ماهانه
     success, msg, target = create_target(
         agent_name='حیدری ناصر',
         target_type='ریالی',
         target_value=30000000000,
-        period_type='monthly',  # ← پارامتر اضافه شد
-        duration=30,
-        start_date='1405/01/31',
+        period_type='monthly',
+        duration=1,
+        start_date='1405/05/01',
         description='کف تارگت فروش ریالی',
         created_by='supervisor'
     )
 
     if success:
-        print(f"موفق: {msg}")
-        print(f"تارگت: {target['target_id']}")
+        print(f"✅ موفق: {msg}")
+        print(f"   شناسه: {target['target_id']}")
+        print(f"   تاریخ شروع: {target['start_date']}")
         print(f"   تاریخ پایان: {target['end_date']}")
         print(f"   نوع دوره: {target['period_type']}")
     else:
-        print(f"خطا: {msg}")
-
-    # آمار
-    stats = get_target_statistics()
-    print(f"\nآمار تارگت‌ها:")
-    print(f"   کل: {stats['total']}")
-    print(f"   در انتظار: {stats['pending']}")
-    print(f"   فعال: {stats['active']}")
-    print(f"   تکمیل شده: {stats['completed']}")
-    print(f"   لغو شده: {stats['cancelled']}")
+        print(f"❌ خطا: {msg}")
 
     print("=" * 50)
 

@@ -5,7 +5,7 @@ import json
 import os
 import uuid
 from datetime import datetime
-from utils.file_manager import get_data_path
+from utils.storage import get_data_path
 
 
 def get_collections_file_path():
@@ -98,7 +98,6 @@ def save_collection(data):
     try:
         collections = _load_collections()
         
-        # افزودن شناسه و زمان
         data['id'] = generate_collection_id()
         data['created_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
@@ -114,37 +113,54 @@ def save_collection(data):
         return False, None, f"خطا: {str(e)}"
 
 
-def get_collections(agent_name=None, date=None, status=None, customer=None):
-    """دریافت وصول‌ها با فیلتر"""
-    collections = _load_collections()
+def get_collections(agent_name=None, date=None, status=None, customer=None, start_date=None, end_date=None):
+    """
+    دریافت وصول‌ها با فیلتر
     
+    Args:
+        agent_name: نام عامل (تطابق جزئی)
+        date: تاریخ دقیق
+        status: وضعیت
+        customer: نام مشتری
+        start_date: تاریخ شروع بازه
+        end_date: تاریخ پایان بازه
+    
+    Returns:
+        List: لیست وصول‌های فیلتر شده
+    """
+    collections = _load_collections()
+    result = collections
+    
+    # ✅ فیلتر بر اساس نام عامل (تطابق جزئی)
     if agent_name:
-        collections = [c for c in collections if c.get('agent_name') == agent_name]
+        result = []
+        for c in collections:
+            c_agent = c.get('agent_name', '')
+            # تطابق با نام کامل یا بخشی از نام
+            if agent_name in c_agent or c_agent in agent_name:
+                result.append(c)
     
     if date:
-        collections = [c for c in collections if c.get('date') == date]
+        result = [c for c in result if c.get('date') == date]
     
     if status:
-        collections = [c for c in collections if c.get('status') == status]
+        result = [c for c in result if c.get('status') == status]
     
     if customer:
-        collections = [c for c in collections if c.get('customer') == customer]
+        result = [c for c in result if c.get('customer') == customer]
     
-    return collections
+    if start_date:
+        result = [c for c in result if c.get('date', '') >= start_date]
+    
+    if end_date:
+        result = [c for c in result if c.get('date', '') <= end_date]
+    
+    return result
 
 
 def get_collection_stats(agent_name=None, start_date=None, end_date=None):
     """دریافت آمار وصول‌ها"""
-    collections = _load_collections()
-    
-    if agent_name:
-        collections = [c for c in collections if c.get('agent_name') == agent_name]
-    
-    if start_date:
-        collections = [c for c in collections if c.get('date', '') >= start_date]
-    
-    if end_date:
-        collections = [c for c in collections if c.get('date', '') <= end_date]
+    collections = get_collections(agent_name=agent_name, start_date=start_date, end_date=end_date)
     
     successful = [c for c in collections if c.get('status') == 'موفق']
     failed = [c for c in collections if c.get('status') == 'ناموفق']

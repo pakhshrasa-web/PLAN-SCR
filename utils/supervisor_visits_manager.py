@@ -28,12 +28,9 @@ def _load_visits() -> List[Dict]:
         if os.path.exists(path):
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # اگه dict بود، تبدیل به list کن
                 if isinstance(data, dict):
-                    # اگه خالیه، list برگردون
                     if not data:
                         return []
-                    # اگه کلیدهای عددی داره مثل یه dict معمولی، تبدیل کن
                     return []
                 if not isinstance(data, list):
                     return []
@@ -65,7 +62,7 @@ def _generate_visit_id() -> str:
 
 def create_supervisor_visit(data: Dict) -> Tuple[bool, str, Optional[Dict]]:
     """
-    ثبت سرکشی جدید
+    ثبت سرکشی جدید با ذخیره نام کاربر
     
     Args:
         data: دیکشنری شامل تمام فیلدهای سرکشی
@@ -102,6 +99,10 @@ def create_supervisor_visit(data: Dict) -> Tuple[bool, str, Optional[Dict]]:
         # تولید آیدی
         visit_id = _generate_visit_id()
         
+        # ✅ دریافت نام کاربر از data (از supervisor_screen ارسال می‌شود)
+        created_by = data.get('created_by', 'supervisor')
+        agent_name = data.get('agent_name', created_by)
+        
         # ایجاد سرکشی
         visit = {
             'id': visit_id,
@@ -126,8 +127,11 @@ def create_supervisor_visit(data: Dict) -> Tuple[bool, str, Optional[Dict]]:
             'supervisor_opinion': data.get('supervisor_opinion', ''),
             'need_followup': data.get('need_followup', ''),
             'next_visit_date': data.get('next_visit_date', ''),
-            'created_by': 'supervisor',
-            'created_at': datetime.now().isoformat()
+            'created_by': created_by,  # ✅ ذخیره نام کاربر واقعی
+            'agent_name': agent_name,  # ✅ برای هماهنگی
+            'created_at': datetime.now().isoformat(),
+            'reported_to_manager': False,
+            'reported_date': ''
         }
         
         # بارگذاری سرکشی‌های موجود
@@ -136,7 +140,7 @@ def create_supervisor_visit(data: Dict) -> Tuple[bool, str, Optional[Dict]]:
         
         # ذخیره
         if _save_visits(visits):
-            logger.info(f"سرکشی جدید ثبت شد: {visit_id}")
+            logger.info(f"سرکشی جدید ثبت شد: {visit_id} توسط {created_by}")
             return True, f'سرکشی با شناسه {visit_id} ثبت شد', visit
         else:
             return False, 'خطا در ذخیره سرکشی', None
@@ -154,7 +158,8 @@ def get_all_visits() -> List[Dict]:
 def get_visits_filtered(
     customer: str = None,
     start_date: str = None,
-    end_date: str = None
+    end_date: str = None,
+    created_by: str = None
 ) -> List[Dict]:
     """دریافت سرکشی‌ها با فیلتر"""
     visits = _load_visits()
@@ -168,6 +173,9 @@ def get_visits_filtered(
     
     if end_date:
         result = [v for v in result if v.get('date') <= end_date]
+    
+    if created_by:
+        result = [v for v in result if v.get('created_by') == created_by or v.get('agent_name') == created_by]
     
     # مرتب‌سازی بر اساس تاریخ (جدیدترین اول)
     result.sort(key=lambda x: x.get('date', ''), reverse=True)
@@ -185,6 +193,17 @@ def get_visits_by_route(route: str) -> List[Dict]:
     """دریافت سرکشی‌های یک مسیر"""
     visits = _load_visits()
     return [v for v in visits if v.get('route') == route]
+
+
+def get_visits_by_creator(creator_name: str) -> List[Dict]:
+    """دریافت سرکشی‌های یک سوپروایزر خاص"""
+    visits = _load_visits()
+    result = []
+    for v in visits:
+        v_creator = v.get('created_by', '') or v.get('agent_name', '')
+        if creator_name in v_creator or v_creator in creator_name:
+            result.append(v)
+    return result
 
 
 def get_visits_statistics() -> Dict:
@@ -228,10 +247,10 @@ def export_visits_to_excel(visits: List[Dict], filename: str = None) -> Tuple[bo
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "بررسی بازار"
+        ws.sheet_view.rightToLeft = True
         
         header_font = Font(bold=True, size=10, color="FFFFFF")
         header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
-        header_alignment = Alignment(horizontal="center", vertical="center")
         thin_border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
@@ -239,6 +258,7 @@ def export_visits_to_excel(visits: List[Dict], filename: str = None) -> Tuple[bo
             bottom=Side(style='thin')
         )
         
+        # ✅ اضافه کردن ستون "ثبت شده توسط"
         headers = [
             'شناسه', 'تاریخ', 'ساعت', 'مسیر', 'مشتری',
             'نحوه سرکشی', 'علت سرکشی', 'وضعیت مشتری',
@@ -248,14 +268,16 @@ def export_visits_to_excel(visits: List[Dict], filename: str = None) -> Tuple[bo
             'برخورد موزع', 'رضایتمندی مشتری',
             'نظرات مشتری', 'تحقق هدف سرکشی',
             'نظریه سوپروایزر', 'نیاز به پیگیری',
-            'تاریخ مراجعه بعدی'
+            'تاریخ مراجعه بعدی', 'ثبت شده توسط'
         ]
+        
+        column_widths = [12, 12, 10, 18, 20, 12, 18, 14, 18, 16, 18, 20, 16, 16, 16, 16, 30, 16, 30, 14, 16, 18]
         
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = header_font
             cell.fill = header_fill
-            cell.alignment = header_alignment
+            cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = thin_border
         
         for row, visit in enumerate(visits, 2):
@@ -280,8 +302,8 @@ def export_visits_to_excel(visits: List[Dict], filename: str = None) -> Tuple[bo
             ws.cell(row=row, column=19, value=visit.get('supervisor_opinion', ''))
             ws.cell(row=row, column=20, value=visit.get('need_followup', ''))
             ws.cell(row=row, column=21, value=visit.get('next_visit_date', ''))
+            ws.cell(row=row, column=22, value=visit.get('created_by', 'supervisor'))
         
-        column_widths = [12, 12, 10, 18, 20, 12, 18, 14, 18, 16, 18, 20, 16, 16, 16, 16, 30, 16, 30, 14, 16]
         for i, width in enumerate(column_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = width
         
@@ -316,8 +338,17 @@ def export_visits_to_excel(visits: List[Dict], filename: str = None) -> Tuple[bo
         traceback.print_exc()
         return False, f'خطا در ایجاد فایل اکسل:\n{str(e)}', ''
     
-def mark_visit_as_reported(visit_id):
-    """علامت‌گذاری یک سرکشی به عنوان گزارش شده به مدیر"""
+
+def mark_visit_as_reported(visit_id: str, reported_by: str = None) -> Tuple[bool, str]:
+    """علامت‌گذاری یک سرکشی به عنوان گزارش شده به مدیر
+    
+    Args:
+        visit_id: شناسه سرکشی
+        reported_by: نام کاربری که گزارش را ارسال کرده (اختیاری)
+    
+    Returns:
+        (success, message)
+    """
     try:
         import json
         from utils.storage import get_data_path
@@ -339,6 +370,8 @@ def mark_visit_as_reported(visit_id):
             if visit.get('id') == visit_id:
                 visit['reported_to_manager'] = True
                 visit['reported_date'] = get_today_jalali()
+                if reported_by:
+                    visit['reported_by'] = reported_by
                 found = True
                 break
         
@@ -348,7 +381,10 @@ def mark_visit_as_reported(visit_id):
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(visits, f, ensure_ascii=False, indent=2)
         
-        return True, "گزارش با موفقیت به مدیر ارسال شد"
+        if reported_by:
+            return True, f"گزارش با موفقیت به مدیر ارسال شد (توسط: {reported_by})"
+        else:
+            return True, "گزارش با موفقیت به مدیر ارسال شد"
     
     except Exception as e:
         return False, f"خطا در علامت‌گذاری: {str(e)}"

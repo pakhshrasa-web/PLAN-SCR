@@ -199,3 +199,75 @@ def format_jalali_date(year, month, day):
         return f"{year:04d}/{month:02d}/{day:02d}"
     except:
         return ""
+    
+def _add_jalali_days(date_str: str, days: int) -> str:
+    """افزودن تعداد روز به تاریخ شمسی"""
+    try:
+        gregorian_date = convert_to_gregorian(date_str)
+        if not gregorian_date or gregorian_date == date_str:
+            return date_str
+        
+        date_obj = datetime.strptime(gregorian_date, '%Y-%m-%d')
+        end_date_obj = date_obj + timedelta(days=days)
+        end_date_str = to_jalali(end_date_obj.year, end_date_obj.month, end_date_obj.day)
+        return end_date_str
+        
+    except Exception as e:
+        logger.error(f"خطا در add_jalali_days: {e}")
+        return date_str
+
+
+def _add_jalali_months(date_str: str, months: int) -> str:
+    """افزودن تعداد ماه به تاریخ شمسی"""
+    try:
+        parts = date_str.split('/')
+        if len(parts) != 3:
+            return date_str
+        
+        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        
+        new_month = month + months
+        new_year = year
+        
+        while new_month > 12:
+            new_month -= 12
+            new_year += 1
+        
+        while new_month < 1:
+            new_month += 12
+            new_year -= 1
+        
+        # تنظیم روز (اگر روز بیشتر از روزهای ماه باشد)
+        import jdatetime
+        max_day = jdatetime.date(new_year, new_month, 1).days_in_month
+        if day > max_day:
+            day = max_day
+        
+        return f"{new_year:04d}/{new_month:02d}/{day:02d}"
+        
+    except Exception as e:
+        logger.error(f"خطا در add_jalali_months: {e}")
+        return date_str
+
+
+def _add_jalali_years(date_str: str, years: int) -> str:
+    """افزودن تعداد سال به تاریخ شمسی"""
+    try:
+        parts = date_str.split('/')
+        if len(parts) != 3:
+            return date_str
+        
+        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+        new_year = year + years
+        
+        # تنظیم روز (اگر روز بیشتر از روزهای ماه باشد)
+        import jdatetime
+        max_day = jdatetime.date(new_year, month, 1).days_in_month
+        if day > max_day:
+            day = max_day
+        
+        return f"{new_year:04d}/{month:02d}/{day:02d}"
+        
+    except Exception as e:
+        logger.error(f"خطا در add_jalali_years: {e}")
+        return date_str
