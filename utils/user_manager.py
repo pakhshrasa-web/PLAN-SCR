@@ -4,9 +4,12 @@
 
 import random
 import string
+import json
+import os
 from utils.file_manager import load_json, save_json
 from utils.jalali_date import get_today_jalali
 from utils.auth import hash_password, verify_password  # ✅ یک بار در بالا
+from utils.storage import get_data_path
 
 
 def generate_code(prefix):
@@ -191,3 +194,44 @@ def get_users_by_role(role):
     """دریافت کاربران بر اساس نقش"""
     users = get_users()
     return [u for u in users if u.get('role') == role]
+
+
+# ============================================================
+# توابع مدیریت کاربر جاری (Current User)
+# ============================================================
+
+def save_current_user(user_data):
+    """ذخیره کاربر جاری برای لاگین خودکار"""
+    try:
+        file_path = os.path.join(get_data_path(), 'current_user.json')
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(user_data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"خطا در ذخیره کاربر جاری: {e}")
+        return False
+
+
+def get_current_user():
+    """دریافت کاربر جاری ذخیره شده"""
+    try:
+        file_path = os.path.join(get_data_path(), 'current_user.json')
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return None
+    except Exception as e:
+        print(f"خطا در خواندن کاربر جاری: {e}")
+        return None
+
+
+def clear_current_user():
+    """پاک کردن کاربر جاری (برای خروج)"""
+    try:
+        file_path = os.path.join(get_data_path(), 'current_user.json')
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return True
+    except Exception as e:
+        print(f"خطا در پاک کردن کاربر جاری: {e}")
+        return False

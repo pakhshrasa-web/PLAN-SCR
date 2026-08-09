@@ -395,9 +395,14 @@ def get_active_targets_by_agent(agent_name: str, start_date: str = None, end_dat
         return []
 
 
-def finalize_targets(target_ids: List[str], achieved_values: Dict[str, int]) -> Tuple[bool, str]:
+def finalize_targets(target_ids: List[str], achieved_values: Dict[str, int], finalized_by: str = None) -> Tuple[bool, str]:
     """
     نهایی‌سازی تارگت‌های انتخاب شده
+    
+    Args:
+        target_ids: لیست شناسه‌های تارگت
+        achieved_values: دیکشنری {target_id: achieved_value}
+        finalized_by: نام کاربری که نهایی‌سازی را انجام داده (اختیاری)
     """
     try:
         targets = _load_targets()
@@ -414,6 +419,8 @@ def finalize_targets(target_ids: List[str], achieved_values: Dict[str, int]) -> 
                 targets[i]['achieved_value'] = achieved
                 targets[i]['status'] = 'تکمیل شده'
                 targets[i]['finalized_at'] = datetime.now().isoformat()
+                if finalized_by:
+                    targets[i]['finalized_by'] = finalized_by  # ✅ اضافه شد
                 updated += 1
         
         if updated == 0:
