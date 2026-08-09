@@ -18,7 +18,7 @@ from kivy.logger import Logger as logger
 from screens.attendance_screen import AttendanceScreen
 
 from utils.rtl_widgets import RTLTextInput, PersianButton, RTLLabel, PersianPopup, PersianComboBox
-from utils.user_manager import login, get_users
+from utils.user_manager import login, get_users, save_current_user
 from utils.backup_manager import create_backup, restore_backup, validate_backup_file
 from utils.file_picker_backup import BackupFilePicker
 from error_handler import ErrorPopup
@@ -516,6 +516,9 @@ class LoginScreen(Screen):
             logged_in_user = login(username, password)
             
             if logged_in_user:
+                # ✅ ذخیره کاربر جاری برای لاگین خودکار
+                save_current_user(logged_in_user)
+                
                 role = logged_in_user.get('role', '')
                 username = logged_in_user.get('username', '')
                 
@@ -670,6 +673,9 @@ class LoginScreen(Screen):
                 logged_in_user = login(username, password)
                 
                 if logged_in_user:
+                    # ✅ ذخیره کاربر جاری
+                    save_current_user(logged_in_user)
+                    
                     popup.dismiss()
                     if not self.manager.has_screen('attendance'):
                         from screens.attendance_screen import AttendanceScreen
@@ -837,8 +843,10 @@ class LoginScreen(Screen):
                 logged_in_user = login(username, password)
                 
                 if logged_in_user:
+                    # ✅ ذخیره کاربر جاری
+                    save_current_user(logged_in_user)
+                    
                     popup.dismiss()
-                    # رفتن به صفحه گزارش عملکرد
                     if not self.manager.has_screen('total_report'):
                         from screens.total_report_screen import TotalReportScreen
                         self.manager.add_widget(TotalReportScreen(name='total_report'))

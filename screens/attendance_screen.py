@@ -1954,7 +1954,7 @@ class AttendanceScreen(Screen):
         bottom_row.add_widget(history_btn)
         
         expired_btn = PersianButton(
-            text='⏰ ماموریت‌های از دست رفته',
+            text='ماموریت‌های از دست رفته',
             size_hint_x=0.20,
             background_color=(0.8, 0.3, 0.1, 1),
             color=(1, 1, 1, 1),
@@ -2577,55 +2577,144 @@ class AttendanceScreen(Screen):
 
 
     def _show_expired_missions_dialog(self, instance):
-        """نمایش دیالوگ ماموریت‌های از دست رفته (منقضی)"""
-        try:
-            all_missions = self._load_missions_from_file()
-            
-            current_user_name = ''
-            if self.current_user:
-                current_user_name = self.current_user.get('name', '')
-                if not current_user_name:
-                    current_user_name = self.current_user.get('username', '')
-            
-            today = get_today_jalali()
-            
-            expired_missions = []
-            for m in all_missions:
-                agent_name = m.get('agent_name', '').strip()
-                if agent_name != current_user_name:
-                    continue
+            """نمایش دیالوگ ماموریت‌های از دست رفته (منقضی)"""
+            try:
+                all_missions = self._load_missions_from_file()
                 
-                end_date = m.get('end_date', '')
-                status = m.get('status', '')
-                is_active = m.get('active', True)
+                current_user_name = ''
+                if self.current_user:
+                    current_user_name = self.current_user.get('name', '')
+                    if not current_user_name:
+                        current_user_name = self.current_user.get('username', '')
                 
-                if is_active and status in ['⏳ در انتظار', 'در انتظار']:
-                    if end_date and end_date < today:
-                        expired_missions.append(m)
-            
-            content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(5))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
-                        size=lambda i, v: setattr(rect, 'size', v))
-            
-            if expired_missions:
-                content.add_widget(RTLLabel(
-                    text=f'تعداد: {len(expired_missions)} ماموریت',
+                today = get_today_jalali()
+                
+                expired_missions = []
+                for m in all_missions:
+                    agent_name = m.get('agent_name', '').strip()
+                    if agent_name != current_user_name:
+                        continue
+                    
+                    end_date = m.get('end_date', '')
+                    status = m.get('status', '')
+                    is_active = m.get('active', True)
+                    
+                    if is_active and status in ['⏳ در انتظار', 'در انتظار']:
+                        if end_date and end_date < today:
+                            expired_missions.append(m)
+                
+                content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(5))
+                with content.canvas.before:
+                    Color(0.12, 0.12, 0.12, 1)
+                    rect = Rectangle(pos=content.pos, size=content.size)
+                    content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+                
+                if not expired_missions:
+                    content.add_widget(RTLLabel(
+                        text='هیچ ماموریت از دست رفته‌ای وجود ندارد',
+                        size_hint_y=None,
+                        height=dp(40),
+                        font_size=sp(16),
+                        color=(0.5, 0.5, 0.5, 1)
+                    ))
+                    close_btn = PersianButton(
+                        text='بستن',
+                        size_hint_y=None,
+                        height=dp(40),
+                        background_color=(0.3, 0.3, 0.3, 1),
+                        color=(1, 1, 1, 1),
+                        font_size=sp(14)
+                    )
+                    content.add_widget(close_btn)
+                    
+                    popup = PersianPopup(
+                        title='ماموریت‌های از دست رفته',
+                        content=content,
+                        size_hint=(0.8, 0.3),
+                        background_color=(0.08, 0.08, 0.08, 1)
+                    )
+                    close_btn.bind(on_press=popup.dismiss)
+                    popup.open()
+                    return
+                
+                scroll = ScrollView(
+                    do_scroll_x=True,
+                    do_scroll_y=True,
+                    size_hint_y=0.9,
+                    scroll_type=['bars', 'content'],
+                    bar_width=dp(5)
+                )
+                
+                container = GridLayout(
+                    cols=1,
+                    spacing=dp(1),
                     size_hint_y=None,
-                    height=dp(30),
-                    font_size=sp(14),
-                    color=(0.6, 0.6, 0.6, 1)
-                ))
-            else:
-                content.add_widget(RTLLabel(
-                    text='هیچ ماموریت از دست رفته‌ای وجود ندارد',
-                    size_hint_y=None,
-                    height=dp(40),
-                    font_size=sp(16),
-                    color=(0.5, 0.5, 0.5, 1)
-                ))
+                    size_hint_x=None,
+                    width=dp(650),
+                    padding=dp(2)
+                )
+                container.bind(minimum_height=container.setter('height'))
+                
+                header = BoxLayout(size_hint_y=None, height=dp(24), spacing=dp(1), size_hint_x=None, width=dp(650))
+                headers = ['شناسه', 'نوع', 'تاریخ شروع', 'تاریخ پایان', 'مدت', 'هدف']
+                sizes = [0.12, 0.18, 0.16, 0.16, 0.10, 0.28]
+                
+                for i, (text, size) in enumerate(zip(headers, sizes)):
+                    header.add_widget(RTLLabel(
+                        text=text,
+                        size_hint_x=size,
+                        font_size=sp(9),
+                        bold=True,
+                        color=(0.4, 0.7, 1, 1)
+                    ))
+                container.add_widget(header)
+                
+                for idx, mission in enumerate(expired_missions, 1):
+                    row = BoxLayout(size_hint_y=None, height=dp(28), spacing=dp(1), size_hint_x=None, width=dp(650))
+                    
+                    row.add_widget(RTLLabel(
+                        text=mission.get('id', ''),
+                        size_hint_x=0.12,
+                        font_size=sp(9),
+                        color=(1, 1, 1, 1)
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=mission.get('type', ''),
+                        size_hint_x=0.18,
+                        font_size=sp(9),
+                        color=(1, 1, 1, 1)
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=mission.get('start_date', ''),
+                        size_hint_x=0.16,
+                        font_size=sp(9),
+                        color=(1, 1, 1, 1)
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=mission.get('end_date', ''),
+                        size_hint_x=0.16,
+                        font_size=sp(9),
+                        color=(1, 1, 1, 1)
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=str(mission.get('duration', '')),
+                        size_hint_x=0.10,
+                        font_size=sp(9),
+                        color=(1, 1, 1, 1)
+                    ))
+                    row.add_widget(RTLLabel(
+                        text=f"{mission.get('target', 0):,.0f}",
+                        size_hint_x=0.28,
+                        font_size=sp(9),
+                        color=(1, 1, 1, 1)
+                    ))
+                    
+                    container.add_widget(row)
+                
+                scroll.add_widget(container)
+                content.add_widget(scroll)
+                
                 close_btn = PersianButton(
                     text='بستن',
                     size_hint_y=None,
@@ -2637,120 +2726,18 @@ class AttendanceScreen(Screen):
                 content.add_widget(close_btn)
                 
                 popup = PersianPopup(
-                    title='ماموریت‌های از دست رفته',
+                    title='لیست ماموریتهای منقضی شده',
                     content=content,
-                    size_hint=(0.8, 0.3),
+                    size_hint=(0.9, 0.75),
                     background_color=(0.08, 0.08, 0.08, 1)
                 )
                 close_btn.bind(on_press=popup.dismiss)
                 popup.open()
-                return
-            
-            scroll = ScrollView(
-                do_scroll_x=True,
-                do_scroll_y=True,
-                size_hint_y=0.9,
-                scroll_type=['bars', 'content'],
-                bar_width=dp(5)
-            )
-            
-            container = GridLayout(
-                cols=1,
-                spacing=dp(1),
-                size_hint_y=None,
-                size_hint_x=None,
-                width=dp(650),
-                padding=dp(2)
-            )
-            container.bind(minimum_height=container.setter('height'))
-            
-            header = BoxLayout(size_hint_y=None, height=dp(24), spacing=dp(1), size_hint_x=None, width=dp(650))
-            headers = ['شناسه', 'نوع', 'تاریخ شروع', 'تاریخ پایان', 'مدت', 'هدف']
-            sizes = [0.12, 0.18, 0.16, 0.16, 0.10, 0.28]
-            
-            for i, (text, size) in enumerate(zip(headers, sizes)):
-                header.add_widget(RTLLabel(
-                    text=text,
-                    size_hint_x=size,
-                    font_size=sp(9),
-                    bold=True,
-                    color=(0.8, 0.4, 0.1, 1)
-                ))
-            container.add_widget(header)
-            
-            for idx, mission in enumerate(expired_missions, 1):
-                row = BoxLayout(size_hint_y=None, height=dp(28), spacing=dp(1), size_hint_x=None, width=dp(650))
-                with row.canvas.before:
-                    Color(0.15, 0.15, 0.2, 1) if idx % 2 == 0 else Color(0.12, 0.12, 0.16, 1)
-                    rect = Rectangle(pos=row.pos, size=row.size)
-                    row.bind(pos=lambda i, v, r=rect: setattr(r, 'pos', v),
-                            size=lambda i, v, r=rect: setattr(r, 'size', v))
                 
-                row.add_widget(RTLLabel(
-                    text=mission.get('id', ''),
-                    size_hint_x=0.12,
-                    font_size=sp(9),
-                    color=(1, 1, 1, 1)
-                ))
-                row.add_widget(RTLLabel(
-                    text=mission.get('type', ''),
-                    size_hint_x=0.18,
-                    font_size=sp(9),
-                    color=(1, 1, 1, 1)
-                ))
-                row.add_widget(RTLLabel(
-                    text=mission.get('start_date', ''),
-                    size_hint_x=0.16,
-                    font_size=sp(9),
-                    color=(0.8, 0.8, 0.2, 1)
-                ))
-                row.add_widget(RTLLabel(
-                    text=mission.get('end_date', ''),
-                    size_hint_x=0.16,
-                    font_size=sp(9),
-                    color=(0.9, 0.2, 0.2, 1)
-                ))
-                row.add_widget(RTLLabel(
-                    text=str(mission.get('duration', '')),
-                    size_hint_x=0.10,
-                    font_size=sp(9),
-                    color=(1, 1, 1, 1)
-                ))
-                row.add_widget(RTLLabel(
-                    text=f"{mission.get('target', 0):,.0f}",
-                    size_hint_x=0.28,
-                    font_size=sp(9),
-                    color=(0.6, 0.9, 0.6, 1)
-                ))
-                
-                container.add_widget(row)
-            
-            scroll.add_widget(container)
-            content.add_widget(scroll)
-            
-            close_btn = PersianButton(
-                text='بستن',
-                size_hint_y=None,
-                height=dp(40),
-                background_color=(0.3, 0.3, 0.3, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(14)
-            )
-            content.add_widget(close_btn)
-            
-            popup = PersianPopup(
-                title='لیست ماموریتهای منقضی شده',
-                content=content,
-                size_hint=(0.9, 0.75),
-                background_color=(0.08, 0.08, 0.08, 1)
-            )
-            close_btn.bind(on_press=popup.dismiss)
-            popup.open()
-            
-        except Exception as e:
-            self.show_message('خطا', f'خطا در نمایش ماموریت‌های از دست رفته: {str(e)}')
-            import traceback
-            traceback.print_exc()
+            except Exception as e:
+                self.show_message('خطا', f'خطا در نمایش ماموریت‌های از دست رفته: {str(e)}')
+                import traceback
+                traceback.print_exc()
 
 
     def _export_missions_excel(self, instance):

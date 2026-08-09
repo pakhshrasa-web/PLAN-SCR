@@ -27,7 +27,7 @@ from utils.attendance_manager import AttendanceManager
 from utils.storage import get_data_path, get_backup_path
 from error_handler import ErrorPopup
 
-# ✅ import توابع کمکی اصلی
+# import توابع کمکی اصلی
 from utils.excel_exporter import export_to_excel
 from utils.excel_exporter_distributor import export_distributor_to_excel
 from utils.collection_manager import get_collections
@@ -281,240 +281,245 @@ class TotalReportScreen(Screen):
             ErrorPopup.show_error(f"خطا: {e}", error_details)
     
     def show_report_tab(self):
-        """نمایش فرم اصلی گزارش"""
-        try:
-            self.content_area.clear_widgets()
-            
-            main_scroll = ScrollView(
-                do_scroll_x=False,
-                do_scroll_y=True,
-                size_hint=(1, 1),
-                scroll_type=['bars', 'content'],
-                bar_width=dp(6)
-            )
-            
-            main_content = BoxLayout(
-                orientation='vertical',
-                spacing=dp(6),
-                size_hint_y=None,
-                padding=dp(8),
-                width=dp(350)
-            )
-            main_content.bind(minimum_height=main_content.setter('height'))
-            
-            # ========== عنوان ==========
-            main_content.add_widget(RTLLabel(
-                text=f'گزارش عملکرد روزانه',
-                size_hint_y=None,
-                height=dp(35),
-                font_size=sp(18),
-                bold=True,
-                color=(0.4, 0.8, 1, 1)
-            ))
-            
-            main_content.add_widget(RTLLabel(
-                text=self.current_user.get('name', ''),
-                size_hint_y=None,
-                height=dp(20),
-                font_size=sp(13),
-                color=(0.6, 0.6, 0.6, 1)
-            ))
-            
-            main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
-            
-            # ========== فیلتر بازه زمانی ==========
-            filter_box = BoxLayout(
-                orientation='vertical',
-                size_hint_y=None,
-                height=dp(110),
-                spacing=dp(4),
-                padding=dp(6)
-            )
-            with filter_box.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                rect = Rectangle(pos=filter_box.pos, size=filter_box.size)
-                filter_box.bind(pos=lambda i, v: setattr(rect, 'pos', v),
-                              size=lambda i, v: setattr(rect, 'size', v))
-            
-            filter_box.add_widget(RTLLabel(
-                text='بازه زمانی:',
-                size_hint_y=None,
-                height=dp(20),
-                font_size=sp(12),
-                bold=True,
-                color=(0.4, 0.7, 1, 1)
-            ))
-            
-            today = get_today_jalali()
-            
-            date_row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(5))
-            
-            date_row.add_widget(RTLLabel(
-                text='از:',
-                size_hint_x=0.12,
-                size_hint_y=None,
-                height=dp(32),
-                font_size=sp(12),
-                color=(1, 1, 1, 1)
-            ))
-            self.from_date = RTLTextInput(
-                text=today,
-                multiline=False,
-                size_hint_x=0.35,
-                size_hint_y=None,
-                height=dp(32),
-                font_size=sp(14)
-            )
-            self.from_date.bg_color = (0.15, 0.15, 0.15, 1)
-            self.from_date.border_color = (0.3, 0.3, 0.3, 1)
-            self.from_date.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.from_date._hidden_input.foreground_color = (1, 1, 1, 1)
-            date_row.add_widget(self.from_date)
-            
-            date_row.add_widget(RTLLabel(
-                text='تا:',
-                size_hint_x=0.12,
-                size_hint_y=None,
-                height=dp(32),
-                font_size=sp(12),
-                color=(1, 1, 1, 1)
-            ))
-            self.to_date = RTLTextInput(
-                text=today,
-                multiline=False,
-                size_hint_x=0.35,
-                size_hint_y=None,
-                height=dp(32),
-                font_size=sp(14)
-            )
-            self.to_date.bg_color = (0.15, 0.15, 0.15, 1)
-            self.to_date.border_color = (0.3, 0.3, 0.3, 1)
-            self.to_date.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.to_date._hidden_input.foreground_color = (1, 1, 1, 1)
-            date_row.add_widget(self.to_date)
-            
-            filter_box.add_widget(date_row)
-            
-            btn_row = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(5))
-            today_btn = PersianButton(
-                text='امروز',
-                background_color=(0.2, 0.5, 0.9, 1),
-                size_hint_x=0.25,
-                size_hint_y=None,
-                height=dp(28),
-                color=(1, 1, 1, 1),
-                font_size=sp(12)
-            )
-            today_btn.bind(on_press=self._set_today_filter)
-            btn_row.add_widget(today_btn)
-            
-            btn_row.add_widget(Label(size_hint_x=0.75))
-            
-            filter_box.add_widget(btn_row)
-            
-            main_content.add_widget(filter_box)
-            
-            main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
-            
-            # ========== گزینه‌های گزارش (چک‌باکس) ==========
-            main_content.add_widget(RTLLabel(
-                text='انتخاب گزارش:',
-                size_hint_y=None,
-                height=dp(22),
-                font_size=sp(13),
-                bold=True,
-                color=(0.4, 0.7, 1, 1)
-            ))
-            
-            options_box = BoxLayout(
-                orientation='vertical',
-                size_hint_y=None,
-                spacing=dp(2),
-                padding=dp(5)
-            )
-            with options_box.canvas.before:
-                Color(0.1, 0.1, 0.1, 1)
-                rect = Rectangle(pos=options_box.pos, size=options_box.size)
-                options_box.bind(pos=lambda i, v: setattr(rect, 'pos', v),
-                                size=lambda i, v: setattr(rect, 'size', v))
-            
-            # ✅ لیست کامل گزارش‌ها
-            report_options = self._get_report_options_by_role()
-            
-            self.report_checkboxes = {}
-            for key, label in report_options:
-                row = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(6))
+            """نمایش فرم اصلی گزارش با اسکرول و فیلتر بازه زمانی"""
+            try:
+                self.content_area.clear_widgets()
                 
-                cb = CheckBox(
-                    active=True,
-                    size_hint_x=0.1,
-                    size_hint_y=None,
-                    height=dp(24),
-                    color=(0.4, 0.7, 1, 1)
+                # ========== اسکرول اصلی ==========
+                main_scroll = ScrollView(
+                    do_scroll_x=False,
+                    do_scroll_y=True,
+                    size_hint=(1, 1),
+                    scroll_type=['bars', 'content'],
+                    bar_width=dp(6)
                 )
-                row.add_widget(cb)
                 
-                row.add_widget(RTLLabel(
-                    text=label,
-                    size_hint_x=0.9,
-                    font_size=sp(12),
-                    color=(1, 1, 1, 1)
+                main_content = BoxLayout(
+                    orientation='vertical',
+                    spacing=dp(8),
+                    size_hint_y=None,
+                    padding=dp(10)
+                )
+                main_content.bind(minimum_height=main_content.setter('height'))
+                
+                # ========== عنوان ==========
+                main_content.add_widget(RTLLabel(
+                    text=f'گزارش عملکرد روزانه',
+                    size_hint_y=None,
+                    height=dp(40),
+                    font_size=sp(20),
+                    bold=True,
+                    color=(0.4, 0.8, 1, 1)
                 ))
                 
-                self.report_checkboxes[key] = cb
-                options_box.add_widget(row)
-            
-            main_content.add_widget(options_box)
-            
-            main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
-            
-            # ========== دکمه ایجاد گزارش ==========
-            generate_btn = PersianButton(
-                text='ایجاد گزارش',
-                size_hint_y=None,
-                height=dp(45),
-                background_color=(0.2, 0.7, 0.2, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(16),
-                bold=True
-            )
-            generate_btn.bind(on_press=self._generate_reports)
-            main_content.add_widget(generate_btn)
-            
-            main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
-            
-            # ========== دکمه تاریخچه ==========
-            history_btn = PersianButton(
-                text='تاریخچه',
-                size_hint_y=None,
-                height=dp(40),
-                background_color=(0.4, 0.3, 0.6, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(14)
-            )
-            history_btn.bind(on_press=self._show_history)
-            main_content.add_widget(history_btn)
-            
-            main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(3)))
-            
-            # ========== دکمه بازگشت ==========
-            back_btn = PersianButton(
-                text='بازگشت',
-                size_hint_y=None,
-                height=dp(40),
-                background_color=(0.3, 0.3, 0.3, 1),
-                color=(1, 1, 1, 1),
-                font_size=sp(14)
-            )
-            back_btn.bind(on_press=self.go_back)
-            main_content.add_widget(back_btn)
-            
-            main_scroll.add_widget(main_content)
-            self.content_area.add_widget(main_scroll)
-            
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا: {e}", error_details)
+                main_content.add_widget(RTLLabel(
+                    text=self.current_user.get('name', ''),
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    color=(0.6, 0.6, 0.6, 1)
+                ))
+                
+                main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+                
+                # ========== فیلتر بازه زمانی ==========
+                filter_box = BoxLayout(
+                    orientation='vertical',
+                    size_hint_y=None,
+                    height=dp(130),
+                    spacing=dp(5),
+                    padding=dp(8)
+                )
+                with filter_box.canvas.before:
+                    Color(0.12, 0.12, 0.12, 1)
+                    rect = Rectangle(pos=filter_box.pos, size=filter_box.size)
+                    filter_box.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                                size=lambda i, v: setattr(rect, 'size', v))
+                
+                filter_box.add_widget(RTLLabel(
+                    text='بازه زمانی:',
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    bold=True,
+                    color=(0.4, 0.7, 1, 1)
+                ))
+                
+                today = get_today_jalali()
+                
+                # ردیف تاریخ‌ها
+                date_row = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(5))
+                
+                self.from_date = RTLTextInput(
+                    text=today,
+                    multiline=False,
+                    size_hint_x=0.48,
+                    size_hint_y=None,
+                    height=dp(40),
+                    font_size=sp(16),
+                    hint_text='از'
+                )
+                self.from_date.bg_color = (0.15, 0.15, 0.15, 1)
+                self.from_date.border_color = (0.3, 0.3, 0.3, 1)
+                self.from_date.border_color_focus = (0.2, 0.5, 0.9, 1)
+                self.from_date._hidden_input.foreground_color = (1, 1, 1, 1)
+                date_row.add_widget(self.from_date)
+                
+                self.to_date = RTLTextInput(
+                    text=today,
+                    multiline=False,
+                    size_hint_x=0.48,
+                    size_hint_y=None,
+                    height=dp(40),
+                    font_size=sp(16),
+                    hint_text='تا'
+                )
+                self.to_date.bg_color = (0.15, 0.15, 0.15, 1)
+                self.to_date.border_color = (0.3, 0.3, 0.3, 1)
+                self.to_date.border_color_focus = (0.2, 0.5, 0.9, 1)
+                self.to_date._hidden_input.foreground_color = (1, 1, 1, 1)
+                date_row.add_widget(self.to_date)
+                
+                filter_box.add_widget(date_row)
+                
+                # ردیف دکمه امروز
+                btn_row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(5))
+                today_btn = PersianButton(
+                    text='امروز',
+                    background_color=(0.2, 0.5, 0.9, 1),
+                    size_hint_x=0.2,
+                    size_hint_y=None,
+                    height=dp(30),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(13)
+                )
+                today_btn.bind(on_press=self._set_today_filter)
+                btn_row.add_widget(today_btn)
+                
+                btn_row.add_widget(Label(size_hint_x=0.8))
+                
+                filter_box.add_widget(btn_row)
+                
+                main_content.add_widget(filter_box)
+                
+                main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+                
+                # ========== گزینه‌های گزارش (چک‌باکس) با اسکرول داخلی ==========
+                main_content.add_widget(RTLLabel(
+                    text='انتخاب گزارش:',
+                    size_hint_y=None,
+                    height=dp(25),
+                    font_size=sp(14),
+                    bold=True,
+                    color=(0.4, 0.7, 1, 1)
+                ))
+                
+                # ✅ باکس چک‌باکس‌ها با اسکرول
+                options_scroll = ScrollView(
+                    do_scroll_x=False,
+                    do_scroll_y=True,
+                    size_hint_y=None,
+                    height=dp(280),
+                    scroll_type=['bars', 'content'],
+                    bar_width=dp(5),
+                    bar_color=(0.3, 0.5, 0.8, 0.8),
+                    bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+                )
+                
+                options_box = BoxLayout(
+                    orientation='vertical',
+                    size_hint_y=None,
+                    spacing=dp(3),
+                    padding=dp(5)
+                )
+                options_box.bind(minimum_height=options_box.setter('height'))
+                
+                with options_box.canvas.before:
+                    Color(0.1, 0.1, 0.1, 1)
+                    rect = Rectangle(pos=options_box.pos, size=options_box.size)
+                    options_box.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                                    size=lambda i, v: setattr(rect, 'size', v))
+                
+                # لیست کامل گزارش‌ها
+                report_options = self._get_report_options_by_role()
+                
+                self.report_checkboxes = {}
+                for key, label in report_options:
+                    row = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(6))
+                    
+                    cb = CheckBox(
+                        active=True,
+                        size_hint_x=0.08,
+                        size_hint_y=None,
+                        height=dp(26),
+                        color=(0.4, 0.7, 1, 1)
+                    )
+                    row.add_widget(cb)
+                    
+                    row.add_widget(RTLLabel(
+                        text=label,
+                        size_hint_x=0.92,
+                        size_hint_y=None,
+                        height=dp(32),
+                        font_size=sp(13),
+                        color=(1, 1, 1, 1)
+                    ))
+                    
+                    self.report_checkboxes[key] = cb
+                    options_box.add_widget(row)
+                
+                options_scroll.add_widget(options_box)
+                main_content.add_widget(options_scroll)
+                
+                main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(8)))
+                
+                # ========== دکمه ایجاد گزارش ==========
+                generate_btn = PersianButton(
+                    text='ایجاد گزارش',
+                    size_hint_y=None,
+                    height=dp(48),
+                    background_color=(0.2, 0.7, 0.2, 1),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(17),
+                    bold=True
+                )
+                generate_btn.bind(on_press=self._generate_reports)
+                main_content.add_widget(generate_btn)
+                
+                main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+                
+                # ========== دکمه تاریخچه ==========
+                history_btn = PersianButton(
+                    text='تاریخچه',
+                    size_hint_y=None,
+                    height=dp(42),
+                    background_color=(0.4, 0.3, 0.6, 1),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(15)
+                )
+                history_btn.bind(on_press=self._show_history)
+                main_content.add_widget(history_btn)
+                
+                main_content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+                
+                # ========== دکمه بازگشت ==========
+                back_btn = PersianButton(
+                    text='بازگشت',
+                    size_hint_y=None,
+                    height=dp(42),
+                    background_color=(0.3, 0.3, 0.3, 1),
+                    color=(1, 1, 1, 1),
+                    font_size=sp(15)
+                )
+                back_btn.bind(on_press=self.go_back)
+                main_content.add_widget(back_btn)
+                
+                main_scroll.add_widget(main_content)
+                self.content_area.add_widget(main_scroll)
+                
+            except Exception as e:
+                error_details = traceback.format_exc()
+                ErrorPopup.show_error(f"خطا: {e}", error_details)
     
     def _get_report_options_by_role(self):
         """دریافت گزینه‌های گزارش بر اساس نقش کاربر"""
@@ -524,7 +529,7 @@ class TotalReportScreen(Screen):
         role = self.current_user.get('role', '')
         
         # ============================================================
-        # ✅ گزارش‌های عمومی (همه نقش‌ها)
+        # گزارش‌های عمومی (همه نقش‌ها)
         # ============================================================
         options = [
             ('attendance', 'ورود و خروج (حضور و غیاب)'),
@@ -533,21 +538,23 @@ class TotalReportScreen(Screen):
         ]
         
         # ============================================================
-        # ✅ گزارش‌های تخصصی بر اساس نقش
+        # گزارش‌های تخصصی بر اساس نقش
         # ============================================================
         
         if role == 'بازاریاب':
             options.extend([
                 ('daily_visits', 'گزارش فروش (ویزیت روزانه)'),
                 ('collection', 'گزارش وصول'),
-                ('fulfillment_report', 'گزارش تحقق ریزتارگت'),  # ✅ جدید - ساختار پیوستی
-                ('detailed_targets', 'گزارش ریزتارگت‌ها'),    # ✅ قبلی - ساختار کامل
+                ('fulfillment_report', 'گزارش تحقق ریزتارگت'),
+                ('detailed_targets', 'گزارش ریزتارگت‌ها'),
             ])
         
         elif role == 'سوپروایزر':
             options.extend([
                 ('targets', 'گزارش تارگت‌ها'),
                 ('detailed_targets', 'گزارش ریزتارگت‌ها'),
+                ('fulfillment_targets', 'گزارش تحقق تارگت‌ها'),
+                ('fulfillment_detailed_targets', 'گزارش تحقق ریزتارگت‌ها'),
                 ('supervisor_visits', 'گزارش سرکشی بازار'),
                 ('evaluation', 'گزارش ارزیابی'),
                 ('market_report', 'گزارش بازاری (ارسال به مدیر)'),
@@ -556,17 +563,17 @@ class TotalReportScreen(Screen):
         elif role == 'موزع':
             options.extend([
                 ('delivery', 'گزارش توزیع'),
-                # ('collection', 'گزارش وصول'),  # در آینده اضافه می‌شود
             ])
         
         elif role == 'مدیر':
-            # مدیر میتواند همه گزارش‌ها را ببیند
             options.extend([
                 ('daily_visits', 'گزارش فروش (ویزیت روزانه)'),
                 ('collection', 'گزارش وصول'),
                 ('fulfillment_report', 'گزارش تحقق ریزتارگت'),
                 ('detailed_targets', 'گزارش ریزتارگت‌ها'),
                 ('targets', 'گزارش تارگت‌ها'),
+                ('fulfillment_targets', 'گزارش تحقق تارگت‌ها'),
+                ('fulfillment_detailed_targets', 'گزارش تحقق ریزتارگت‌ها'),
                 ('supervisor_visits', 'گزارش سرکشی بازار'),
                 ('evaluation', 'گزارش ارزیابی'),
                 ('market_report', 'گزارش بازاری (ارسال به مدیر)'),
@@ -580,6 +587,8 @@ class TotalReportScreen(Screen):
                 ('fulfillment_report', 'گزارش تحقق ریزتارگت'),
                 ('detailed_targets', 'گزارش ریزتارگت‌ها'),
                 ('targets', 'گزارش تارگت‌ها'),
+                ('fulfillment_targets', 'گزارش تحقق تارگت‌ها'),
+                ('fulfillment_detailed_targets', 'گزارش تحقق ریزتارگت‌ها'),
                 ('supervisor_visits', 'گزارش سرکشی بازار'),
                 ('evaluation', 'گزارش ارزیابی'),
                 ('market_report', 'گزارش بازاری (ارسال به مدیر)'),
@@ -679,7 +688,7 @@ class TotalReportScreen(Screen):
                 return self._export_daily_visits_report(agent_name, from_date, to_date, reports_dir, user_name)
             elif report_type == 'collection':
                 return self._export_collection_report(agent_name, from_date, to_date, reports_dir, user_name)
-            elif report_type == 'fulfillment_report':  # ✅ جدید - گزارش تحقق (ساختار پیوستی)
+            elif report_type == 'fulfillment_report':
                 return self._export_fulfillment_report(agent_name, from_date, to_date, reports_dir, user_name)
             elif report_type == 'detailed_targets':
                 if role == 'سوپروایزر':
@@ -702,6 +711,10 @@ class TotalReportScreen(Screen):
                 return self._export_evaluation_report(agent_name, from_date, to_date, reports_dir, user_name)
             elif report_type == 'market_report':
                 return self._export_market_report(agent_name, from_date, to_date, reports_dir, user_name)
+            elif report_type == 'fulfillment_targets':
+                return self._export_fulfillment_targets_report(agent_name, from_date, to_date, reports_dir, user_name)
+            elif report_type == 'fulfillment_detailed_targets':
+                return self._export_fulfillment_report_supervisor(agent_name, from_date, to_date, reports_dir, user_name)
             
             # ============================================================
             # گزارش‌های تخصصی موزع
@@ -718,7 +731,7 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۱. گزارش حضور و غیاب (ورود و خروج) - مطابق با خروجی برنامه
+    # ۱. گزارش حضور و غیاب (ورود و خروج)
     # ============================================================
     
     def _export_attendance_report(self, user_id, from_date, to_date, reports_dir, user_name):
@@ -756,7 +769,6 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ✅ هدرهای مطابق با خروجی برنامه
             headers = [
                 'ردیف', 'تاریخ', 'وضعیت', 'اولین ورود', 'آخرین خروج',
                 'تعداد ورود', 'تعداد خروج', 'کارکرد (دقیقه)', 'کارکرد (ساعت)',
@@ -781,7 +793,6 @@ class TotalReportScreen(Screen):
                 check_in = record.get('check_in', '')
                 check_out = record.get('check_out', '')
                 
-                # محاسبه کارکرد
                 work_minutes = 0
                 if check_in and check_out:
                     try:
@@ -791,14 +802,11 @@ class TotalReportScreen(Screen):
                     except:
                         pass
                 
-                # کارکرد (ساعت)
                 work_hours = f"{work_minutes // 60:02d}:{work_minutes % 60:02d}" if work_minutes > 0 else "00:00"
                 
-                # اضافه کار (فرضی)
                 overtime_minutes = 0
                 overtime_hours = "00:00"
                 
-                # کسر کار (فرضی)
                 shortage_minutes = max(0, 480 - work_minutes) if work_minutes > 0 else 0
                 shortage_hours = f"{shortage_minutes // 60:02d}:{shortage_minutes % 60:02d}" if shortage_minutes > 0 else "00:00"
                 
@@ -830,7 +838,6 @@ class TotalReportScreen(Screen):
             for i, width in enumerate(col_widths, 1):
                 ws.column_dimensions[get_column_letter(i)].width = width
             
-            # ========== خلاصه در انتها ==========
             total_work_hours = f"{total_work_minutes // 60:02d}:{total_work_minutes % 60:02d}"
             total_overtime_hours = f"{total_overtime_minutes // 60:02d}:{total_overtime_minutes % 60:02d}"
             total_shortage_hours = f"{total_shortage_minutes // 60:02d}:{total_shortage_minutes % 60:02d}"
@@ -859,7 +866,7 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۲. گزارش مرخصی - مطابق با خروجی برنامه
+    # ۲. گزارش مرخصی
     # ============================================================
     
     def _export_leave_report(self, user_id, from_date, to_date, reports_dir, user_name):
@@ -887,7 +894,6 @@ class TotalReportScreen(Screen):
             if not filtered:
                 return None
             
-            # دریافت نام کاربر
             user_name_full = self.current_user.get('name', '') or self.current_user.get('username', '')
             
             filename = f'گزارش_مرخصی_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
@@ -905,7 +911,6 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ✅ هدرهای مطابق با خروجی برنامه
             headers = ['ردیف', 'عامل', 'نوع مرخصی', 'مدت', 'تاریخ شروع', 'تاریخ پایان', 'وضعیت', 'تاریخ ثبت']
             col_widths = [6, 20, 16, 12, 14, 14, 12, 16]
             
@@ -943,11 +948,11 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۳. گزارش ماموریت - مطابق با خروجی برنامه
+    # ۳. گزارش ماموریت
     # ============================================================
     
     def _export_mission_report(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """خروجی ماموریت - با ساختار جدید مطابق با خروجی برنامه"""
+        """خروجی ماموریت - مطابق با خروجی برنامه"""
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -963,7 +968,6 @@ class TotalReportScreen(Screen):
             
             print(f"نوع داده ماموریت‌ها: {type(all_missions)}")
             
-            # اگر دیکشنری بود تبدیل به لیست
             if isinstance(all_missions, dict):
                 missions_list = []
                 for date, missions in all_missions.items():
@@ -1013,7 +1017,6 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ✅ هدرهای جدید مطابق با خروجی برنامه
             headers = [
                 'ردیف', 'شناسه', 'نوع', 'روش', 'تاریخ شروع', 'تاریخ پایان',
                 'مدت', 'امتیاز ماموریت', 'امتیاز کسب شده', 'هدف', 'وضعیت', 'توضیحات'
@@ -1043,11 +1046,11 @@ class TotalReportScreen(Screen):
                 status = mission.get('status', '')
                 status_display = status
                 if status == 'موفق':
-                    status_display = '✅ موفق'
+                    status_display = 'موفق'
                 elif status == 'ناموفق':
-                    status_display = '❌ ناموفق'
+                    status_display = 'ناموفق'
                 elif status == 'در انتظار':
-                    status_display = '⏳ در انتظار'
+                    status_display = 'در انتظار'
                 
                 values = [
                     idx,
@@ -1071,7 +1074,6 @@ class TotalReportScreen(Screen):
             for i, width in enumerate(col_widths, 1):
                 ws.column_dimensions[get_column_letter(i)].width = width
             
-            # ========== خلاصه ==========
             summary_row = len(filtered) + 3
             ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=3)
             ws.cell(row=summary_row, column=1, value='خلاصه:').font = Font(bold=True, size=12, color="FFD700")
@@ -1096,7 +1098,7 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۴. گزارش ویزیت روزانه - ✅ قبلاً کامل است
+    # ۴. گزارش ویزیت روزانه
     # ============================================================
     
     def _export_daily_visits_report(self, agent_name, from_date, to_date, reports_dir, user_name):
@@ -1104,7 +1106,6 @@ class TotalReportScreen(Screen):
         try:
             all_logs = get_daily_logs()
             
-            # فیلتر بر اساس تاریخ و عامل
             filtered = {}
             for date, logs in all_logs.items():
                 if from_date <= date <= to_date:
@@ -1120,7 +1121,6 @@ class TotalReportScreen(Screen):
             if not filtered:
                 return None
             
-            # ✅ استفاده از تابع اصلی export_to_excel
             success, result = export_to_excel(filtered)
             
             if success:
@@ -1136,164 +1136,9 @@ class TotalReportScreen(Screen):
         except Exception as e:
             print(f"خطا در خروجی ویزیت روزانه: {e}")
             return None
-
-    def _export_fulfillment_report(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """
-        خروجی گزارش تحقق ریزتارگت - مشابه فایل اکسل پیوستی
-        ساختار: شناسه | عامل | گروه کالا | تارگت روز | تحقق | کسر تارگت | واحد
-        """
-        try:
-            import openpyxl
-            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-            from openpyxl.utils import get_column_letter
-            from datetime import datetime
-            
-            file_path = os.path.join(get_data_path(), 'detailed_targets.json')
-            if not os.path.exists(file_path):
-                print(f"فایل detailed_targets.json یافت نشد")
-                return None
-            
-            with open(file_path, 'r', encoding='utf-8') as f:
-                all_targets = json.load(f)
-            
-            if not isinstance(all_targets, list):
-                all_targets = []
-            
-            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
-            
-            # ✅ فیلتر بر اساس نام عامل و تاریخ تحقق
-            filtered = []
-            for t in all_targets:
-                if not isinstance(t, dict):
-                    continue
-                
-                t_agent = t.get('agent_name', '')
-                if agent_name not in t_agent and t_agent not in agent_name:
-                    continue
-                
-                # بررسی تاریخ تحقق (آخرین باری که کاربر تحقق ثبت کرده)
-                fulfillment_date = t.get('last_fulfillment_date', '')
-                
-                # اگر تاریخ تحقق در بازه است
-                if fulfillment_date and from_date <= fulfillment_date <= to_date:
-                    filtered.append(t)
-                else:
-                    # اگر تحققی ثبت نشده، بررسی کن که آیا تاریخ شروع در بازه است
-                    start_date = t.get('start_date', '')
-                    if start_date and from_date <= start_date <= to_date:
-                        filtered.append(t)
-            
-            print(f"ریزتارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
-            
-            if not filtered:
-                print(f"هیچ ریزتارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
-                return None
-            
-            # ✅ نام فایل با timestamp
-            timestamp = datetime.now().strftime("%H%M%S")
-            filename = f'گزارش_تحقق_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
-            filepath = os.path.join(reports_dir, filename)
-            
-            # ✅ اگر فایل وجود دارد، نام جدید بساز
-            counter = 1
-            original_filepath = filepath
-            while os.path.exists(filepath):
-                name, ext = os.path.splitext(original_filepath)
-                filepath = f"{name}_{counter}{ext}"
-                counter += 1
-            
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "گزارش تحقق"
-            ws.right_to_left = True
-            
-            # ========== استایل‌ها ==========
-            header_font = Font(bold=True, size=11, color="FFFFFF")
-            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
-            thin_border = Border(
-                left=Side(style='thin'), right=Side(style='thin'),
-                top=Side(style='thin'), bottom=Side(style='thin')
-            )
-            center_alignment = Alignment(horizontal="center", vertical="center")
-            
-            # ========== هدرها (مشابه فایل پیوستی) ==========
-            headers = ['شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'کسر تارگت', 'واحد']
-            column_widths = [18, 20, 25, 16, 16, 16, 14]
-            
-            for col_idx, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col_idx, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = center_alignment
-                cell.border = thin_border
-            
-            # ========== پر کردن داده‌ها ==========
-            row_idx = 2
-            
-            for target in filtered:
-                target_id = target.get('id', '')
-                agent = target.get('agent_name', '')
-                product_group = target.get('product_group', '')
-                daily_target = target.get('daily_target', 0)
-                achieved = target.get('achieved_value', 0)
-                remaining = max(0, daily_target - achieved)
-                unit = target.get('unit', '')
-                
-                values = [
-                    target_id,
-                    agent,
-                    product_group,
-                    daily_target,
-                    achieved,
-                    remaining,
-                    unit
-                ]
-                
-                for col_idx, value in enumerate(values, 1):
-                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                    cell.alignment = center_alignment
-                    cell.border = thin_border
-                    
-                    # رنگ‌بندی کسر تارگت
-                    if col_idx == 6:  # ستون کسر تارگت
-                        if remaining > 0:
-                            cell.font = Font(color="CC3333", bold=True)
-                        else:
-                            cell.font = Font(color="00CC44", bold=True)
-                
-                row_idx += 1
-            
-            # ========== تنظیم عرض ستون‌ها ==========
-            for i, width in enumerate(column_widths, 1):
-                ws.column_dimensions[get_column_letter(i)].width = width
-            
-            # ✅ ذخیره فایل
-            wb.save(filepath)
-            print(f"گزارش تحقق ریزتارگت ساخته شد: {os.path.basename(filepath)}")
-            return filename
-            
-        except PermissionError as e:
-            print(f"خطای دسترسی به فایل: {e}")
-            try:
-                from datetime import datetime
-                timestamp = datetime.now().strftime("%H%M%S")
-                filename = f'گزارش_تحقق_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}_{timestamp}.xlsx'
-                filepath = os.path.join(reports_dir, filename)
-                wb.save(filepath)
-                print(f"گزارش تحقق ریزتارگت با نام جدید ساخته شد: {filename}")
-                return filename
-            except Exception as e2:
-                print(f"خطا در ذخیره فایل: {e2}")
-                return None
-            
-        except Exception as e:
-            print(f"خطا در خروجی گزارش تحقق ریزتارگت: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-
+    
     # ============================================================
-    # ۵. گزارش وصول - مطابق با خروجی برنامه
+    # ۵. گزارش وصول
     # ============================================================
     
     def _export_collection_report(self, agent_name, from_date, to_date, reports_dir, user_name):
@@ -1313,7 +1158,6 @@ class TotalReportScreen(Screen):
             if not isinstance(all_collections, list):
                 all_collections = []
             
-            # فیلتر بر اساس نام عامل و تاریخ
             filtered = []
             for c in all_collections:
                 if not isinstance(c, dict):
@@ -1343,7 +1187,6 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ✅ هدرهای مطابق با خروجی برنامه
             headers = [
                 'ردیف', 'شناسه', 'تاریخ', 'عامل', 'مشتری', 'مسیر', 'وضعیت',
                 'نوع پرداخت', 'نوع وصول نقدی', 'مبلغ نقد (ریال)', 'کسورات (ریال)',
@@ -1453,13 +1296,11 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۶. گزارش ریزتارگت - مطابق با خروجی برنامه
+    # ۶. گزارش ریزتارگت (بازاریاب)
     # ============================================================
     
     def _export_detailed_targets_report(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """
-        خروجی ریزتارگت‌ها - برای بازاریاب (نمایش تمام ریزتارگت‌های فعال در بازه زمانی)
-        """
+        """خروجی ریزتارگت‌ها - برای بازاریاب"""
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -1478,7 +1319,6 @@ class TotalReportScreen(Screen):
             
             print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
             
-            # ✅ فیلتر بر اساس نام عامل و تاریخ شروع (برای بازاریاب)
             filtered = []
             for t in all_targets:
                 if not isinstance(t, dict):
@@ -1488,12 +1328,10 @@ class TotalReportScreen(Screen):
                 if agent_name not in t_agent and t_agent not in agent_name:
                     continue
                 
-                # ✅ بررسی تاریخ شروع (start_date) - چون تاریخ شروع تارگت‌ها 1405/05/01 است
                 start_date = t.get('start_date', '')
                 if from_date <= start_date <= to_date:
                     filtered.append(t)
                 else:
-                    # اگر تاریخ شروع در بازه نیست، بررسی کن که آیا تاریخ تحقق در بازه است
                     fulfillment_date = t.get('last_fulfillment_date', '')
                     if fulfillment_date and from_date <= fulfillment_date <= to_date:
                         filtered.append(t)
@@ -1504,7 +1342,6 @@ class TotalReportScreen(Screen):
                 print(f"هیچ ریزتارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
-            # ========== مرتب‌سازی بر اساس تاریخ ==========
             filtered.sort(key=lambda x: x.get('start_date', ''), reverse=False)
             
             filename = f'ریزتارگت_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
@@ -1522,7 +1359,6 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ✅ هدرهای کامل
             headers = [
                 'ردیف', 'شناسه', 'گروه کالا', 'هدف کل', 'واحد',
                 'تارگت روزانه', 'تحقق کل', 'کسر تارگت', 'درصد پیشرفت',
@@ -1553,7 +1389,6 @@ class TotalReportScreen(Screen):
                 total_achieved += achieved
                 total_remaining += remaining
                 
-                # رنگ درصد
                 if percent >= 100:
                     pct_color = "00CC44"
                 elif percent >= 50:
@@ -1571,7 +1406,6 @@ class TotalReportScreen(Screen):
                 else:
                     status_color = "888888"
                 
-                # تاریخ آخرین تحقق
                 last_fulfillment = target.get('last_fulfillment_date', '')
                 
                 values = [
@@ -1595,11 +1429,11 @@ class TotalReportScreen(Screen):
                     cell.alignment = Alignment(horizontal="center", vertical="center")
                     cell.border = thin_border
                     
-                    if col_idx == 9:  # درصد پیشرفت
+                    if col_idx == 9:
                         cell.font = Font(color=pct_color, bold=True)
-                    elif col_idx == 10:  # وضعیت
+                    elif col_idx == 10:
                         cell.font = Font(color=status_color, bold=True)
-                    elif col_idx == 8:  # کسر تارگت
+                    elif col_idx == 8:
                         if remaining > 0:
                             cell.font = Font(color="CC3333", bold=True)
                         else:
@@ -1608,14 +1442,13 @@ class TotalReportScreen(Screen):
             for i, width in enumerate(col_widths, 1):
                 ws.column_dimensions[get_column_letter(i)].width = width
             
-            # ========== خلاصه در انتها ==========
             avg_percent = (total_achieved / total_target * 100) if total_target > 0 else 0
             completed_count = len([t for t in filtered if t.get('status') == 'تکمیل شده'])
             active_count = len([t for t in filtered if t.get('status') == 'فعال'])
             
             summary_row = len(filtered) + 3
             ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
-            ws.cell(row=summary_row, column=1, value='📊 خلاصه عملکرد:').font = Font(bold=True, size=12, color="FFD700")
+            ws.cell(row=summary_row, column=1, value='خلاصه عملکرد:').font = Font(bold=True, size=12, color="FFD700")
             
             ws.cell(row=summary_row, column=8, value=f'مجموع هدف: {total_target:,}')
             ws.cell(row=summary_row, column=8).font = Font(bold=True, size=11, color="FFFFFF")
@@ -1643,11 +1476,167 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۷. گزارش توزیع - مطابق با خروجی برنامه (۳ شیت)
+    # ۷. گزارش ریزتارگت (سوپروایزر)
+    # ============================================================
+    
+    def _export_detailed_targets_report_supervisor(self, agent_name, from_date, to_date, reports_dir, user_name):
+        """خروجی ریزتارگت‌ها - مخصوص سوپروایزر (بر اساس created_by و تاریخ ایجاد)"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+            from utils.jalali_date import convert_to_jalali
+            
+            file_path = os.path.join(get_data_path(), 'detailed_targets.json')
+            if not os.path.exists(file_path):
+                print(f"فایل detailed_targets.json یافت نشد")
+                return None
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                all_targets = json.load(f)
+            
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
+            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
+            
+            filtered = []
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                
+                t_creator = t.get('created_by', '')
+                if agent_name not in t_creator and t_creator not in agent_name:
+                    continue
+                
+                created_at = t.get('created_at', '')
+                if created_at:
+                    if 'T' in created_at:
+                        created_date = created_at.split('T')[0]
+                        try:
+                            created_date_jalali = convert_to_jalali(created_date)
+                            if from_date <= created_date_jalali <= to_date:
+                                filtered.append(t)
+                        except:
+                            t_date = t.get('start_date', '')
+                            if from_date <= t_date <= to_date:
+                                filtered.append(t)
+                    else:
+                        if from_date <= created_at <= to_date:
+                            filtered.append(t)
+                else:
+                    t_date = t.get('start_date', '')
+                    if from_date <= t_date <= to_date:
+                        filtered.append(t)
+            
+            print(f"ریزتارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
+            
+            if not filtered:
+                print(f"هیچ ریزتارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            filename = f'ریزتارگت_سوپروایزر_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            filepath = os.path.join(reports_dir, filename)
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "ریزتارگت‌ها"
+            ws.right_to_left = True
+            
+            header_font = Font(bold=True, size=11, color="FFFFFF")
+            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+            
+            headers = [
+                'شناسه ریزتارگت', 'نام عامل', 'دوره تارگت', 'تاریخ شروع', 'تاریخ پایان',
+                'تاریخ ایجاد', 'نام گروه کالا', 'تعداد تارگت', 'واحد تارگت',
+                'پیوند با تارگت مادر', 'تارگت روزانه', 'مقدار محقق شده', 'وضعیت',
+                'ایجاد شده توسط'
+            ]
+            
+            col_widths = [18, 20, 14, 14, 14, 14, 22, 14, 14, 20, 16, 16, 14, 18]
+            
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.border = thin_border
+            
+            for idx, target in enumerate(filtered, 1):
+                created_at = target.get('created_at', '')
+                created_display = ''
+                if created_at and 'T' in created_at:
+                    created_date = created_at.split('T')[0]
+                    try:
+                        created_display = convert_to_jalali(created_date)
+                    except:
+                        created_display = created_date
+                else:
+                    created_display = created_at
+                
+                values = [
+                    target.get('id', ''),
+                    target.get('agent_name', ''),
+                    target.get('period', ''),
+                    target.get('start_date', ''),
+                    target.get('end_date', ''),
+                    created_display,
+                    target.get('product_group', ''),
+                    target.get('target_count', 0),
+                    target.get('unit', ''),
+                    target.get('linked_target_id', ''),
+                    target.get('daily_target', 0),
+                    target.get('achieved_value', 0),
+                    target.get('status', ''),
+                    target.get('created_by', '')
+                ]
+                
+                for col_idx, value in enumerate(values, 1):
+                    cell = ws.cell(row=idx+1, column=col_idx, value=value)
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    cell.border = thin_border
+            
+            for i, width in enumerate(col_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
+            summary_row = len(filtered) + 3
+            ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
+            ws.cell(row=summary_row, column=1, value='خلاصه ریزتارگت‌های سوپروایزر:').font = Font(bold=True, size=12, color="FFD700")
+            
+            total_target = sum(t.get('target_count', 0) for t in filtered)
+            total_achieved = sum(t.get('achieved_value', 0) for t in filtered)
+            completed_count = len([t for t in filtered if t.get('status') == 'تکمیل شده'])
+            active_count = len([t for t in filtered if t.get('status') == 'فعال'])
+            
+            ws.cell(row=summary_row, column=10, value=f'مجموع هدف: {total_target:,}')
+            ws.cell(row=summary_row, column=10).font = Font(bold=True, size=11, color="FFFFFF")
+            
+            ws.cell(row=summary_row + 1, column=10, value=f'مجموع تحقق: {total_achieved:,}')
+            ws.cell(row=summary_row + 1, column=10).font = Font(bold=True, size=11, color="00CC44")
+            
+            ws.cell(row=summary_row + 2, column=10, value=f'تکمیل شده: {completed_count} | فعال: {active_count}')
+            ws.cell(row=summary_row + 2, column=10).font = Font(bold=True, size=11, color="FFFFFF")
+            
+            wb.save(filepath)
+            print(f"گزارش ریزتارگت سوپروایزر ساخته شد: {filename}")
+            return filename
+            
+        except Exception as e:
+            print(f"خطا در خروجی ریزتارگت‌ها (سوپروایزر): {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    # ============================================================
+    # ۸. گزارش توزیع
     # ============================================================
     
     def _export_delivery_report(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """خروجی توزیع - با ۳ شیت (مطابق با خروجی برنامه)"""
+        """خروجی توزیع - با ۳ شیت"""
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -1902,74 +1891,11 @@ class TotalReportScreen(Screen):
             return None
     
     # ============================================================
-    # ۸. گزارش تارگت‌ها - جدید
+    # ۹. گزارش تارگت (سوپروایزر)
     # ============================================================
     
-    def _export_targets_report(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """
-        خروجی تارگت‌ها - برای سوپروایزر بر اساس created_by
-        """
-        try:
-            import openpyxl
-            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-            from openpyxl.utils import get_column_letter
-            from utils.target_manager import get_all_targets, export_targets_to_excel
-            
-            all_targets = get_all_targets()
-            
-            if not all_targets:
-                print(f"⚠️ هیچ تارگتی یافت نشد")
-                return None
-            
-            # ✅ فیلتر بر اساس created_by (برای سوپروایزر) یا agent_name (برای بازاریاب)
-            filtered = []
-            for t in all_targets:
-                if not isinstance(t, dict):
-                    continue
-                
-                # بررسی تاریخ
-                t_date = t.get('start_date', '')
-                if from_date <= t_date <= to_date:
-                    # بررسی نام: اول created_by، سپس agent_name
-                    t_creator = t.get('created_by', '')
-                    t_agent = t.get('agent_name', '')
-                    
-                    # اگر created_by با نام کاربر مطابقت دارد یا agent_name مطابقت دارد
-                    if agent_name in t_creator or t_creator in agent_name:
-                        filtered.append(t)
-                    elif agent_name in t_agent or t_agent in agent_name:
-                        filtered.append(t)
-            
-            print(f"تارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
-            
-            if not filtered:
-                print(f"هیچ تارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
-                return None
-            
-            # استفاده از تابع اصلی export_targets_to_excel
-            success, message, filepath = export_targets_to_excel(filtered)
-            
-            if success:
-                import shutil
-                filename = f'تارگت_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
-                dest_path = os.path.join(reports_dir, filename)
-                if os.path.exists(filepath):
-                    shutil.copy2(filepath, dest_path)
-                    print(f"گزارش تارگت ساخته شد: {filename}")
-                    return filename
-            
-            return None
-            
-        except Exception as e:
-            print(f"خطا در خروجی تارگت‌ها: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-
     def _export_targets_report_supervisor(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """
-        خروجی تارگت‌ها - مخصوص سوپروایزر (بر اساس created_by و تاریخ ایجاد)
-        """
+        """خروجی تارگت‌ها - مخصوص سوپروایزر (بر اساس created_by و تاریخ ایجاد)"""
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -1983,41 +1909,34 @@ class TotalReportScreen(Screen):
                 print(f"هیچ تارگتی یافت نشد")
                 return None
             
-            # ✅ فیلتر بر اساس created_by و تاریخ ایجاد
             filtered = []
             for t in all_targets:
                 if not isinstance(t, dict):
                     continue
                 
                 t_creator = t.get('created_by', '')
+                if agent_name not in t_creator and t_creator not in agent_name:
+                    continue
                 
-                # اگر created_by با نام کاربر مطابقت دارد
-                if agent_name in t_creator or t_creator in agent_name:
-                    # ✅ بررسی تاریخ ایجاد (created_at)
-                    created_at = t.get('created_at', '')
-                    if created_at:
-                        # استخراج تاریخ از created_at (فرمت: 2026-08-08T13:49:43.129990)
-                        if 'T' in created_at:
-                            created_date = created_at.split('T')[0]
-                            # تبدیل به شمسی
-                            try:
-                                created_date_jalali = convert_to_jalali(created_date)
-                                if from_date <= created_date_jalali <= to_date:
-                                    filtered.append(t)
-                            except:
-                                # اگر تبدیل نشد، بر اساس تاریخ شروع فیلتر کن
-                                t_date = t.get('start_date', '')
-                                if from_date <= t_date <= to_date:
-                                    filtered.append(t)
-                        else:
-                            # اگر فرمت T نداشت، خود تاریخ را بررسی کن
-                            if from_date <= created_at <= to_date:
+                created_at = t.get('created_at', '')
+                if created_at:
+                    if 'T' in created_at:
+                        created_date = created_at.split('T')[0]
+                        try:
+                            created_date_jalali = convert_to_jalali(created_date)
+                            if from_date <= created_date_jalali <= to_date:
+                                filtered.append(t)
+                        except:
+                            t_date = t.get('start_date', '')
+                            if from_date <= t_date <= to_date:
                                 filtered.append(t)
                     else:
-                        # اگر created_at نبود، بر اساس تاریخ شروع فیلتر کن
-                        t_date = t.get('start_date', '')
-                        if from_date <= t_date <= to_date:
+                        if from_date <= created_at <= to_date:
                             filtered.append(t)
+                else:
+                    t_date = t.get('start_date', '')
+                    if from_date <= t_date <= to_date:
+                        filtered.append(t)
             
             print(f"تارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
             
@@ -2065,7 +1984,6 @@ class TotalReportScreen(Screen):
             for idx, target in enumerate(filtered, 1):
                 period_display = period_map.get(target.get('period_type', ''), target.get('period_type', ''))
                 
-                # تاریخ ایجاد به فرمت شمسی
                 created_at = target.get('created_at', '')
                 created_display = ''
                 if created_at and 'T' in created_at:
@@ -2101,10 +2019,9 @@ class TotalReportScreen(Screen):
             for i, width in enumerate(col_widths, 1):
                 ws.column_dimensions[get_column_letter(i)].width = width
             
-            # ========== خلاصه در انتها ==========
             summary_row = len(filtered) + 3
             ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
-            ws.cell(row=summary_row, column=1, value='📊 خلاصه تارگت‌های سوپروایزر:').font = Font(bold=True, size=12, color="FFD700")
+            ws.cell(row=summary_row, column=1, value='خلاصه تارگت‌های سوپروایزر:').font = Font(bold=True, size=12, color="FFD700")
             
             total_target = sum(t.get('target_value', 0) for t in filtered)
             total_achieved = sum(t.get('achieved_value', 0) for t in filtered)
@@ -2129,172 +2046,9 @@ class TotalReportScreen(Screen):
             import traceback
             traceback.print_exc()
             return None
-        
-    def _export_detailed_targets_report_supervisor(self, agent_name, from_date, to_date, reports_dir, user_name):
-        """
-        خروجی ریزتارگت‌ها - مخصوص سوپروایزر (بر اساس created_by و تاریخ ایجاد)
-        """
-        try:
-            import openpyxl
-            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-            from openpyxl.utils import get_column_letter
-            from utils.jalali_date import convert_to_jalali
-            
-            file_path = os.path.join(get_data_path(), 'detailed_targets.json')
-            if not os.path.exists(file_path):
-                print(f"⚠️ فایل detailed_targets.json یافت نشد")
-                return None
-            
-            with open(file_path, 'r', encoding='utf-8') as f:
-                all_targets = json.load(f)
-            
-            if not isinstance(all_targets, list):
-                all_targets = []
-            
-            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
-            
-            # ✅ فیلتر بر اساس created_by و تاریخ ایجاد
-            filtered = []
-            for t in all_targets:
-                if not isinstance(t, dict):
-                    continue
-                
-                t_creator = t.get('created_by', '')
-                
-                # اگر created_by با نام کاربر مطابقت دارد
-                if agent_name in t_creator or t_creator in agent_name:
-                    # ✅ بررسی تاریخ ایجاد (created_at)
-                    created_at = t.get('created_at', '')
-                    if created_at:
-                        # استخراج تاریخ از created_at (فرمت: 2026-08-08T13:49:43.129990)
-                        if 'T' in created_at:
-                            created_date = created_at.split('T')[0]
-                            # تبدیل به شمسی
-                            try:
-                                created_date_jalali = convert_to_jalali(created_date)
-                                if from_date <= created_date_jalali <= to_date:
-                                    filtered.append(t)
-                            except:
-                                # اگر تبدیل نشد، بر اساس تاریخ شروع فیلتر کن
-                                t_date = t.get('start_date', '')
-                                if from_date <= t_date <= to_date:
-                                    filtered.append(t)
-                        else:
-                            # اگر فرمت T نداشت، خود تاریخ را بررسی کن
-                            if from_date <= created_at <= to_date:
-                                filtered.append(t)
-                    else:
-                        # اگر created_at نبود، بر اساس تاریخ شروع فیلتر کن
-                        t_date = t.get('start_date', '')
-                        if from_date <= t_date <= to_date:
-                            filtered.append(t)
-            
-            print(f"ریزتارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
-            
-            if not filtered:
-                print(f"هیچ ریزتارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
-                return None
-            
-            filename = f'ریزتارگت_سوپروایزر_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
-            filepath = os.path.join(reports_dir, filename)
-            
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "ریزتارگت‌ها"
-            ws.right_to_left = True
-            
-            header_font = Font(bold=True, size=11, color="FFFFFF")
-            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
-            thin_border = Border(
-                left=Side(style='thin'), right=Side(style='thin'),
-                top=Side(style='thin'), bottom=Side(style='thin')
-            )
-            
-            headers = [
-                'شناسه ریزتارگت', 'نام عامل', 'دوره تارگت', 'تاریخ شروع', 'تاریخ پایان',
-                'تاریخ ایجاد', 'نام گروه کالا', 'تعداد تارگت', 'واحد تارگت',
-                'پیوند با تارگت مادر', 'تارگت روزانه', 'مقدار محقق شده', 'وضعیت',
-                'ایجاد شده توسط'
-            ]
-            
-            col_widths = [18, 20, 14, 14, 14, 14, 22, 14, 14, 20, 16, 16, 14, 18]
-            
-            for col_idx, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col_idx, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-                cell.border = thin_border
-            
-            for idx, target in enumerate(filtered, 1):
-                # تاریخ ایجاد به فرمت شمسی
-                created_at = target.get('created_at', '')
-                created_display = ''
-                if created_at and 'T' in created_at:
-                    created_date = created_at.split('T')[0]
-                    try:
-                        created_display = convert_to_jalali(created_date)
-                    except:
-                        created_display = created_date
-                else:
-                    created_display = created_at
-                
-                values = [
-                    target.get('id', ''),
-                    target.get('agent_name', ''),
-                    target.get('period', ''),
-                    target.get('start_date', ''),
-                    target.get('end_date', ''),
-                    created_display,
-                    target.get('product_group', ''),
-                    target.get('target_count', 0),
-                    target.get('unit', ''),
-                    target.get('linked_target_id', ''),
-                    target.get('daily_target', 0),
-                    target.get('achieved_value', 0),
-                    target.get('status', ''),
-                    target.get('created_by', '')
-                ]
-                
-                for col_idx, value in enumerate(values, 1):
-                    cell = ws.cell(row=idx+1, column=col_idx, value=value)
-                    cell.alignment = Alignment(horizontal="center", vertical="center")
-                    cell.border = thin_border
-            
-            for i, width in enumerate(col_widths, 1):
-                ws.column_dimensions[get_column_letter(i)].width = width
-            
-            # ========== خلاصه در انتها ==========
-            summary_row = len(filtered) + 3
-            ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
-            ws.cell(row=summary_row, column=1, value='خلاصه ریزتارگت‌های سوپروایزر:').font = Font(bold=True, size=12, color="FFD700")
-            
-            total_target = sum(t.get('target_count', 0) for t in filtered)
-            total_achieved = sum(t.get('achieved_value', 0) for t in filtered)
-            completed_count = len([t for t in filtered if t.get('status') == 'تکمیل شده'])
-            active_count = len([t for t in filtered if t.get('status') == 'فعال'])
-            
-            ws.cell(row=summary_row, column=10, value=f'مجموع هدف: {total_target:,}')
-            ws.cell(row=summary_row, column=10).font = Font(bold=True, size=11, color="FFFFFF")
-            
-            ws.cell(row=summary_row + 1, column=10, value=f'مجموع تحقق: {total_achieved:,}')
-            ws.cell(row=summary_row + 1, column=10).font = Font(bold=True, size=11, color="00CC44")
-            
-            ws.cell(row=summary_row + 2, column=10, value=f'تکمیل شده: {completed_count} | فعال: {active_count}')
-            ws.cell(row=summary_row + 2, column=10).font = Font(bold=True, size=11, color="FFFFFF")
-            
-            wb.save(filepath)
-            print(f"گزارش ریزتارگت سوپروایزر ساخته شد: {filename}")
-            return filename
-            
-        except Exception as e:
-            print(f"خطا در خروجی ریزتارگت‌ها (سوپروایزر): {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-
+    
     # ============================================================
-    # ۹. گزارش سرکشی (بررسی بازار) - جدید
+    # ۱۰. گزارش سرکشی
     # ============================================================
     
     def _export_supervisor_visits_report(self, agent_name, from_date, to_date, reports_dir, user_name):
@@ -2304,7 +2058,6 @@ class TotalReportScreen(Screen):
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
             from openpyxl.utils import get_column_letter
             
-            # ✅ خواندن مستقیم فایل supervisor_visits.json
             file_path = os.path.join(get_data_path(), 'supervisor_visits.json')
             if not os.path.exists(file_path):
                 print(f"فایل supervisor_visits.json یافت نشد: {file_path}")
@@ -2318,23 +2071,18 @@ class TotalReportScreen(Screen):
             
             print(f"تعداد کل سرکشی‌ها: {len(all_visits)}")
             
-            # ✅ فیلتر بر اساس تاریخ و نام کاربر
             filtered = []
             for v in all_visits:
                 if not isinstance(v, dict):
                     continue
                 
-                # بررسی تاریخ
                 v_date = v.get('date', '')
                 if from_date <= v_date <= to_date:
-                    # ✅ بررسی نام کاربر (created_by یا agent_name)
                     v_agent = v.get('created_by', '') or v.get('agent_name', '')
                     
-                    # تطابق جزئی نام عامل
                     if agent_name in v_agent or v_agent in agent_name:
                         filtered.append(v)
                     elif not v_agent:
-                        # اگر نام عامل خالی بود، از created_by استفاده کن
                         created_by = v.get('created_by', '')
                         if agent_name in created_by or created_by in agent_name:
                             filtered.append(v)
@@ -2345,7 +2093,6 @@ class TotalReportScreen(Screen):
                 print(f"هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
-            # ========== مرتب‌سازی بر اساس تاریخ ==========
             filtered.sort(key=lambda x: x.get('date', ''), reverse=False)
             
             filename = f'بررسی_بازار_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
@@ -2363,7 +2110,6 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ✅ هدرهای کامل مطابق با فایل نمونه
             headers = [
                 'شناسه', 'تاریخ', 'ساعت', 'مسیر', 'مشتری', 'نحوه سرکشی',
                 'علت سرکشی', 'وضعیت مشتری', 'وضعیت حضور در شلف',
@@ -2382,7 +2128,6 @@ class TotalReportScreen(Screen):
                 cell.alignment = Alignment(horizontal="center", vertical="center")
                 cell.border = thin_border
             
-            # ========== پر کردن داده‌ها ==========
             total_visits = len(filtered)
             need_followup = 0
             reported_count = 0
@@ -2423,10 +2168,9 @@ class TotalReportScreen(Screen):
             for i, width in enumerate(col_widths, 1):
                 ws.column_dimensions[get_column_letter(i)].width = width
             
-            # ========== خلاصه در انتها ==========
             summary_row = len(filtered) + 3
             ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=5)
-            ws.cell(row=summary_row, column=1, value='📊 خلاصه سرکشی‌ها:').font = Font(bold=True, size=12, color="FFD700")
+            ws.cell(row=summary_row, column=1, value='خلاصه سرکشی‌ها:').font = Font(bold=True, size=12, color="FFD700")
             
             ws.cell(row=summary_row, column=10, value=f'تعداد کل سرکشی‌ها: {total_visits}')
             ws.cell(row=summary_row, column=10).font = Font(bold=True, size=11, color="FFFFFF")
@@ -2446,251 +2190,509 @@ class TotalReportScreen(Screen):
             import traceback
             traceback.print_exc()
             return None
-
-    def _export_market_report(self, agent_name, from_date, to_date, reports_dir, user_name):
+    
+    # ============================================================
+    # ۱۱. گزارش تحقق ریزتارگت (بازاریاب - ساختار پیوستی)
+    # ============================================================
+    
+    def _export_fulfillment_report(self, agent_name, from_date, to_date, reports_dir, user_name):
         """
-        خروجی گزارش بازاری (نامه اداری) - ارسال به مدیر
-        
-        Args:
-            agent_name: نام سوپروایزر
-            from_date: تاریخ شروع
-            to_date: تاریخ پایان
-            reports_dir: مسیر ذخیره
-            user_name: نام کاربر
-        
-        Returns:
-            str: نام فایل یا None در صورت خطا
+        خروجی گزارش تحقق ریزتارگت - مشابه فایل اکسل پیوستی
+        ساختار: شناسه | عامل | گروه کالا | تارگت روز | تحقق | کسر تارگت | واحد
         """
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
             from openpyxl.utils import get_column_letter
-            from utils.supervisor_visits_manager import get_visits_filtered, get_visits_by_creator
-            from utils.jalali_date import get_today_jalali
+            from datetime import datetime
             
-            # ============================================================
-            # دریافت سرکشی‌های فیلتر شده
-            # ============================================================
-            # تلاش با get_visits_by_creator برای دریافت سرکشی‌های سوپروایزر
-            visits = get_visits_by_creator(agent_name)
-            
-            # اگر چیزی پیدا نشد، با get_visits_filtered امتحان کن
-            if not visits:
-                visits = get_visits_filtered(start_date=from_date, end_date=to_date)
-                # فیلتر دستی بر اساس created_by
-                visits = [v for v in visits if v.get('created_by') == agent_name or v.get('agent_name') == agent_name]
-            
-            # فیلتر بر اساس تاریخ
-            visits = [v for v in visits if from_date <= v.get('date', '') <= to_date]
-            
-            if not visits:
-                print(f"هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+            file_path = os.path.join(get_data_path(), 'detailed_targets.json')
+            if not os.path.exists(file_path):
+                print(f"فایل detailed_targets.json یافت نشد")
                 return None
             
-            print(f"تعداد سرکشی‌های {agent_name}: {len(visits)}")
+            with open(file_path, 'r', encoding='utf-8') as f:
+                all_targets = json.load(f)
             
-            # ============================================================
-            # ساخت فایل اکسل با فرمت نامه اداری
-            # ============================================================
-            filename = f'گزارش_بازاری_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
+            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
+            
+            filtered = []
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                
+                t_agent = t.get('agent_name', '')
+                if agent_name not in t_agent and t_agent not in agent_name:
+                    continue
+                
+                fulfillment_date = t.get('last_fulfillment_date', '')
+                
+                if fulfillment_date and from_date <= fulfillment_date <= to_date:
+                    filtered.append(t)
+                else:
+                    start_date = t.get('start_date', '')
+                    if start_date and from_date <= start_date <= to_date:
+                        filtered.append(t)
+            
+            print(f"ریزتارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            
+            if not filtered:
+                print(f"هیچ ریزتارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            timestamp = datetime.now().strftime("%H%M%S")
+            filename = f'گزارش_تحقق_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
             filepath = os.path.join(reports_dir, filename)
             
+            counter = 1
+            original_filepath = filepath
+            while os.path.exists(filepath):
+                name, ext = os.path.splitext(original_filepath)
+                filepath = f"{name}_{counter}{ext}"
+                counter += 1
+            
             wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "گزارش تحقق"
+            ws.right_to_left = True
             
-            # ============================================================
-            # شیت ۱: نامه اداری (برای هر سرکشی یک نامه جداگانه)
-            # ============================================================
-            for idx, visit in enumerate(visits):
-                if idx == 0:
-                    ws = wb.active
-                    ws.title = f"نامه {idx+1}"
-                else:
-                    ws = wb.create_sheet(f"نامه {idx+1}")
-                
-                ws.sheet_view.rightToLeft = True
-                
-                # استایل‌ها
-                title_font = Font(name='B Nazanin', size=16, bold=True)
-                text_font = Font(name='B Nazanin', size=12)
-                bold_font = Font(name='B Nazanin', size=12, bold=True)
-                center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                right_align = Alignment(horizontal='right', vertical='center', wrap_text=True)
-                thin_border = Border(
-                    left=Side(style='thin'), right=Side(style='thin'),
-                    top=Side(style='thin'), bottom=Side(style='thin')
-                )
-                
-                # ============================================================
-                # عنوان
-                # ============================================================
-                ws.merge_cells('A1:B1')
-                title_cell = ws.cell(row=1, column=1, value='بنام خدا')
-                title_cell.font = title_font
-                title_cell.alignment = center_align
-                
-                ws.merge_cells('A2:B2')
-                visit_id = visit.get('id', '')
-                ws.cell(row=2, column=1, value=f'گزارش بررسی بازار - شماره: {visit_id}').font = title_font
-                ws.cell(row=2, column=1).alignment = center_align
-                
-                # ============================================================
-                # اطلاعات اصلی
-                # ============================================================
-                row_num = 4
-                
-                info_fields = [
-                    ('تاریخ سرکشی', f"{visit.get('date', '')} - ساعت: {visit.get('time', '')}"),
-                    ('مسیر', visit.get('route', '')),
-                    ('مشتری', visit.get('customer', '')),
-                    ('', ''),
-                    ('نحوه سرکشی', visit.get('visit_type', '')),
-                    ('علت سرکشی', visit.get('visit_reason', '')),
-                    ('', ''),
-                    ('وضعیت مشتری', visit.get('customer_status', '')),
-                    ('وضعیت حضور در شلف', visit.get('shelf_status', '')),
-                    ('تعداد سرکشی بازاریابان در ماه', visit.get('monthly_visits', '')),
-                    ('آیا میزان سرکشی کافیست؟', visit.get('visit_sufficient', '')),
-                    ('میزان خرید مورد انتظار', visit.get('expected_purchase', '')),
-                    ('وضعیت موجودی مشتری', visit.get('inventory_status', '')),
-                    ('', ''),
-                    ('نحوه برخورد بازاریابان', visit.get('agent_behavior', '')),
-                    ('نحوه برخورد موزعین', visit.get('distributor_behavior', '')),
-                    ('میزان رضایتمندی مشتری', visit.get('customer_satisfaction', '')),
-                    ('میزان تحقق هدف سرکشی', visit.get('target_achievement', '')),
-                    ('', ''),
-                    ('نیاز به پیگیری مجدد', visit.get('need_followup', '')),
-                    ('تاریخ مراجعه بعدی', visit.get('next_visit_date', '---')),
-                    ('', ''),
-                    ('توضیحات سوپروایزر', visit.get('supervisor_note', '---')),
-                    ('نظرات مشتری', visit.get('customer_feedback', '---')),
-                    ('نظریه نهایی سوپروایزر', visit.get('supervisor_opinion', '---')),
-                ]
-                
-                for label, value in info_fields:
-                    if label == '':
-                        row_num += 1
-                        continue
-                    
-                    # لیبل
-                    cell_a = ws.cell(row=row_num, column=1, value=f'{label}:')
-                    cell_a.font = bold_font
-                    cell_a.alignment = right_align
-                    cell_a.border = thin_border
-                    
-                    # مقدار
-                    cell_b = ws.cell(row=row_num, column=2, value=str(value) if value else '---')
-                    cell_b.font = text_font
-                    cell_b.alignment = right_align
-                    cell_b.border = thin_border
-                    
-                    row_num += 1
-                
-                # ============================================================
-                # خط جداکننده
-                # ============================================================
-                row_num += 1
-                ws.merge_cells(f'A{row_num}:B{row_num}')
-                sep_cell = ws.cell(row=row_num, column=1, value='─' * 50)
-                sep_cell.alignment = center_align
-                sep_cell.font = text_font
-                sep_cell.border = thin_border
-                
-                # ============================================================
-                # اطلاعات ثبت
-                # ============================================================
-                row_num += 1
-                ws.merge_cells(f'A{row_num}:B{row_num}')
-                ws.cell(row=row_num, column=1, value='این گزارش توسط سیستم مدیریت بازاریابی تهیه شده است.').font = text_font
-                ws.cell(row=row_num, column=1).alignment = center_align
-                ws.cell(row=row_num, column=1).border = thin_border
-                
-                row_num += 1
-                ws.merge_cells(f'A{row_num}:B{row_num}')
-                today = get_today_jalali()
-                created_by = visit.get('created_by', 'supervisor')
-                ws.cell(row=row_num, column=1, value=f'تاریخ ثبت گزارش: {today} | ثبت شده توسط: {created_by}').font = text_font
-                ws.cell(row=row_num, column=1).alignment = center_align
-                ws.cell(row=row_num, column=1).border = thin_border
-                
-                # ============================================================
-                # تنظیم عرض ستون‌ها
-                # ============================================================
-                ws.column_dimensions['A'].width = 30
-                ws.column_dimensions['B'].width = 55
-                
-                # تنظیم ارتفاع ردیف‌ها
-                ws.row_dimensions[1].height = 30
-                ws.row_dimensions[2].height = 30
-                for r in range(4, row_num + 1):
-                    ws.row_dimensions[r].height = 24
+            header_font = Font(bold=True, size=11, color="FFFFFF")
+            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+            center_alignment = Alignment(horizontal="center", vertical="center")
             
-            # ============================================================
-            # شیت ۲: خلاصه گزارشات
-            # ============================================================
-            ws_summary = wb.create_sheet("خلاصه گزارشات")
-            ws_summary.sheet_view.rightToLeft = True
+            headers = ['شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'کسر تارگت', 'واحد']
+            column_widths = [18, 20, 25, 16, 16, 16, 14]
             
-            # عنوان
-            ws_summary.merge_cells('A1:D1')
-            ws_summary.cell(row=1, column=1, value='خلاصه گزارشات بازاری').font = Font(bold=True, size=14)
-            ws_summary.cell(row=1, column=1).alignment = center_align
-            
-            # هدر
-            headers = ['ردیف', 'شناسه', 'تاریخ', 'مشتری', 'مسیر', 'وضعیت']
-            header_row = 3
-            for col, header in enumerate(headers, 1):
-                cell = ws_summary.cell(row=header_row, column=col, value=header)
-                cell.font = Font(bold=True, size=11, color="FFFFFF")
-                cell.fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
-                cell.alignment = center_align
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
                 cell.border = thin_border
             
-            # داده‌ها
-            for idx, visit in enumerate(visits, 1):
-                row = header_row + idx
-                reported = visit.get('reported_to_manager', False)
-                status = 'ارسال شده' if reported else 'در انتظار ارسال'
-                status_color = "00CC44" if reported else "FFAA00"
-                
-                ws_summary.cell(row=row, column=1, value=idx).alignment = center_align
-                ws_summary.cell(row=row, column=1).border = thin_border
-                
-                ws_summary.cell(row=row, column=2, value=visit.get('id', '')).alignment = center_align
-                ws_summary.cell(row=row, column=2).border = thin_border
-                
-                ws_summary.cell(row=row, column=3, value=visit.get('date', '')).alignment = center_align
-                ws_summary.cell(row=row, column=3).border = thin_border
-                
-                ws_summary.cell(row=row, column=4, value=visit.get('customer', '')).alignment = center_align
-                ws_summary.cell(row=row, column=4).border = thin_border
-                
-                ws_summary.cell(row=row, column=5, value=visit.get('route', '')).alignment = center_align
-                ws_summary.cell(row=row, column=5).border = thin_border
-                
-                status_cell = ws_summary.cell(row=row, column=6, value=status)
-                status_cell.alignment = center_align
-                status_cell.border = thin_border
-                status_cell.font = Font(color=status_color, bold=True)
+            row_idx = 2
             
-            # عرض ستون‌ها
-            col_widths = [8, 14, 14, 22, 16, 16]
-            for i, width in enumerate(col_widths, 1):
-                ws_summary.column_dimensions[get_column_letter(i)].width = width
+            for target in filtered:
+                target_id = target.get('id', '')
+                agent = target.get('agent_name', '')
+                product_group = target.get('product_group', '')
+                daily_target = target.get('daily_target', 0)
+                achieved = target.get('achieved_value', 0)
+                remaining = max(0, daily_target - achieved)
+                unit = target.get('unit', '')
+                
+                values = [
+                    target_id,
+                    agent,
+                    product_group,
+                    daily_target,
+                    achieved,
+                    remaining,
+                    unit
+                ]
+                
+                for col_idx, value in enumerate(values, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.alignment = center_alignment
+                    cell.border = thin_border
+                    
+                    if col_idx == 6:
+                        if remaining > 0:
+                            cell.font = Font(color="CC3333", bold=True)
+                        else:
+                            cell.font = Font(color="00CC44", bold=True)
+                
+                row_idx += 1
             
-            # ============================================================
-            # ذخیره فایل
-            # ============================================================
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
             wb.save(filepath)
-            print(f"گزارش بازاری ساخته شد: {filename} ({len(visits)} نامه)")
+            print(f"گزارش تحقق ریزتارگت ساخته شد: {os.path.basename(filepath)}")
             return filename
             
+        except PermissionError as e:
+            print(f"خطای دسترسی به فایل: {e}")
+            try:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%H%M%S")
+                filename = f'گزارش_تحقق_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}_{timestamp}.xlsx'
+                filepath = os.path.join(reports_dir, filename)
+                wb.save(filepath)
+                print(f"گزارش تحقق ریزتارگت با نام جدید ساخته شد: {filename}")
+                return filename
+            except Exception as e2:
+                print(f"خطا در ذخیره فایل: {e2}")
+                return None
+            
         except Exception as e:
-            print(f"خطا در خروجی گزارش بازاری: {e}")
+            print(f"خطا در خروجی گزارش تحقق ریزتارگت: {e}")
             import traceback
             traceback.print_exc()
             return None
-        
-
+    
+    # ============================================================
+    # ۱۲. گزارش تحقق ریزتارگت (سوپروایزر)
+    # ============================================================
+    
+    def _export_fulfillment_report_supervisor(self, agent_name, from_date, to_date, reports_dir, user_name):
+        """خروجی گزارش تحقق ریزتارگت‌ها - مخصوص سوپروایزر"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+            from datetime import datetime
+            
+            file_path = os.path.join(get_data_path(), 'detailed_targets.json')
+            if not os.path.exists(file_path):
+                print(f"فایل detailed_targets.json یافت نشد")
+                return None
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                all_targets = json.load(f)
+            
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
+            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
+            
+            filtered = []
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                
+                t_creator = t.get('created_by', '')
+                if agent_name not in t_creator and t_creator not in agent_name:
+                    continue
+                
+                fulfilled_date = t.get('fulfilled_date', '') or t.get('last_fulfillment_date', '')
+                
+                if fulfilled_date and from_date <= fulfilled_date <= to_date:
+                    filtered.append(t)
+                else:
+                    start_date = t.get('start_date', '')
+                    if start_date and from_date <= start_date <= to_date:
+                        filtered.append(t)
+            
+            print(f"ریزتارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
+            
+            if not filtered:
+                print(f"هیچ ریزتارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            filename = f'گزارش_تحقق_ریزتارگت_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            filepath = os.path.join(reports_dir, filename)
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "گزارش تحقق ریزتارگت"
+            ws.right_to_left = True
+            
+            header_font = Font(bold=True, size=11, color="FFFFFF")
+            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+            center_alignment = Alignment(horizontal="center", vertical="center")
+            
+            headers = [
+                'شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'کسر تارگت', 
+                'واحد', 'تاریخ تحقق', 'ایجاد شده توسط'
+            ]
+            column_widths = [16, 20, 25, 14, 14, 14, 12, 14, 18]
+            
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+                cell.border = thin_border
+            
+            total_target = 0
+            total_achieved = 0
+            row_idx = 2
+            
+            for target in filtered:
+                target_id = target.get('id', '')
+                agent = target.get('agent_name', '')
+                product_group = target.get('product_group', '')
+                daily_target = target.get('daily_target', 0)
+                achieved = target.get('achieved_value', 0)
+                remaining = max(0, daily_target - achieved)
+                unit = target.get('unit', '')
+                fulfilled_date = target.get('fulfilled_date', '') or target.get('last_fulfillment_date', '')
+                created_by = target.get('created_by', '')
+                
+                total_target += daily_target
+                total_achieved += achieved
+                
+                values = [
+                    target_id,
+                    agent,
+                    product_group,
+                    daily_target,
+                    achieved,
+                    remaining,
+                    unit,
+                    fulfilled_date,
+                    created_by
+                ]
+                
+                for col_idx, value in enumerate(values, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.alignment = center_alignment
+                    cell.border = thin_border
+                    
+                    if col_idx == 6:
+                        if remaining > 0:
+                            cell.font = Font(color="CC3333", bold=True)
+                        else:
+                            cell.font = Font(color="00CC44", bold=True)
+                
+                row_idx += 1
+            
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
+            summary_row = row_idx + 1
+            ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=3)
+            summary_cell = ws.cell(row=summary_row, column=1, value='خلاصه:')
+            summary_cell.font = Font(bold=True, size=12, color="FFD700")
+            summary_cell.alignment = center_alignment
+            summary_cell.border = thin_border
+            
+            avg_percent = (total_achieved / total_target * 100) if total_target > 0 else 0
+            
+            summary_values = [
+                f'مجموع تارگت روز: {total_target:,}',
+                f'مجموع تحقق: {total_achieved:,}',
+                f'میانگین پیشرفت: {avg_percent:.1f}%',
+                f'تعداد ریزتارگت‌ها: {len(filtered)}'
+            ]
+            
+            for col_idx, value in enumerate(summary_values, 4):
+                cell = ws.cell(row=summary_row, column=col_idx, value=value)
+                cell.font = Font(bold=True, size=11, color="FFFFFF")
+                cell.alignment = center_alignment
+                cell.border = thin_border
+            
+            wb.save(filepath)
+            print(f"گزارش تحقق ریزتارگت سوپروایزر ساخته شد: {filename}")
+            return filename
+            
+        except Exception as e:
+            print(f"خطا در خروجی گزارش تحقق ریزتارگت: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    # ============================================================
+    # ۱۳. گزارش تحقق تارگت (سوپروایزر)
+    # ============================================================
+    
+    def _export_fulfillment_targets_report(self, agent_name, from_date, to_date, reports_dir, user_name):
+        """خروجی گزارش تحقق تارگت‌ها - مخصوص سوپروایزر"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+            from datetime import datetime
+            from utils.jalali_date import convert_to_jalali
+            
+            file_path = os.path.join(get_data_path(), 'targets.json')
+            if not os.path.exists(file_path):
+                print(f"فایل targets.json یافت نشد")
+                return None
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                all_targets = json.load(f)
+            
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
+            print(f"تعداد کل تارگت‌ها: {len(all_targets)}")
+            
+            filtered = []
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                
+                t_creator = t.get('created_by', '')
+                if agent_name not in t_creator and t_creator not in agent_name:
+                    continue
+                
+                finalized_at = t.get('finalized_at', '')
+                
+                if finalized_at:
+                    if 'T' in finalized_at:
+                        finalized_date = finalized_at.split('T')[0]
+                        try:
+                            finalized_date_jalali = convert_to_jalali(finalized_date)
+                            if from_date <= finalized_date_jalali <= to_date:
+                                filtered.append(t)
+                        except:
+                            if from_date <= finalized_date <= to_date:
+                                filtered.append(t)
+                    else:
+                        if from_date <= finalized_at <= to_date:
+                            filtered.append(t)
+                else:
+                    start_date = t.get('start_date', '')
+                    if start_date and from_date <= start_date <= to_date:
+                        if t.get('achieved_value', 0) > 0:
+                            filtered.append(t)
+            
+            print(f"تارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
+            
+            if not filtered:
+                print(f"هیچ تارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            filename = f'گزارش_تحقق_تارگت_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            filepath = os.path.join(reports_dir, filename)
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "گزارش تحقق تارگت"
+            ws.right_to_left = True
+            
+            header_font = Font(bold=True, size=11, color="FFFFFF")
+            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+            center_alignment = Alignment(horizontal="center", vertical="center")
+            
+            headers = [
+                'شناسه', 'عامل', 'نوع تارگت', 'میزان هدف', 'تحقق', 
+                'درصد پیشرفت', 'وضعیت', 'تاریخ نهایی‌سازی', 'ایجاد شده توسط'
+            ]
+            column_widths = [14, 20, 16, 18, 16, 14, 14, 16, 18]
+            
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+                cell.border = thin_border
+            
+            total_target = 0
+            total_achieved = 0
+            row_idx = 2
+            
+            for target in filtered:
+                target_id = target.get('target_id', '')
+                agent = target.get('agent_name', '')
+                target_type = target.get('target_type', '')
+                target_value = target.get('target_value', 0)
+                achieved = target.get('achieved_value', 0)
+                percent = (achieved / target_value * 100) if target_value > 0 else 0
+                status = target.get('status', '')
+                finalized_at = target.get('finalized_at', '')
+                created_by = target.get('created_by', '')
+                
+                finalized_display = ''
+                if finalized_at and 'T' in finalized_at:
+                    finalized_date = finalized_at.split('T')[0]
+                    try:
+                        finalized_display = convert_to_jalali(finalized_date)
+                    except:
+                        finalized_display = finalized_date
+                else:
+                    finalized_display = finalized_at
+                
+                total_target += target_value
+                total_achieved += achieved
+                
+                if percent >= 100:
+                    pct_color = "00CC44"
+                elif percent >= 50:
+                    pct_color = "FFAA00"
+                else:
+                    pct_color = "CC3333"
+                
+                if status == 'تکمیل شده':
+                    status_color = "00CC44"
+                elif status == 'فعال':
+                    status_color = "3399FF"
+                elif status == 'در انتظار':
+                    status_color = "FFCC00"
+                else:
+                    status_color = "888888"
+                
+                values = [
+                    target_id,
+                    agent,
+                    target_type,
+                    target_value,
+                    achieved,
+                    f"{percent:.1f}%",
+                    status,
+                    finalized_display,
+                    created_by
+                ]
+                
+                for col_idx, value in enumerate(values, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.alignment = center_alignment
+                    cell.border = thin_border
+                    
+                    if col_idx == 6:
+                        cell.font = Font(color=pct_color, bold=True)
+                    elif col_idx == 7:
+                        cell.font = Font(color=status_color, bold=True)
+                
+                row_idx += 1
+            
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
+            summary_row = row_idx + 1
+            ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=3)
+            summary_cell = ws.cell(row=summary_row, column=1, value='خلاصه:')
+            summary_cell.font = Font(bold=True, size=12, color="FFD700")
+            summary_cell.alignment = center_alignment
+            summary_cell.border = thin_border
+            
+            avg_percent = (total_achieved / total_target * 100) if total_target > 0 else 0
+            completed_count = len([t for t in filtered if t.get('status') == 'تکمیل شده'])
+            
+            summary_values = [
+                f'مجموع هدف: {total_target:,}',
+                f'مجموع تحقق: {total_achieved:,}',
+                f'میانگین پیشرفت: {avg_percent:.1f}%',
+                f'تکمیل شده: {completed_count} | کل: {len(filtered)}'
+            ]
+            
+            for col_idx, value in enumerate(summary_values, 4):
+                cell = ws.cell(row=summary_row, column=col_idx, value=value)
+                cell.font = Font(bold=True, size=11, color="FFFFFF")
+                cell.alignment = center_alignment
+                cell.border = thin_border
+            
+            wb.save(filepath)
+            print(f"گزارش تحقق تارگت سوپروایزر ساخته شد: {filename}")
+            return filename
+            
+        except Exception as e:
+            print(f"خطا در خروجی گزارش تحقق تارگت: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    # ============================================================
+    # ۱۴. گزارش ارزیابی
+    # ============================================================
+    
     def _export_evaluation_report(self, agent_name, from_date, to_date, reports_dir, user_name):
         """خروجی گزارش ارزیابی - مطابق با supervisor_report_screen"""
         try:
@@ -2700,13 +2702,9 @@ class TotalReportScreen(Screen):
             from utils.file_manager import get_daily_logs, get_settings, get_agents
             from utils.jalali_date import get_today_jalali
             
-            # ============================================================
-            # دریافت داده‌ها
-            # ============================================================
             all_logs = get_daily_logs()
             settings = get_settings()
             
-            # ساخت mapping route -> agent
             agents = get_agents()
             route_agent_map = {}
             for a in agents:
@@ -2716,7 +2714,6 @@ class TotalReportScreen(Screen):
                         for r in agent_routes:
                             route_agent_map[r] = a.get('name', '')
             
-            # فیلتر تاریخ
             date_list = []
             for date in all_logs.keys():
                 if from_date <= date <= to_date:
@@ -2726,9 +2723,6 @@ class TotalReportScreen(Screen):
                 print(f"هیچ داده‌ای برای ارزیابی در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
-            # ============================================================
-            # محاسبه آمار
-            # ============================================================
             supervision_rate = settings.get('supervision_rate', 70.0) / 100
             conversion_rate = settings.get('conversion_rate', 75.0) / 100
             target_units = settings.get('target_count', 100)
@@ -2801,9 +2795,6 @@ class TotalReportScreen(Screen):
             target_cash_day = target_cash * day_count
             target_check_day = target_check * day_count
             
-            # ============================================================
-            # ساخت فایل اکسل
-            # ============================================================
             filename = f'ارزیابی_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
             filepath = os.path.join(reports_dir, filename)
             
@@ -2812,7 +2803,6 @@ class TotalReportScreen(Screen):
             ws.title = "آمار و ارزیابی"
             ws.sheet_view.rightToLeft = True
             
-            # استایل‌ها
             header_font = Font(bold=True, size=11, color="FFFFFF")
             header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
             thin_border = Border(
@@ -2820,17 +2810,11 @@ class TotalReportScreen(Screen):
                 top=Side(style='thin'), bottom=Side(style='thin')
             )
             
-            # ============================================================
-            # شیت ۱: آمار و ارزیابی
-            # ============================================================
-            
-            # عنوان
             ws.merge_cells('A1:F1')
             title_cell = ws.cell(row=1, column=1, value=f'گزارش آمار و ارزیابی ({from_date} تا {to_date}) - {day_count} روز کاری')
             title_cell.font = Font(bold=True, size=14)
             title_cell.alignment = Alignment(horizontal='center', vertical='center')
             
-            # هدر جدول
             headers = ['آیتم', 'هدف', 'عملکرد', 'اختلاف', 'درصد', 'وضعیت']
             for col, header in enumerate(headers, 1):
                 cell = ws.cell(row=3, column=col, value=header)
@@ -2839,7 +2823,6 @@ class TotalReportScreen(Screen):
                 cell.alignment = Alignment(horizontal='center', vertical='center')
                 cell.border = thin_border
             
-            # داده‌ها
             items = [
                 ('تعداد ویزیت', target_visits_day, total_visits),
                 ('تعداد فاکتور', target_invoices_day, total_invoices),
@@ -2880,7 +2863,6 @@ class TotalReportScreen(Screen):
                     if col_idx in [2, 3, 4]:
                         cell.number_format = '#,##0'
             
-            # میانگین
             avg_percent = total_percent / item_count if item_count > 0 else 0
             avg_row = len(items) + 4
             
@@ -2891,11 +2873,10 @@ class TotalReportScreen(Screen):
             
             ws.merge_cells(f'D{avg_row}:F{avg_row}')
             avg_cell = ws.cell(row=avg_row, column=4, value=f'{avg_percent:.1f}%')
-            avg_cell.font = Font(bold=True, size=12, color="00CC44" if avg_percent >= 70 else "CC3333")
+            avg_cell.font = Font(bold=True, size=12, color="FFD700")
             avg_cell.alignment = Alignment(horizontal='center')
             avg_cell.border = thin_border
             
-            # ارزیابی کلی
             eval_row = avg_row + 1
             ws.merge_cells(f'A{eval_row}:F{eval_row}')
             if avg_percent >= 100:
@@ -2911,19 +2892,14 @@ class TotalReportScreen(Screen):
             eval_cell.font = Font(bold=True, size=12)
             eval_cell.alignment = Alignment(horizontal='center')
             
-            # ============================================================
-            # شیت ۲: عملکرد تفکیکی عامل‌ها (اگر بیش از یک عامل وجود داشته باشد)
-            # ============================================================
             if len(agents_data) > 1:
                 ws2 = wb.create_sheet("عملکرد تفکیکی")
                 ws2.sheet_view.rightToLeft = True
                 
-                # عنوان
                 ws2.merge_cells('A1:F1')
                 ws2.cell(row=1, column=1, value='عملکرد تفکیکی عامل‌ها').font = Font(bold=True, size=14)
                 ws2.cell(row=1, column=1).alignment = Alignment(horizontal='center', vertical='center')
                 
-                # هدر
                 agent_headers = ['عامل', 'ویزیت', 'فاکتور', 'فروش', 'نقدی', 'چکی']
                 header_row = 3
                 for col, header in enumerate(agent_headers, 1):
@@ -2933,7 +2909,6 @@ class TotalReportScreen(Screen):
                     cell.alignment = Alignment(horizontal='center', vertical='center')
                     cell.border = thin_border
                 
-                # داده‌ها
                 for i, (ag_name, ag_data) in enumerate(agents_data.items()):
                     row = header_row + 1 + i
                     values = [
@@ -2951,14 +2926,10 @@ class TotalReportScreen(Screen):
                         if col >= 2:
                             cell.number_format = '#,##0'
                 
-                # عرض ستون‌ها
                 col_widths = [20, 14, 14, 18, 18, 18]
                 for i, width in enumerate(col_widths, 1):
                     ws2.column_dimensions[get_column_letter(i)].width = width
             
-            # ============================================================
-            # تنظیم عرض ستون‌های شیت اول
-            # ============================================================
             col_widths = [28, 18, 18, 18, 14, 18]
             for i, width in enumerate(col_widths, 1):
                 ws.column_dimensions[get_column_letter(i)].width = width
@@ -2972,7 +2943,251 @@ class TotalReportScreen(Screen):
             import traceback
             traceback.print_exc()
             return None
-
+    
+    # ============================================================
+    # ۱۵. گزارش بازاری (ارسال به مدیر)
+    # ============================================================
+    
+    def _export_market_report(self, agent_name, from_date, to_date, reports_dir, user_name):
+        """خروجی گزارش بازاری (نامه اداری) - ارسال به مدیر"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+            from utils.supervisor_visits_manager import get_visits_filtered, get_visits_by_creator
+            from utils.jalali_date import get_today_jalali
+            
+            visits = get_visits_by_creator(agent_name)
+            
+            if not visits:
+                visits = get_visits_filtered(start_date=from_date, end_date=to_date)
+                visits = [v for v in visits if v.get('created_by') == agent_name or v.get('agent_name') == agent_name]
+            
+            visits = [v for v in visits if from_date <= v.get('date', '') <= to_date]
+            
+            if not visits:
+                print(f"هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            print(f"تعداد سرکشی‌های {agent_name}: {len(visits)}")
+            
+            filename = f'گزارش_بازاری_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            filepath = os.path.join(reports_dir, filename)
+            
+            wb = openpyxl.Workbook()
+            
+            for idx, visit in enumerate(visits):
+                if idx == 0:
+                    ws = wb.active
+                    ws.title = f"نامه {idx+1}"
+                else:
+                    ws = wb.create_sheet(f"نامه {idx+1}")
+                
+                ws.sheet_view.rightToLeft = True
+                
+                title_font = Font(name='B Nazanin', size=16, bold=True)
+                text_font = Font(name='B Nazanin', size=12)
+                bold_font = Font(name='B Nazanin', size=12, bold=True)
+                center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                right_align = Alignment(horizontal='right', vertical='center', wrap_text=True)
+                thin_border = Border(
+                    left=Side(style='thin'), right=Side(style='thin'),
+                    top=Side(style='thin'), bottom=Side(style='thin')
+                )
+                
+                ws.merge_cells('A1:B1')
+                title_cell = ws.cell(row=1, column=1, value='بنام خدا')
+                title_cell.font = title_font
+                title_cell.alignment = center_align
+                
+                ws.merge_cells('A2:B2')
+                visit_id = visit.get('id', '')
+                ws.cell(row=2, column=1, value=f'گزارش بررسی بازار - شماره: {visit_id}').font = title_font
+                ws.cell(row=2, column=1).alignment = center_align
+                
+                row_num = 4
+                
+                info_fields = [
+                    ('تاریخ سرکشی', f"{visit.get('date', '')} - ساعت: {visit.get('time', '')}"),
+                    ('مسیر', visit.get('route', '')),
+                    ('مشتری', visit.get('customer', '')),
+                    ('', ''),
+                    ('نحوه سرکشی', visit.get('visit_type', '')),
+                    ('علت سرکشی', visit.get('visit_reason', '')),
+                    ('', ''),
+                    ('وضعیت مشتری', visit.get('customer_status', '')),
+                    ('وضعیت حضور در شلف', visit.get('shelf_status', '')),
+                    ('تعداد سرکشی بازاریابان در ماه', visit.get('monthly_visits', '')),
+                    ('آیا میزان سرکشی کافیست؟', visit.get('visit_sufficient', '')),
+                    ('میزان خرید مورد انتظار', visit.get('expected_purchase', '')),
+                    ('وضعیت موجودی مشتری', visit.get('inventory_status', '')),
+                    ('', ''),
+                    ('نحوه برخورد بازاریابان', visit.get('agent_behavior', '')),
+                    ('نحوه برخورد موزعین', visit.get('distributor_behavior', '')),
+                    ('میزان رضایتمندی مشتری', visit.get('customer_satisfaction', '')),
+                    ('میزان تحقق هدف سرکشی', visit.get('target_achievement', '')),
+                    ('', ''),
+                    ('نیاز به پیگیری مجدد', visit.get('need_followup', '')),
+                    ('تاریخ مراجعه بعدی', visit.get('next_visit_date', '---')),
+                    ('', ''),
+                    ('توضیحات سوپروایزر', visit.get('supervisor_note', '---')),
+                    ('نظرات مشتری', visit.get('customer_feedback', '---')),
+                    ('نظریه نهایی سوپروایزر', visit.get('supervisor_opinion', '---')),
+                ]
+                
+                for label, value in info_fields:
+                    if label == '':
+                        row_num += 1
+                        continue
+                    
+                    cell_a = ws.cell(row=row_num, column=1, value=f'{label}:')
+                    cell_a.font = bold_font
+                    cell_a.alignment = right_align
+                    cell_a.border = thin_border
+                    
+                    cell_b = ws.cell(row=row_num, column=2, value=str(value) if value else '---')
+                    cell_b.font = text_font
+                    cell_b.alignment = right_align
+                    cell_b.border = thin_border
+                    
+                    row_num += 1
+                
+                row_num += 1
+                ws.merge_cells(f'A{row_num}:B{row_num}')
+                sep_cell = ws.cell(row=row_num, column=1, value='─' * 50)
+                sep_cell.alignment = center_align
+                sep_cell.font = text_font
+                sep_cell.border = thin_border
+                
+                row_num += 1
+                ws.merge_cells(f'A{row_num}:B{row_num}')
+                ws.cell(row=row_num, column=1, value='این گزارش توسط سیستم مدیریت بازاریابی تهیه شده است.').font = text_font
+                ws.cell(row=row_num, column=1).alignment = center_align
+                ws.cell(row=row_num, column=1).border = thin_border
+                
+                row_num += 1
+                ws.merge_cells(f'A{row_num}:B{row_num}')
+                today = get_today_jalali()
+                created_by = visit.get('created_by', 'supervisor')
+                ws.cell(row=row_num, column=1, value=f'تاریخ ثبت گزارش: {today} | ثبت شده توسط: {created_by}').font = text_font
+                ws.cell(row=row_num, column=1).alignment = center_align
+                ws.cell(row=row_num, column=1).border = thin_border
+                
+                ws.column_dimensions['A'].width = 30
+                ws.column_dimensions['B'].width = 55
+                
+                ws.row_dimensions[1].height = 30
+                ws.row_dimensions[2].height = 30
+                for r in range(4, row_num + 1):
+                    ws.row_dimensions[r].height = 24
+            
+            ws_summary = wb.create_sheet("خلاصه گزارشات")
+            ws_summary.sheet_view.rightToLeft = True
+            
+            ws_summary.merge_cells('A1:D1')
+            ws_summary.cell(row=1, column=1, value='خلاصه گزارشات بازاری').font = Font(bold=True, size=14)
+            ws_summary.cell(row=1, column=1).alignment = center_align
+            
+            headers = ['ردیف', 'شناسه', 'تاریخ', 'مشتری', 'مسیر', 'وضعیت']
+            header_row = 3
+            for col, header in enumerate(headers, 1):
+                cell = ws_summary.cell(row=header_row, column=col, value=header)
+                cell.font = Font(bold=True, size=11, color="FFFFFF")
+                cell.fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+                cell.alignment = center_align
+                cell.border = thin_border
+            
+            for idx, visit in enumerate(visits, 1):
+                row = header_row + idx
+                reported = visit.get('reported_to_manager', False)
+                status = 'ارسال شده' if reported else 'در انتظار ارسال'
+                status_color = "00CC44" if reported else "FFAA00"
+                
+                ws_summary.cell(row=row, column=1, value=idx).alignment = center_align
+                ws_summary.cell(row=row, column=1).border = thin_border
+                ws_summary.cell(row=row, column=2, value=visit.get('id', '')).alignment = center_align
+                ws_summary.cell(row=row, column=2).border = thin_border
+                ws_summary.cell(row=row, column=3, value=visit.get('date', '')).alignment = center_align
+                ws_summary.cell(row=row, column=3).border = thin_border
+                ws_summary.cell(row=row, column=4, value=visit.get('customer', '')).alignment = center_align
+                ws_summary.cell(row=row, column=4).border = thin_border
+                ws_summary.cell(row=row, column=5, value=visit.get('route', '')).alignment = center_align
+                ws_summary.cell(row=row, column=5).border = thin_border
+                
+                status_cell = ws_summary.cell(row=row, column=6, value=status)
+                status_cell.alignment = center_align
+                status_cell.border = thin_border
+                status_cell.font = Font(color=status_color, bold=True)
+            
+            col_widths = [8, 14, 14, 22, 16, 16]
+            for i, width in enumerate(col_widths, 1):
+                ws_summary.column_dimensions[get_column_letter(i)].width = width
+            
+            wb.save(filepath)
+            print(f"گزارش بازاری ساخته شد: {filename} ({len(visits)} نامه)")
+            return filename
+            
+        except Exception as e:
+            print(f"خطا در خروجی گزارش بازاری: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    # ============================================================
+    # ۱۶. گزارش تارگت (عمومی)
+    # ============================================================
+    
+    def _export_targets_report(self, agent_name, from_date, to_date, reports_dir, user_name):
+        """خروجی تارگت‌ها - عمومی"""
+        try:
+            from utils.target_manager import get_all_targets, export_targets_to_excel
+            
+            all_targets = get_all_targets()
+            
+            if not all_targets:
+                print(f"هیچ تارگتی یافت نشد")
+                return None
+            
+            filtered = []
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                
+                t_date = t.get('start_date', '')
+                if from_date <= t_date <= to_date:
+                    t_creator = t.get('created_by', '')
+                    t_agent = t.get('agent_name', '')
+                    
+                    if agent_name in t_creator or t_creator in agent_name:
+                        filtered.append(t)
+                    elif agent_name in t_agent or t_agent in agent_name:
+                        filtered.append(t)
+            
+            print(f"تارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            
+            if not filtered:
+                print(f"هیچ تارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            success, message, filepath = export_targets_to_excel(filtered)
+            
+            if success:
+                import shutil
+                filename = f'تارگت_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+                dest_path = os.path.join(reports_dir, filename)
+                if os.path.exists(filepath):
+                    shutil.copy2(filepath, dest_path)
+                    print(f"گزارش تارگت ساخته شد: {filename}")
+                    return filename
+            
+            return None
+            
+        except Exception as e:
+            print(f"خطا در خروجی تارگت‌ها: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     # ============================================================
     # توابع کمکی (تاریخچه، نمایش پیام، باز کردن فایل)
     # ============================================================
