@@ -4021,12 +4021,13 @@ class SupervisorScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نهایی‌سازی تارگت‌ها: {e}", error_details)
+            
     # ============================================================
-    # تب ۳: بررسی بازار
+    # تب ۳: بررسی بازار - با ساختار جدید مثل ایجنت اسکرین
     # ============================================================
 
     def show_market_check_tab(self):
-        """نمایش تب بررسی بازار"""
+        """نمایش تب بررسی بازار با ساختار جدید (مثل ایجنت اسکرین)"""
         try:
             from utils.supervisor_visits_manager import create_supervisor_visit
             from constants import (
@@ -4044,523 +4045,957 @@ class SupervisorScreen(Screen):
                 bar_width=dp(8)
             )
 
-            content = GridLayout(
-                cols=2,
+            content = BoxLayout(
+                orientation='vertical',
+                padding=dp(15),
                 spacing=dp(8),
-                size_hint_y=None,
-                padding=dp(12)
+                size_hint_y=None
             )
             content.bind(minimum_height=content.setter('height'))
 
             # ========== عنوان ==========
-            title_box = BoxLayout(size_hint_y=None, height=dp(40))
-            title_box.add_widget(RTLLabel(
+            content.add_widget(RTLLabel(
                 text='بررسی بازار',
+                font_size=sp(22),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                bold=True
+            ))
+            content.add_widget(Label(size_hint_y=None, height=dp(5)))
+
+            # ========== تاریخ و ساعت ==========
+            date_time_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(10))
+            date_time_layout.add_widget(RTLLabel(
+                text=f'تاریخ: {get_today_jalali()}',
+                size_hint_x=0.5,
                 size_hint_y=None,
                 height=dp(40),
-                font_size=sp(20),
-                bold=True,
+                font_size=sp(18),
                 color=(0.4, 0.7, 1, 1)
             ))
-            content.add_widget(title_box)
-            content.add_widget(Label())
-
-            # ========== ۱- مسیر ==========
-            content.add_widget(RTLLabel(
-                text='مسیر:',
+            self.market_time_label = RTLLabel(
+                text=f'ساعت: {get_current_time()}',
+                size_hint_x=0.5,
                 size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
+                height=dp(40),
+                font_size=sp(18),
+                color=(0.4, 0.7, 1, 1)
+            )
+            date_time_layout.add_widget(self.market_time_label)
+            content.add_widget(date_time_layout)
+            content.add_widget(Label(size_hint_y=None, height=dp(5)))
+
+            # ========== مسیر ==========
+            content.add_widget(RTLLabel(
+                text='انتخاب مسیر:',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                color=(0.4, 0.7, 1, 1),
+                bold=True
             ))
 
             routes = get_routes()
             route_names = [r.get('name', '') for r in routes] if routes else ['']
 
             self.market_route_spinner = PersianComboBox(
-                text=route_names[0] if route_names else '',
+                text='',
                 values=route_names,
-                height=dp(55)
+                height=dp(70)
             )
             self.market_route_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
             self.market_route_spinner.main_btn.color = (1, 1, 1, 1)
-            self.market_route_spinner.main_btn.font_size = sp(17)
-            
+            self.market_route_spinner.main_btn.font_size = sp(18)
             content.add_widget(self.market_route_spinner)
+            content.add_widget(Label(size_hint_y=None, height=dp(5)))
 
-            # ========== ۲- مشتری ==========
-            content.add_widget(RTLLabel(
-                text='مشتری:',
+            # ========== دکمه افزودن مشتری ==========
+            add_customer_btn = PersianButton(
+                text='افزودن مشتری جدید',
+                background_color=(0.2, 0.6, 0.2, 1),
                 size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_customer_spinner = PersianComboBox(
-                text='',
-                values=[''],
-                height=dp(55)
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
             )
-            self.market_customer_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_customer_spinner.main_btn.color = (1, 1, 1, 1)
-            self.market_customer_spinner.main_btn.font_size = sp(17)
-            content.add_widget(self.market_customer_spinner)
+            add_customer_btn.bind(on_press=self.show_add_customer_dialog)
+            content.add_widget(add_customer_btn)
 
-            # ========== ۳- نحوه سرکشی ==========
-            content.add_widget(RTLLabel(
-                text='نحوه سرکشی:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_visit_type = PersianComboBox(
-                text=VISIT_TYPES[0],
-                values=VISIT_TYPES,
-                height=dp(55)
-            )
-            self.market_visit_type.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_visit_type.main_btn.color = (1, 1, 1, 1)
-            self.market_visit_type.main_btn.font_size = sp(17)
-            content.add_widget(self.market_visit_type)
-
-            # ========== ۴- علت سرکشی ==========
-            content.add_widget(RTLLabel(
-                text='علت سرکشی:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_visit_reason = PersianComboBox(
-                text=VISIT_REASONS[0],
-                values=VISIT_REASONS,
-                height=dp(55)
-            )
-            self.market_visit_reason.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_visit_reason.main_btn.color = (1, 1, 1, 1)
-            self.market_visit_reason.main_btn.font_size = sp(17)
-            content.add_widget(self.market_visit_reason)
-
-            # ========== ۵- توضیحات سوپروایزر ==========
-            content.add_widget(RTLLabel(
-                text='توضیحات سوپروایزر:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_supervisor_note = RTLTextInput(
-                hint_text='توضیحات را وارد کنید...',
-                multiline=True,
-                size_hint_y=None,
-                height=dp(70),
-                font_size=sp(17)
-            )
-            self.market_supervisor_note.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_supervisor_note.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_supervisor_note.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_supervisor_note._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(self.market_supervisor_note)
-
-            # ========== ۶- وضعیت مشتری ==========
-            content.add_widget(RTLLabel(
-                text='وضعیت مشتری:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_customer_status = PersianComboBox(
-                text=CUSTOMER_STATUSES[0],
-                values=CUSTOMER_STATUSES,
-                height=dp(55)
-            )
-            self.market_customer_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_customer_status.main_btn.color = (1, 1, 1, 1)
-            self.market_customer_status.main_btn.font_size = sp(17)
-            content.add_widget(self.market_customer_status)
-
-            # ========== ۷- وضعیت حضور در شلف ==========
-            content.add_widget(RTLLabel(
-                text='وضعیت حضور در شلف:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_shelf_status = PersianComboBox(
-                text=SHELF_STATUSES[0],
-                values=SHELF_STATUSES,
-                height=dp(55)
-            )
-            self.market_shelf_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_shelf_status.main_btn.color = (1, 1, 1, 1)
-            self.market_shelf_status.main_btn.font_size = sp(17)
-            content.add_widget(self.market_shelf_status)
-
-            # ========== ۸- تعداد سرکشی بازاریابان ==========
-            content.add_widget(RTLLabel(
-                text='تعداد سرکشی بازاریابان در ماه:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_monthly_visits = PersianComboBox(
-                text=MONTHLY_VISITS[0],
-                values=MONTHLY_VISITS,
-                height=dp(55)
-            )
-            self.market_monthly_visits.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_monthly_visits.main_btn.color = (1, 1, 1, 1)
-            self.market_monthly_visits.main_btn.font_size = sp(17)
-            content.add_widget(self.market_monthly_visits)
-
-            # ========== ۹- آیا میزان سرکشی کافیست؟ ==========
-            content.add_widget(RTLLabel(
-                text='آیا میزان سرکشی کافیست؟:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_visit_sufficient = PersianComboBox(
-                text=VISIT_SUFFICIENT[0],
-                values=VISIT_SUFFICIENT,
-                height=dp(55)
-            )
-            self.market_visit_sufficient.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_visit_sufficient.main_btn.color = (1, 1, 1, 1)
-            self.market_visit_sufficient.main_btn.font_size = sp(17)
-            content.add_widget(self.market_visit_sufficient)
-
-            # ========== ۱۰- میزان خرید مورد انتظار ==========
-            content.add_widget(RTLLabel(
-                text='میزان خرید مورد انتظار:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_expected_purchase = PersianComboBox(
-                text=EXPECTED_PURCHASE[0],
-                values=EXPECTED_PURCHASE,
-                height=dp(55)
-            )
-            self.market_expected_purchase.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_expected_purchase.main_btn.color = (1, 1, 1, 1)
-            self.market_expected_purchase.main_btn.font_size = sp(17)
-            content.add_widget(self.market_expected_purchase)
-
-            # ========== ۱۱- وضعیت موجودی ==========
-            content.add_widget(RTLLabel(
-                text='وضعیت موجودی مشتری:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_inventory_status = PersianComboBox(
-                text=INVENTORY_STATUSES[0],
-                values=INVENTORY_STATUSES,
-                height=dp(55)
-            )
-            self.market_inventory_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_inventory_status.main_btn.color = (1, 1, 1, 1)
-            self.market_inventory_status.main_btn.font_size = sp(17)
-            content.add_widget(self.market_inventory_status)
-
-            # ========== ۱۲- نحوه برخورد بازاریابان ==========
-            content.add_widget(RTLLabel(
-                text='نحوه برخورد بازاریابان:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_agent_behavior = PersianComboBox(
-                text=BEHAVIOR_RATINGS[0],
-                values=BEHAVIOR_RATINGS,
-                height=dp(55)
-            )
-            self.market_agent_behavior.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_agent_behavior.main_btn.color = (1, 1, 1, 1)
-            self.market_agent_behavior.main_btn.font_size = sp(17)
-            content.add_widget(self.market_agent_behavior)
-
-            # ========== ۱۳- نحوه برخورد موزعین ==========
-            content.add_widget(RTLLabel(
-                text='نحوه برخورد موزعین:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_distributor_behavior = PersianComboBox(
-                text=BEHAVIOR_RATINGS[0],
-                values=BEHAVIOR_RATINGS,
-                height=dp(55)
-            )
-            self.market_distributor_behavior.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_distributor_behavior.main_btn.color = (1, 1, 1, 1)
-            self.market_distributor_behavior.main_btn.font_size = sp(17)
-            content.add_widget(self.market_distributor_behavior)
-
-            # ========== ۱۴- میزان رضایتمندی مشتری ==========
-            content.add_widget(RTLLabel(
-                text='میزان رضایتمندی مشتری:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_customer_satisfaction = PersianComboBox(
-                text=SATISFACTION_RATINGS[0],
-                values=SATISFACTION_RATINGS,
-                height=dp(55)
-            )
-            self.market_customer_satisfaction.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_customer_satisfaction.main_btn.color = (1, 1, 1, 1)
-            self.market_customer_satisfaction.main_btn.font_size = sp(17)
-            content.add_widget(self.market_customer_satisfaction)
-
-            # ========== ۱۵- نظرات مشتری ==========
-            content.add_widget(RTLLabel(
-                text='نظرات مشتری:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_customer_feedback = RTLTextInput(
-                hint_text='حداکثر ۱۰۰۰ کاراکتر...',
-                multiline=True,
-                size_hint_y=None,
-                height=dp(70),
-                font_size=sp(17)
-            )
-            self.market_customer_feedback.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_customer_feedback.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_customer_feedback.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_customer_feedback._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(self.market_customer_feedback)
-
-            # ========== ۱۶- میزان تحقق هدف سرکشی ==========
-            content.add_widget(RTLLabel(
-                text='میزان تحقق هدف سرکشی:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_target_achievement = PersianComboBox(
-                text=TARGET_ACHIEVEMENTS[0],
-                values=TARGET_ACHIEVEMENTS,
-                height=dp(55)
-            )
-            self.market_target_achievement.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_target_achievement.main_btn.color = (1, 1, 1, 1)
-            self.market_target_achievement.main_btn.font_size = sp(17)
-            content.add_widget(self.market_target_achievement)
-
-            # ========== ۱۷- نظریه سوپروایزر ==========
-            content.add_widget(RTLLabel(
-                text='نظریه سوپروایزر:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_supervisor_opinion = RTLTextInput(
-                hint_text='حداکثر ۱۵۰۰ کاراکتر...',
-                multiline=True,
-                size_hint_y=None,
-                height=dp(70),
-                font_size=sp(17)
-            )
-            self.market_supervisor_opinion.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_supervisor_opinion.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_supervisor_opinion.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_supervisor_opinion._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(self.market_supervisor_opinion)
-
-            # ========== ۱۸- آیا پیگیری مجدد نیاز است؟ ==========
-            content.add_widget(RTLLabel(
-                text='آیا پیگیری مجدد نیاز است؟:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_need_followup = PersianComboBox(
-                text=YES_NO_OPTIONS[0],
-                values=YES_NO_OPTIONS,
-                height=dp(55)
-            )
-            self.market_need_followup.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            self.market_need_followup.main_btn.color = (1, 1, 1, 1)
-            self.market_need_followup.main_btn.font_size = sp(17)
-            
-            content.add_widget(self.market_need_followup)
-
-            # ========== ۱۹- تاریخ مراجعه بعدی ==========
-            content.add_widget(RTLLabel(
-                text='تاریخ مراجعه بعدی:',
-                size_hint_y=None,
-                height=dp(28),
-                font_size=sp(15),
-                color=(1, 1, 1, 1)
-            ))
-
-            self.market_next_visit_date = RTLTextInput(
-                text='',
-                hint_text='سال/ماه/روز',
-                multiline=False,
+            # ========== دکمه انتخاب مشتری ==========
+            select_customer_btn = PersianButton(
+                text='انتخاب مشتری',
+                background_color=(0.2, 0.5, 0.9, 1),
                 size_hint_y=None,
                 height=dp(55),
-                font_size=sp(20)
+                color=(1, 1, 1, 1),
+                font_size=sp(20),
+                bold=True
             )
-            self.market_next_visit_date.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_next_visit_date.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_next_visit_date.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_next_visit_date._hidden_input.foreground_color = (1, 1, 1, 1)
-            content.add_widget(self.market_next_visit_date)
+            select_customer_btn.bind(on_press=self.show_market_customer_selection_dialog)
+            content.add_widget(select_customer_btn)
 
-            # ========== دکمه ثبت ==========
-            btn_layout = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+            # ========== نمایش مشتری انتخاب شده ==========
+            self.market_selected_customer_label = RTLLabel(
+                text='مشتری انتخاب شده: هیچ',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18),
+                color=(0.5, 0.5, 0.5, 1),
+                bold=True
+            )
+            content.add_widget(self.market_selected_customer_label)
 
-            submit_btn = PersianButton(
-                text='ثبت سرکشی',
-                background_color=(0.2, 0.7, 0.2, 1),
+            # ========== دکمه بازگشت ==========
+            back_btn = PersianButton(
+                text='بازگشت',
+                background_color=(0.3, 0.3, 0.3, 1),
                 size_hint_y=None,
                 height=dp(45),
                 color=(1, 1, 1, 1),
-                font_size=sp(17)
+                font_size=sp(16)
             )
-            submit_btn.bind(on_press=self.submit_market_check)
-            btn_layout.add_widget(submit_btn)
-
-            report_btn = PersianButton(
-                text='گزارشات',
-                background_color=(0.2, 0.5, 0.8, 1),
-                size_hint_y=None,
-                height=dp(45),
-                color=(1, 1, 1, 1),
-                font_size=sp(17)
-            )
-            report_btn.bind(on_press=self.show_market_reports)
-            btn_layout.add_widget(report_btn)
-
-            content.add_widget(btn_layout)
+            back_btn.bind(on_press=self.go_back)
+            content.add_widget(back_btn)
 
             scroll.add_widget(content)
             self.content_area.add_widget(scroll)
 
-            # ========== مدیریت صحیح Clock events ==========
+            Clock.schedule_interval(self.update_market_time, 60)
+
+            # تنظیم Clock برای تغییر مسیر
+            self._last_market_route_text = self.market_route_spinner.text
+            event = Clock.schedule_interval(self._check_market_route_change, 0.5)
             if not hasattr(self, '_clock_events'):
                 self._clock_events = []
-            
-            self._last_market_route_text = self.market_route_spinner.text
-            self._last_followup_text = self.market_need_followup.text
-            
-            event1 = Clock.schedule_interval(self._check_market_route_change, 0.5)
-            event2 = Clock.schedule_interval(self._check_followup_change, 0.5)
-            self._clock_events.extend([event1, event2])
-
-            Clock.schedule_once(lambda dt: self.update_market_customers(), 0.2)
+            self._clock_events.append(event)
 
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در نمایش تب بررسی بازار: {e}", error_details)
 
+
+    def update_market_time(self, dt):
+        """بروزرسانی ساعت در تب بازار"""
+        if hasattr(self, 'market_time_label'):
+            self.market_time_label.text = f'ساعت: {get_current_time()}'
+
+
     def _check_market_route_change(self, dt):
-        """بررسی تغییر مسیر در تب بررسی بازار با Clock"""
-        if not hasattr(self, '_last_market_route_text'):
-            self._last_market_route_text = ''
-        
+        """بررسی تغییر مسیر در تب بررسی بازار - بدون قفل"""
         if not hasattr(self, 'market_route_spinner'):
             return
-        
         try:
             current_text = self.market_route_spinner.text
-            if current_text != self._last_market_route_text:
+            if current_text != self._last_market_route_text and current_text and current_text != '':
                 self._last_market_route_text = current_text
-                self.update_market_customers()
+                # ✅ فقط مسیر را بروزرسانی کن، بدون قفل و بدون دیالوگ تأیید
+                self.show_message('اطلاع', f'مسیر "{current_text}" انتخاب شد.')
         except Exception as e:
             print(f"خطا در _check_market_route_change: {e}")
 
-    def _check_followup_change(self, dt):
-        """بررسی تغییر گزینه نیاز به پیگیری"""
-        if not hasattr(self, '_last_followup_text'):
-            self._last_followup_text = ''
-        
-        if not hasattr(self, 'market_need_followup') or not hasattr(self, 'market_next_visit_date'):
-            return
-        
+    # ============================================================
+    # دیالوگ افزودن مشتری برای سوپروایزر
+    # ============================================================
+
+    def show_add_customer_dialog(self, instance):
+        """دیالوگ افزودن مشتری جدید برای سوپروایزر"""
         try:
-            current_text = self.market_need_followup.text
-            
-            if current_text != self._last_followup_text:
-                self._last_followup_text = current_text
-                
-                if current_text == 'بله' and not self.market_next_visit_date.text:
-                    self.market_next_visit_date.text = get_today_jalali()
+            from utils.file_manager import get_routes, get_customers, add_customer
+
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(10))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                        size=lambda i, v: setattr(content_rect, 'size', v))
+
+            content.add_widget(RTLLabel(
+                text='افزودن مشتری جدید',
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(22),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+
+            content.add_widget(RTLLabel(
+                text='انتخاب مسیر:',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+
+            routes = get_routes()
+            if routes:
+                route_names = [r.get('name', '') for r in routes]
+            else:
+                route_names = ['ابتدا مسیر ایجاد کنید']
+
+            default_route = self.market_route_spinner.text if hasattr(self, 'market_route_spinner') and self.market_route_spinner.text else route_names[0]
+
+            customer_route_spinner = PersianComboBox(
+                text=default_route if default_route in route_names else route_names[0],
+                values=route_names,
+                height=dp(60)
+            )
+            customer_route_spinner.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            customer_route_spinner.main_btn.color = (1, 1, 1, 1)
+            customer_route_spinner.main_btn.font_size = sp(18)
+            content.add_widget(customer_route_spinner)
+
+            content.add_widget(RTLLabel(
+                text='نام مشتری (الزامی):',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            customer_name_input = RTLTextInput(
+                hint_text='نام مشتری را وارد کنید',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(22)
+            )
+            customer_name_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_name_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_name_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_name_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_name_input)
+
+            content.add_widget(RTLLabel(
+                text='نام فروشگاه:',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            customer_store_input = RTLTextInput(
+                hint_text='نام فروشگاه را وارد کنید (اختیاری)',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(22)
+            )
+            customer_store_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_store_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_store_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_store_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_store_input)
+
+            content.add_widget(RTLLabel(
+                text='موبایل (الزامی):',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            customer_mobile_input = RTLTextInput(
+                hint_text='شماره موبایل را وارد کنید (11 رقم)',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(22)
+            )
+            customer_mobile_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_mobile_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_mobile_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_mobile_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            customer_mobile_input._hidden_input.input_filter = 'int'
+            content.add_widget(customer_mobile_input)
+
+            content.add_widget(RTLLabel(
+                text='آدرس:',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(16),
+                color=(1, 1, 1, 1)
+            ))
+            customer_address_input = RTLTextInput(
+                hint_text='آدرس را وارد کنید (اختیاری)',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(22)
+            )
+            customer_address_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_address_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_address_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_address_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_address_input)
+
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+
+            submit_btn = PersianButton(
+                text='افزودن مشتری',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(18)
+            )
+
+            btn_layout.add_widget(submit_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+
+            popup = PersianPopup(
+                title='افزودن مشتری',
+                content=content,
+                size_hint=(0.9, 0.75),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+
+            def do_add_customer(instance):
+                try:
+                    route_name = customer_route_spinner.text
+                    if route_name == 'ابتدا مسیر ایجاد کنید':
+                        self.show_message('خطا', 'لطفاً ابتدا یک مسیر ایجاد کنید')
+                        return
+
+                    name = customer_name_input.text.strip()
+                    if not name:
+                        self.show_message('خطا', 'نام مشتری الزامی است')
+                        customer_name_input._hidden_input.focus = True
+                        return
+
+                    mobile = customer_mobile_input.text.strip()
+                    if not mobile:
+                        self.show_message('خطا', 'شماره موبایل الزامی است')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+
+                    mobile_clean = mobile.replace(' ', '').replace('-', '').replace('_', '')
+                    if not mobile_clean.isdigit():
+                        self.show_message('خطا', 'شماره موبایل باید فقط شامل عدد باشد')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+                    
+                    if len(mobile_clean) != 11:
+                        self.show_message('خطا', 'شماره موبایل باید ۱۱ رقم باشد')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+                    
+                    if not mobile_clean.startswith('09'):
+                        self.show_message('خطا', 'شماره موبایل باید با 09 شروع شود')
+                        customer_mobile_input._hidden_input.focus = True
+                        return
+
+                    all_customers = get_customers()
+                    for c in all_customers:
+                        if c.get('name', '').strip() == name:
+                            self.show_message('خطا', f'مشتری با نام "{name}" قبلاً ثبت شده است')
+                            customer_name_input._hidden_input.focus = True
+                            return
+                        
+                        existing_mobile = c.get('mobile', '').strip()
+                        if existing_mobile and existing_mobile == mobile_clean:
+                            self.show_message('خطا', f'شماره موبایل "{mobile_clean}" قبلاً برای مشتری "{c.get("name")}" ثبت شده است')
+                            customer_mobile_input._hidden_input.focus = True
+                            return
+
+                    customer = {
+                        'name': name,
+                        'store_name': customer_store_input.text.strip(),
+                        'route_name': route_name,
+                        'mobile': mobile_clean,
+                        'address': customer_address_input.text.strip()
+                    }
+                    
+                    add_customer(customer)
+                    popup.dismiss()
+                    self.show_message('موفق', f'مشتری "{name}" با موفقیت اضافه شد')
+                    
+                except Exception as e:
+                    error_details = traceback.format_exc()
+                    ErrorPopup.show_error(f"خطا در افزودن مشتری: {e}", error_details)
+
+            def cancel_add(instance):
+                popup.dismiss()
+
+            submit_btn.bind(on_press=do_add_customer)
+            cancel_btn.bind(on_press=cancel_add)
+            popup.open()
+
         except Exception as e:
-            print(f"خطا در _check_followup_change: {e}")
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ افزودن مشتری: {e}", error_details)
 
-    def update_market_customers(self):
-        """به‌روزرسانی لیست مشتریان بر اساس مسیر انتخاب شده"""
+    def show_market_route_confirm_dialog(self, route_name):
+        """دیالوگ تأیید مسیر برای بررسی بازار - بدون قفل شدن"""
         try:
-            if not hasattr(self, 'market_route_spinner') or not hasattr(self, 'market_customer_spinner'):
-                return
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.15, 0.15, 0.15, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                            size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text=f'آیا قصد بررسی مسیر "{route_name}" را دارید؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(1, 1, 1, 1)
+            ))
+            
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+            yes_btn = PersianButton(
+                text='بله',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            no_btn = PersianButton(
+                text='خیر',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            btn_layout.add_widget(yes_btn)
+            btn_layout.add_widget(no_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='تأیید مسیر',
+                content=content,
+                size_hint=(0.85, 0.35),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def on_yes(instance):
+                popup.dismiss()
+                # ✅ حذف قفل کردن مسیر - سوپروایزر می‌تواند چند مسیر را بررسی کند
+                self.show_message('اطلاع', f'مسیر "{route_name}" انتخاب شد. حالا مشتری را انتخاب کنید.')
+            
+            def on_no(instance):
+                popup.dismiss()
+                self.market_route_spinner.text = ''
+                self._last_market_route_text = ''
+            
+            yes_btn.bind(on_press=on_yes)
+            no_btn.bind(on_press=on_no)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ تأیید مسیر: {e}", error_details)
 
+
+    def show_market_customer_selection_dialog(self, instance):
+        """نمایش دیالوگ انتخاب مشتری برای بررسی بازار"""
+        try:
             selected_route = self.market_route_spinner.text
+            
+            if not selected_route:
+                self.show_message('خطا', 'لطفاً ابتدا یک مسیر انتخاب کنید')
+                return
+            
             all_customers = get_customers()
-
-            filtered = []
+            filtered_customers = []
             for c in all_customers:
                 if c.get('route_name', '').strip() == selected_route.strip():
-                    filtered.append(c.get('name', ''))
+                    filtered_customers.append(c.get('name', ''))
+            
+            if not filtered_customers:
+                self.show_message('توجه', 'هیچ مشتری‌ای در این مسیر یافت نشد')
+                return
+            
+            content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                            size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            title_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(60))
+            title_layout.add_widget(RTLLabel(
+                text=f'انتخاب مشتری - {selected_route}',
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(18),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            title_layout.add_widget(RTLLabel(
+                text='مشتریان آبی رنگ امروز بررسی شده‌اند',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(15),
+                color=(0.6, 0.6, 0.6, 1)
+            ))
+            content.add_widget(title_layout)
+            
+            search_input = RTLTextInput(
+                hint_text='جستجوی مشتری...',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(24)
+            )
+            search_input.bg_color = (0.15, 0.15, 0.15, 1)
+            search_input.border_color = (0.3, 0.3, 0.3, 1)
+            search_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            search_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(search_input)
+            
+            customers_scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint_y=0.65,
+                scroll_type=['bars', 'content'],
+                bar_width=dp(6)
+            )
+            customers_grid = GridLayout(cols=1, spacing=dp(4), size_hint_y=None, padding=dp(5))
+            customers_grid.bind(minimum_height=customers_grid.setter('height'))
+            
+            def filter_customers(text):
+                customers_grid.clear_widgets()
+                search_text = text.strip()
+                for customer in filtered_customers:
+                    if search_text and search_text not in customer:
+                        continue
+                    customer_btn = PersianButton(
+                        text=customer,
+                        size_hint_y=None,
+                        height=dp(45),
+                        background_color=(0.2, 0.2, 0.2, 1),
+                        color=(1, 1, 1, 1),
+                        font_size=sp(18)
+                    )
+                    customer_btn.bind(
+                        on_press=lambda x, name=customer: self._handle_market_customer_selection(name)
+                    )
+                    customers_grid.add_widget(customer_btn)
+                customers_grid.height = len(customers_grid.children) * dp(50) + dp(10)
+            
+            search_input._hidden_input.bind(text=lambda i, v: filter_customers(v))
+            filter_customers('')
+            customers_scroll.add_widget(customers_grid)
+            content.add_widget(customers_scroll)
+            
+            close_btn = PersianButton(
+                text='بستن',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            content.add_widget(close_btn)
+            
+            popup = PersianPopup(
+                title='انتخاب مشتری',
+                content=content,
+                size_hint=(0.9, 0.75),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=True
+            )
+            self.market_customer_popup = popup
+            close_btn.bind(on_press=popup.dismiss)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ انتخاب مشتری: {e}", error_details)
 
-            if filtered:
-                self.market_customer_spinner.values = filtered
-                self.market_customer_spinner.text = filtered[0] if filtered else ''
-            else:
-                self.market_customer_spinner.values = ['مشتری‌ای یافت نشد']
-                self.market_customer_spinner.text = 'مشتری‌ای یافت نشد'
+
+    def _handle_market_customer_selection(self, customer_name):
+        """مدیریت انتخاب مشتری و نمایش دیالوگ بررسی بازار"""
+        try:
+            if hasattr(self, 'market_customer_popup'):
+                self.market_customer_popup.dismiss()
+            
+            self.market_selected_customer = customer_name
+            self.market_selected_customer_label.text = f'مشتری انتخاب شده: {customer_name}'
+            self.market_selected_customer_label.color = (0.2, 0.8, 0.4, 1)
+            
+            self.show_market_check_dialog(customer_name)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در انتخاب مشتری: {e}", error_details)
+
+
+    def show_market_check_dialog(self, customer_name):
+        """نمایش دیالوگ بررسی بازار با اسکرول و ساختار جابجا شده"""
+        try:
+            from constants import (
+                VISIT_TYPES, VISIT_REASONS, CUSTOMER_STATUSES,
+                SHELF_STATUSES, MONTHLY_VISITS, VISIT_SUFFICIENT,
+                EXPECTED_PURCHASE, INVENTORY_STATUSES, BEHAVIOR_RATINGS,
+                SATISFACTION_RATINGS, TARGET_ACHIEVEMENTS, YES_NO_OPTIONS
+            )
+
+            # ========== کانتینر اصلی با اسکرول ==========
+            main_container = BoxLayout(orientation='vertical', spacing=dp(3))
+            
+            # ========== عنوان (کوچک‌تر) ==========
+            title_box = BoxLayout(
+                size_hint_y=None, 
+                height=dp(32), 
+                spacing=dp(5),
+                padding=[dp(5), dp(2), dp(5), dp(2)]
+            )
+            with title_box.canvas.before:
+                Color(0.15, 0.2, 0.3, 1)
+                rect = Rectangle(pos=title_box.pos, size=title_box.size)
+                title_box.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+            
+            title_box.add_widget(RTLLabel(
+                text=f'📋 بررسی بازار',
+                size_hint_x=0.4,
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(16),
+                bold=True,
+                color=(0.4, 0.8, 1, 1)
+            ))
+            
+            title_box.add_widget(RTLLabel(
+                text=f'{customer_name}',
+                size_hint_x=0.6,
+                size_hint_y=None,
+                height=dp(30),
+                font_size=sp(14),
+                color=(1, 1, 1, 1),
+                halign='left'
+            ))
+            
+            main_container.add_widget(title_box)
+
+            # ========== اسکرول ==========
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint=(1, 1),
+                scroll_type=['bars', 'content'],
+                bar_width=dp(6),
+                bar_color=(0.3, 0.5, 0.8, 0.8),
+                bar_inactive_color=(0.2, 0.2, 0.2, 0.5)
+            )
+
+            content = BoxLayout(
+                orientation='vertical',
+                padding=dp(8),
+                spacing=dp(5),
+                size_hint_y=None
+            )
+            content.bind(minimum_height=content.setter('height'))
+            
+            # ============================================================
+            # ساختار با جابجایی لیبل و فیلد (فیلد در سمت راست، لیبل در سمت چپ)
+            # ============================================================
+            
+            def make_row(label_text, widget, height=dp(48)):
+                """ساخت یک ردیف با لیبل و فیلد"""
+                row = BoxLayout(size_hint_y=None, height=height, spacing=dp(6))
+                row.add_widget(widget)  # فیلد اول
+                row.add_widget(RTLLabel(
+                    text=label_text,
+                    size_hint_x=0.28,
+                    size_hint_y=None,
+                    height=height,
+                    font_size=sp(12),
+                    color=(1, 1, 1, 1),
+                    halign='right'
+                ))
+                return row
+
+            # ۱- نحوه سرکشی
+            self.market_dialog_visit_type = PersianComboBox(
+                text=VISIT_TYPES[0],
+                values=VISIT_TYPES,
+                height=dp(44)
+            )
+            self.market_dialog_visit_type.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_visit_type.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_visit_type.main_btn.font_size = sp(15)
+            self.market_dialog_visit_type.size_hint_x = 0.72
+            content.add_widget(make_row('نحوه سرکشی:', self.market_dialog_visit_type))
+
+            # ۲- علت سرکشی
+            self.market_dialog_visit_reason = PersianComboBox(
+                text=VISIT_REASONS[0],
+                values=VISIT_REASONS,
+                height=dp(44)
+            )
+            self.market_dialog_visit_reason.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_visit_reason.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_visit_reason.main_btn.font_size = sp(15)
+            self.market_dialog_visit_reason.size_hint_x = 0.72
+            content.add_widget(make_row('علت سرکشی:', self.market_dialog_visit_reason))
+
+            # ۳- توضیحات سوپروایزر
+            self.market_dialog_supervisor_note = RTLTextInput(
+                hint_text='توضیحات را وارد کنید...',
+                multiline=True,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(15)
+            )
+            self.market_dialog_supervisor_note.bg_color = (0.15, 0.15, 0.15, 1)
+            self.market_dialog_supervisor_note.border_color = (0.3, 0.3, 0.3, 1)
+            self.market_dialog_supervisor_note.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.market_dialog_supervisor_note._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.market_dialog_supervisor_note.size_hint_x = 0.72
+            content.add_widget(make_row('توضیحات سوپروایزر:', self.market_dialog_supervisor_note, height=dp(70)))
+
+            # ۴- وضعیت مشتری
+            self.market_dialog_customer_status = PersianComboBox(
+                text=CUSTOMER_STATUSES[0],
+                values=CUSTOMER_STATUSES,
+                height=dp(44)
+            )
+            self.market_dialog_customer_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_customer_status.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_customer_status.main_btn.font_size = sp(15)
+            self.market_dialog_customer_status.size_hint_x = 0.72
+            content.add_widget(make_row('وضعیت مشتری:', self.market_dialog_customer_status))
+
+            # ۵- وضعیت حضور در شلف
+            self.market_dialog_shelf_status = PersianComboBox(
+                text=SHELF_STATUSES[0],
+                values=SHELF_STATUSES,
+                height=dp(44)
+            )
+            self.market_dialog_shelf_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_shelf_status.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_shelf_status.main_btn.font_size = sp(15)
+            self.market_dialog_shelf_status.size_hint_x = 0.72
+            content.add_widget(make_row('وضعیت حضور در شلف:', self.market_dialog_shelf_status))
+
+            # ۶- تعداد سرکشی بازاریابان در ماه
+            self.market_dialog_monthly_visits = PersianComboBox(
+                text=MONTHLY_VISITS[0],
+                values=MONTHLY_VISITS,
+                height=dp(44)
+            )
+            self.market_dialog_monthly_visits.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_monthly_visits.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_monthly_visits.main_btn.font_size = sp(15)
+            self.market_dialog_monthly_visits.size_hint_x = 0.72
+            content.add_widget(make_row('تعداد سرکشی در ماه:', self.market_dialog_monthly_visits))
+
+            # ۷- آیا میزان سرکشی کافیست؟
+            self.market_dialog_visit_sufficient = PersianComboBox(
+                text=VISIT_SUFFICIENT[0],
+                values=VISIT_SUFFICIENT,
+                height=dp(44)
+            )
+            self.market_dialog_visit_sufficient.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_visit_sufficient.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_visit_sufficient.main_btn.font_size = sp(15)
+            self.market_dialog_visit_sufficient.size_hint_x = 0.72
+            content.add_widget(make_row('آیا سرکشی کافیست؟:', self.market_dialog_visit_sufficient))
+
+            # ۸- میزان خرید مورد انتظار
+            self.market_dialog_expected_purchase = PersianComboBox(
+                text=EXPECTED_PURCHASE[0],
+                values=EXPECTED_PURCHASE,
+                height=dp(44)
+            )
+            self.market_dialog_expected_purchase.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_expected_purchase.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_expected_purchase.main_btn.font_size = sp(15)
+            self.market_dialog_expected_purchase.size_hint_x = 0.72
+            content.add_widget(make_row('خرید مورد انتظار:', self.market_dialog_expected_purchase))
+
+            # ۹- وضعیت موجودی
+            self.market_dialog_inventory_status = PersianComboBox(
+                text=INVENTORY_STATUSES[0],
+                values=INVENTORY_STATUSES,
+                height=dp(44)
+            )
+            self.market_dialog_inventory_status.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_inventory_status.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_inventory_status.main_btn.font_size = sp(15)
+            self.market_dialog_inventory_status.size_hint_x = 0.72
+            content.add_widget(make_row('وضعیت موجودی:', self.market_dialog_inventory_status))
+
+            # ۱۰- نحوه برخورد بازاریابان
+            self.market_dialog_agent_behavior = PersianComboBox(
+                text=BEHAVIOR_RATINGS[0],
+                values=BEHAVIOR_RATINGS,
+                height=dp(44)
+            )
+            self.market_dialog_agent_behavior.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_agent_behavior.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_agent_behavior.main_btn.font_size = sp(15)
+            self.market_dialog_agent_behavior.size_hint_x = 0.72
+            content.add_widget(make_row('برخورد بازاریاب:', self.market_dialog_agent_behavior))
+
+            # ۱۱- نحوه برخورد موزعین
+            self.market_dialog_distributor_behavior = PersianComboBox(
+                text=BEHAVIOR_RATINGS[0],
+                values=BEHAVIOR_RATINGS,
+                height=dp(44)
+            )
+            self.market_dialog_distributor_behavior.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_distributor_behavior.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_distributor_behavior.main_btn.font_size = sp(15)
+            self.market_dialog_distributor_behavior.size_hint_x = 0.72
+            content.add_widget(make_row('برخورد موزع:', self.market_dialog_distributor_behavior))
+
+            # ۱۲- میزان رضایتمندی مشتری
+            self.market_dialog_customer_satisfaction = PersianComboBox(
+                text=SATISFACTION_RATINGS[0],
+                values=SATISFACTION_RATINGS,
+                height=dp(44)
+            )
+            self.market_dialog_customer_satisfaction.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_customer_satisfaction.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_customer_satisfaction.main_btn.font_size = sp(15)
+            self.market_dialog_customer_satisfaction.size_hint_x = 0.72
+            content.add_widget(make_row('رضایتمندی مشتری:', self.market_dialog_customer_satisfaction))
+
+            # ۱۳- نظرات مشتری
+            self.market_dialog_customer_feedback = RTLTextInput(
+                hint_text='حداکثر ۱۰۰۰ کاراکتر...',
+                multiline=True,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(15)
+            )
+            self.market_dialog_customer_feedback.bg_color = (0.15, 0.15, 0.15, 1)
+            self.market_dialog_customer_feedback.border_color = (0.3, 0.3, 0.3, 1)
+            self.market_dialog_customer_feedback.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.market_dialog_customer_feedback._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.market_dialog_customer_feedback.size_hint_x = 0.72
+            content.add_widget(make_row('نظرات مشتری:', self.market_dialog_customer_feedback, height=dp(70)))
+
+            # ۱۴- میزان تحقق هدف سرکشی
+            self.market_dialog_target_achievement = PersianComboBox(
+                text=TARGET_ACHIEVEMENTS[0],
+                values=TARGET_ACHIEVEMENTS,
+                height=dp(44)
+            )
+            self.market_dialog_target_achievement.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_target_achievement.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_target_achievement.main_btn.font_size = sp(15)
+            self.market_dialog_target_achievement.size_hint_x = 0.72
+            content.add_widget(make_row('تحقق هدف سرکشی:', self.market_dialog_target_achievement))
+
+            # ۱۵- نظریه سوپروایزر
+            self.market_dialog_supervisor_opinion = RTLTextInput(
+                hint_text='حداکثر ۱۵۰۰ کاراکتر...',
+                multiline=True,
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(15)
+            )
+            self.market_dialog_supervisor_opinion.bg_color = (0.15, 0.15, 0.15, 1)
+            self.market_dialog_supervisor_opinion.border_color = (0.3, 0.3, 0.3, 1)
+            self.market_dialog_supervisor_opinion.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.market_dialog_supervisor_opinion._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.market_dialog_supervisor_opinion.size_hint_x = 0.72
+            content.add_widget(make_row('نظریه سوپروایزر:', self.market_dialog_supervisor_opinion, height=dp(70)))
+
+            # ۱۶- آیا پیگیری مجدد نیاز است؟
+            self.market_dialog_need_followup = PersianComboBox(
+                text=YES_NO_OPTIONS[0],
+                values=YES_NO_OPTIONS,
+                height=dp(44)
+            )
+            self.market_dialog_need_followup.main_btn.background_color = (0.2, 0.2, 0.2, 1)
+            self.market_dialog_need_followup.main_btn.color = (1, 1, 1, 1)
+            self.market_dialog_need_followup.main_btn.font_size = sp(15)
+            self.market_dialog_need_followup.size_hint_x = 0.72
+            content.add_widget(make_row('نیاز به پیگیری:', self.market_dialog_need_followup))
+
+            # ۱۷- تاریخ مراجعه بعدی
+            self.market_dialog_next_visit_date = RTLTextInput(
+                text='',
+                hint_text='سال/ماه/روز',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(44),
+                font_size=sp(18)
+            )
+            self.market_dialog_next_visit_date.bg_color = (0.15, 0.15, 0.15, 1)
+            self.market_dialog_next_visit_date.border_color = (0.3, 0.3, 0.3, 1)
+            self.market_dialog_next_visit_date.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.market_dialog_next_visit_date._hidden_input.foreground_color = (1, 1, 1, 1)
+            self.market_dialog_next_visit_date.size_hint_x = 0.72
+            content.add_widget(make_row('تاریخ مراجعه بعدی:', self.market_dialog_next_visit_date))
+
+            # ============================================================
+            # افزودن محتوا به اسکرول
+            # ============================================================
+            scroll.add_widget(content)
+            main_container.add_widget(scroll)
+
+            # ========== دکمه‌ها (خارج از اسکرول) ==========
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8), padding=dp(4))
+
+            submit_btn = PersianButton(
+                text='ثبت سرکشی',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            submit_btn.bind(on_press=lambda x: self._submit_market_check_dialog(customer_name))
+            btn_layout.add_widget(submit_btn)
+
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            cancel_btn.bind(on_press=self._close_market_dialog)
+            btn_layout.add_widget(cancel_btn)
+
+            main_container.add_widget(btn_layout)
+
+            popup = PersianPopup(
+                title='بررسی بازار',
+                content=main_container,
+                size_hint=(0.92, 0.82),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+
+            self._market_dialog_popup = popup
+            popup.open()
 
         except Exception as e:
-            print(f"خطا در به‌روزرسانی مشتریان: {e}")
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ بررسی بازار: {e}", error_details)
 
-    def submit_market_check(self, instance):
-        """ثبت سرکشی بررسی بازار - با ذخیره نام کاربر"""
+
+    def _submit_market_check_dialog(self, customer_name):
+        """ثبت سرکشی از دیالوگ بررسی بازار"""
         try:
             from utils.supervisor_visits_manager import create_supervisor_visit
             from kivy.app import App
-            
-            # ✅ دریافت نام کاربر جاری
+            from utils.jalali_date import validate_jalali_date
+
+            # دریافت نام کاربر جاری
             app = App.get_running_app()
             current_username = app.current_username if hasattr(app, 'current_username') else ''
-            
-            # اگر خالی بود، از user_manager بگیر
+
             if not current_username:
                 try:
                     from utils.user_manager import get_current_user
@@ -4569,41 +5004,36 @@ class SupervisorScreen(Screen):
                         current_username = user.get('username', '') or user.get('name', '')
                 except:
                     pass
-            
-            # اگر باز هم خالی بود، از 'supervisor' استفاده کن
+
             if not current_username:
                 current_username = 'supervisor'
 
             data = {
                 'route': self.market_route_spinner.text,
-                'customer': self.market_customer_spinner.text,
-                'visit_type': self.market_visit_type.text,
-                'visit_reason': self.market_visit_reason.text,
-                'supervisor_note': self.market_supervisor_note.text.strip(),
-                'customer_status': self.market_customer_status.text,
-                'shelf_status': self.market_shelf_status.text,
-                'monthly_visits': self.market_monthly_visits.text,
-                'visit_sufficient': self.market_visit_sufficient.text,
-                'expected_purchase': self.market_expected_purchase.text,
-                'inventory_status': self.market_inventory_status.text,
-                'agent_behavior': self.market_agent_behavior.text,
-                'distributor_behavior': self.market_distributor_behavior.text,
-                'customer_satisfaction': self.market_customer_satisfaction.text,
-                'customer_feedback': self.market_customer_feedback.text.strip(),
-                'target_achievement': self.market_target_achievement.text,
-                'supervisor_opinion': self.market_supervisor_opinion.text.strip(),
-                'need_followup': self.market_need_followup.text,
-                'next_visit_date': self.market_next_visit_date.text.strip(),
-                'created_by': current_username,  # ✅ اضافه شد
-                'agent_name': current_username   # ✅ اضافه شد برای هماهنگی
+                'customer': customer_name,
+                'visit_type': self.market_dialog_visit_type.text,
+                'visit_reason': self.market_dialog_visit_reason.text,
+                'supervisor_note': self.market_dialog_supervisor_note.text.strip(),
+                'customer_status': self.market_dialog_customer_status.text,
+                'shelf_status': self.market_dialog_shelf_status.text,
+                'monthly_visits': self.market_dialog_monthly_visits.text,
+                'visit_sufficient': self.market_dialog_visit_sufficient.text,
+                'expected_purchase': self.market_dialog_expected_purchase.text,
+                'inventory_status': self.market_dialog_inventory_status.text,
+                'agent_behavior': self.market_dialog_agent_behavior.text,
+                'distributor_behavior': self.market_dialog_distributor_behavior.text,
+                'customer_satisfaction': self.market_dialog_customer_satisfaction.text,
+                'customer_feedback': self.market_dialog_customer_feedback.text.strip(),
+                'target_achievement': self.market_dialog_target_achievement.text,
+                'supervisor_opinion': self.market_dialog_supervisor_opinion.text.strip(),
+                'need_followup': self.market_dialog_need_followup.text,
+                'next_visit_date': self.market_dialog_next_visit_date.text.strip(),
+                'created_by': current_username,
+                'agent_name': current_username
             }
 
             if not data['route'] or data['route'] == '':
                 self.show_message('خطا', 'لطفاً یک مسیر را انتخاب کنید')
-                return
-
-            if not data['customer'] or data['customer'] in ['', 'مشتری‌ای یافت نشد']:
-                self.show_message('خطا', 'لطفاً یک مشتری را انتخاب کنید')
                 return
 
             if data['need_followup'] == 'بله':
@@ -4617,10 +5047,13 @@ class SupervisorScreen(Screen):
             success, message, visit = create_supervisor_visit(data)
 
             if success:
-                self.market_supervisor_note.text = ''
-                self.market_customer_feedback.text = ''
-                self.market_supervisor_opinion.text = ''
-                self.market_next_visit_date.text = ''
+                if hasattr(self, '_market_dialog_popup'):
+                    self._market_dialog_popup.dismiss()
+                
+                self.market_selected_customer = None
+                self.market_selected_customer_label.text = 'مشتری انتخاب شده: هیچ'
+                self.market_selected_customer_label.color = (0.5, 0.5, 0.5, 1)
+                
                 self.show_message('موفق', message)
             else:
                 self.show_message('خطا', message)
@@ -4629,330 +5062,11 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ثبت سرکشی: {e}", error_details)
 
-    def show_market_reports(self, instance):
-        """نمایش دیالوگ گزارشات بررسی بازار"""
-        try:
-            from utils.supervisor_visits_manager import get_all_visits, get_visits_filtered, export_visits_to_excel
 
-            content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(6))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
-
-            filter_layout = GridLayout(cols=2, spacing=dp(4), size_hint_y=None, height=dp(140))
-            filter_layout.bind(minimum_height=filter_layout.setter('height'))
-
-            filter_layout.add_widget(RTLLabel(
-                text='مشتری:',
-                size_hint_y=None, height=dp(22), font_size=sp(12), color=(1, 1, 1, 1)
-            ))
-
-            all_customers = get_customers()
-            customer_names = ['همه'] + [c.get('name', '') for c in all_customers] if all_customers else ['همه']
-            filter_customer = PersianComboBox(
-                text='همه', values=customer_names, height=dp(45)
-            )
-            filter_customer.main_btn.background_color = (0.2, 0.2, 0.2, 1)
-            filter_customer.main_btn.color = (1, 1, 1, 1)
-            filter_customer.main_btn.font_size = sp(14)
-            filter_layout.add_widget(filter_customer)
-
-            filter_layout.add_widget(RTLLabel(
-                text='از تاریخ:',
-                size_hint_y=None, height=dp(22), font_size=sp(12), color=(1, 1, 1, 1)
-            ))
-
-            filter_start_date = RTLTextInput(
-                text='', hint_text='سال/ماه/روز', multiline=False,
-                size_hint_y=None, height=dp(45), font_size=sp(16)
-            )
-            filter_start_date.bg_color = (0.15, 0.15, 0.15, 1)
-            filter_start_date.border_color = (0.3, 0.3, 0.3, 1)
-            filter_start_date.border_color_focus = (0.2, 0.5, 0.9, 1)
-            filter_start_date._hidden_input.foreground_color = (1, 1, 1, 1)
-            filter_layout.add_widget(filter_start_date)
-
-            filter_layout.add_widget(RTLLabel(
-                text='تا تاریخ:',
-                size_hint_y=None, height=dp(22), font_size=sp(12), color=(1, 1, 1, 1)
-            ))
-
-            filter_end_date = RTLTextInput(
-                text='', hint_text='سال/ماه/روز', multiline=False,
-                size_hint_y=None, height=dp(45), font_size=sp(16)
-            )
-            filter_end_date.bg_color = (0.15, 0.15, 0.15, 1)
-            filter_end_date.border_color = (0.3, 0.3, 0.3, 1)
-            filter_end_date.border_color_focus = (0.2, 0.5, 0.9, 1)
-            filter_end_date._hidden_input.foreground_color = (1, 1, 1, 1)
-            filter_layout.add_widget(filter_end_date)
-
-            content.add_widget(filter_layout)
-
-            btn_filter_layout = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(4))
-
-            apply_btn = PersianButton(
-                text='اعمال فیلتر', background_color=(0.2, 0.6, 1, 1),
-                size_hint_x=0.5, size_hint_y=None, height=dp(30),
-                color=(1, 1, 1, 1), font_size=sp(12)
-            )
-            btn_filter_layout.add_widget(apply_btn)
-
-            export_btn = PersianButton(
-                text='خروجی اکسل', background_color=(0.2, 0.7, 0.2, 1),
-                size_hint_x=0.5, size_hint_y=None, height=dp(30),
-                color=(1, 1, 1, 1), font_size=sp(12)
-            )
-            btn_filter_layout.add_widget(export_btn)
-
-            content.add_widget(btn_filter_layout)
-
-            list_scroll = ScrollView(do_scroll_x=False, do_scroll_y=True, size_hint_y=0.5)
-
-            list_content = GridLayout(cols=1, spacing=dp(3), size_hint_y=None, padding=dp(3))
-            list_content.bind(minimum_height=list_content.setter('height'))
-
-            visits = get_all_visits()
-
-            if not visits:
-                list_content.add_widget(RTLLabel(
-                    text='هیچ سرکشی ثبت نشده است',
-                    size_hint_y=None, height=dp(30), font_size=sp(13), color=(0.5, 0.5, 0.5, 1)
-                ))
-            else:
-                for visit in visits[:20]:
-                    box = BoxLayout(
-                        size_hint_y=None, height=dp(35), spacing=dp(4),
-                        padding=[dp(3), dp(2), dp(3), dp(2)]
-                    )
-
-                    info = RTLLabel(
-                        text=f"{visit.get('date', '')} | {visit.get('customer', '')} | {visit.get('route', '')}",
-                        size_hint_x=0.7, size_hint_y=None, height=dp(30),
-                        font_size=sp(12), color=(1, 1, 1, 1)
-                    )
-                    box.add_widget(info)
-
-                    detail_btn = PersianButton(
-                        text='جزئیات', size_hint_x=0.3, size_hint_y=None, height=dp(28),
-                        background_color=(0.2, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=sp(11)
-                    )
-                    visit_copy = visit.copy() if isinstance(visit, dict) else visit
-                    detail_btn.bind(on_press=lambda x, v=visit_copy: self._show_visit_detail(v))
-                    box.add_widget(detail_btn)
-
-                    list_content.add_widget(box)
-
-            list_scroll.add_widget(list_content)
-            content.add_widget(list_scroll)
-
-            close_btn = PersianButton(
-                text='بستن', background_color=(0.3, 0.3, 0.3, 1),
-                size_hint_y=None, height=dp(35), color=(1, 1, 1, 1), font_size=sp(14)
-            )
-            content.add_widget(close_btn)
-
-            popup = PersianPopup(
-                title='گزارشات بررسی بازار', content=content,
-                size_hint=(0.92, 0.8), background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
-            )
-
-            def apply_filter(instance):
-                customer = filter_customer.text
-                start_date = filter_start_date.text.strip()
-                end_date = filter_end_date.text.strip()
-
-                filtered = get_visits_filtered(
-                    customer=customer if customer != 'همه' else None,
-                    start_date=start_date if start_date else None,
-                    end_date=end_date if end_date else None
-                )
-
-                list_content.clear_widgets()
-                if not filtered:
-                    list_content.add_widget(RTLLabel(
-                        text='هیچ سرکشی یافت نشد',
-                        size_hint_y=None, height=dp(30), font_size=sp(13), color=(0.5, 0.5, 0.5, 1)
-                    ))
-                else:
-                    for visit in filtered:
-                        box = BoxLayout(
-                            size_hint_y=None, height=dp(35), spacing=dp(4),
-                            padding=[dp(3), dp(2), dp(3), dp(2)]
-                        )
-                        info = RTLLabel(
-                            text=f"{visit.get('date', '')} | {visit.get('customer', '')} | {visit.get('route', '')}",
-                            size_hint_x=0.7, size_hint_y=None, height=dp(30),
-                            font_size=sp(12), color=(1, 1, 1, 1)
-                        )
-                        box.add_widget(info)
-                        detail_btn = PersianButton(
-                            text='جزئیات', size_hint_x=0.3, size_hint_y=None, height=dp(28),
-                            background_color=(0.2, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=sp(11)
-                        )
-                        visit_copy = visit.copy() if isinstance(visit, dict) else visit
-                        detail_btn.bind(on_press=lambda x, v=visit_copy: self._show_visit_detail(v))
-                        box.add_widget(detail_btn)
-                        list_content.add_widget(box)
-
-            def export_excel(instance):
-                customer = filter_customer.text
-                start_date = filter_start_date.text.strip()
-                end_date = filter_end_date.text.strip()
-
-                filtered = get_visits_filtered(
-                    customer=customer if customer != 'همه' else None,
-                    start_date=start_date if start_date else None,
-                    end_date=end_date if end_date else None
-                )
-
-                if not filtered:
-                    self.show_message('خطا', 'هیچ سرکشی برای خروجی وجود ندارد')
-                    return
-
-                success, message, filepath = export_visits_to_excel(filtered)
-                if success:
-                    self.show_message('موفق', message)
-                else:
-                    self.show_message('خطا', message)
-
-            apply_btn.bind(on_press=apply_filter)
-            export_btn.bind(on_press=export_excel)
-            close_btn.bind(on_press=popup.dismiss)
-            popup.open()
-
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش گزارشات: {e}", error_details)
-
-    def _show_visit_detail(self, visit):
-        """نمایش جزئیات کامل یک سرکشی"""
-        try:
-            if not visit or not isinstance(visit, dict):
-                self.show_message('خطا', 'اطلاعات سرکشی موجود نیست')
-                return
-
-            content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(8))
-            with content.canvas.before:
-                Color(0.12, 0.12, 0.12, 1)
-                content_rect = Rectangle(pos=content.pos, size=content.size)
-                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                        size=lambda i, v: setattr(content_rect, 'size', v))
-
-            main_box = BoxLayout(orientation='vertical', size_hint_y=None)
-            main_box.bind(minimum_height=main_box.setter('height'))
-
-            visit_id = visit.get('id', 'نامشخص')
-            main_box.add_widget(RTLLabel(
-                text=f'جزئیات سرکشی - {visit_id}',
-                size_hint_y=None, height=dp(40), font_size=sp(22),
-                bold=True, color=(0.4, 0.7, 1, 1)
-            ))
-
-            table_container = BoxLayout(
-                orientation='vertical', size_hint_y=None,
-                spacing=dp(4), padding=dp(5)
-            )
-            table_container.bind(minimum_height=table_container.setter('height'))
-
-            header_box = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(4))
-            header_box.add_widget(RTLLabel(
-                text='آیتم', size_hint_x=0.4, size_hint_y=None, height=dp(32),
-                font_size=sp(20), bold=True, color=(0.4, 0.7, 1, 1)
-            ))
-            header_box.add_widget(RTLLabel(
-                text='مقدار', size_hint_x=0.6, size_hint_y=None, height=dp(32),
-                font_size=sp(20), bold=True, color=(0.4, 0.7, 1, 1)
-            ))
-            table_container.add_widget(header_box)
-
-            fields = [
-                ('تاریخ', 'date'), ('ساعت', 'time'), ('مسیر', 'route'),
-                ('مشتری', 'customer'), ('نحوه سرکشی', 'visit_type'),
-                ('علت سرکشی', 'visit_reason'), ('وضعیت مشتری', 'customer_status'),
-                ('وضعیت حضور در شلف', 'shelf_status'),
-                ('تعداد سرکشی در ماه', 'monthly_visits'),
-                ('آیا سرکشی کافیست؟', 'visit_sufficient'),
-                ('خرید مورد انتظار', 'expected_purchase'),
-                ('وضعیت موجودی', 'inventory_status'),
-                ('برخورد بازاریاب', 'agent_behavior'),
-                ('برخورد موزع', 'distributor_behavior'),
-                ('رضایتمندی مشتری', 'customer_satisfaction'),
-                ('تحقق هدف سرکشی', 'target_achievement'),
-                ('نیاز به پیگیری', 'need_followup'),
-                ('تاریخ مراجعه بعدی', 'next_visit_date')
-            ]
-
-            for label, key in fields:
-                value = visit.get(key, '')
-                row = BoxLayout(size_hint_y=None, height=dp(30), spacing=dp(4))
-                row.add_widget(RTLLabel(
-                    text=f'{label}:', size_hint_x=0.4, size_hint_y=None,
-                    height=dp(30), font_size=sp(20), color=(1, 1, 1, 1)
-                ))
-                row.add_widget(RTLLabel(
-                    text=str(value) if value else '---', size_hint_x=0.6,
-                    size_hint_y=None, height=dp(30), font_size=sp(20),
-                    color=(0.8, 0.8, 0.8, 1)
-                ))
-                table_container.add_widget(row)
-
-            text_fields = [
-                ('توضیحات سوپروایزر', 'supervisor_note'),
-                ('نظرات مشتری', 'customer_feedback'),
-                ('نظریه سوپروایزر', 'supervisor_opinion')
-            ]
-
-            for label, key in text_fields:
-                value = visit.get(key, '')
-                if value:
-                    row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(4))
-                    row.add_widget(RTLLabel(
-                        text=f'{label}:', size_hint_x=0.4, size_hint_y=None,
-                        height=dp(40), font_size=sp(20), color=(1, 1, 1, 1)
-                    ))
-                    row.add_widget(RTLLabel(
-                        text=value, size_hint_x=0.6, size_hint_y=None,
-                        height=dp(40), font_size=sp(20), color=(0.8, 0.8, 0.8, 1)
-                    ))
-                    table_container.add_widget(row)
-
-            main_box.add_widget(table_container)
-
-            total_height = 32
-            total_height += len(fields) * 30
-            for label, key in text_fields:
-                if visit.get(key, ''):
-                    total_height += 40
-            total_height += 20
-
-            table_container.height = total_height
-
-            scroll = ScrollView(do_scroll_x=False, do_scroll_y=True, size_hint_y=0.8)
-            scroll.add_widget(main_box)
-            content.add_widget(scroll)
-
-            close_btn = PersianButton(
-                text='بستن', background_color=(0.3, 0.3, 0.3, 1),
-                size_hint_y=None, height=dp(45), color=(1, 1, 1, 1), font_size=sp(22)
-            )
-            content.add_widget(close_btn)
-
-            popup = PersianPopup(
-                title='جزئیات سرکشی', content=content,
-                size_hint=(0.92, 0.8), background_color=(0.08, 0.08, 0.08, 1),
-                auto_dismiss=False
-            )
-
-            close_btn.bind(on_press=popup.dismiss)
-            popup.open()
-
-        except Exception as e:
-            error_details = traceback.format_exc()
-            ErrorPopup.show_error(f"خطا در نمایش جزئیات: {e}", error_details)
+    def _close_market_dialog(self, instance):
+        """بستن دیالوگ بررسی بازار"""
+        if hasattr(self, '_market_dialog_popup'):
+            self._market_dialog_popup.dismiss()
 
     # ============================================================
     # تب ۴: گزارشات

@@ -540,7 +540,8 @@ class TotalReportScreen(Screen):
             options.extend([
                 ('daily_visits', 'گزارش فروش (ویزیت روزانه)'),
                 ('collection', 'گزارش وصول'),
-                ('detailed_targets', 'گزارش تحقق ریزتارگت'),
+                ('fulfillment_report', 'گزارش تحقق ریزتارگت'),  # ✅ جدید - ساختار پیوستی
+                ('detailed_targets', 'گزارش ریزتارگت‌ها'),    # ✅ قبلی - ساختار کامل
             ])
         
         elif role == 'سوپروایزر':
@@ -563,7 +564,8 @@ class TotalReportScreen(Screen):
             options.extend([
                 ('daily_visits', 'گزارش فروش (ویزیت روزانه)'),
                 ('collection', 'گزارش وصول'),
-                ('detailed_targets', 'گزارش تحقق ریزتارگت'),
+                ('fulfillment_report', 'گزارش تحقق ریزتارگت'),
+                ('detailed_targets', 'گزارش ریزتارگت‌ها'),
                 ('targets', 'گزارش تارگت‌ها'),
                 ('supervisor_visits', 'گزارش سرکشی بازار'),
                 ('evaluation', 'گزارش ارزیابی'),
@@ -575,7 +577,8 @@ class TotalReportScreen(Screen):
             options.extend([
                 ('daily_visits', 'گزارش فروش (ویزیت روزانه)'),
                 ('collection', 'گزارش وصول'),
-                ('detailed_targets', 'گزارش تحقق ریزتارگت'),
+                ('fulfillment_report', 'گزارش تحقق ریزتارگت'),
+                ('detailed_targets', 'گزارش ریزتارگت‌ها'),
                 ('targets', 'گزارش تارگت‌ها'),
                 ('supervisor_visits', 'گزارش سرکشی بازار'),
                 ('evaluation', 'گزارش ارزیابی'),
@@ -676,8 +679,9 @@ class TotalReportScreen(Screen):
                 return self._export_daily_visits_report(agent_name, from_date, to_date, reports_dir, user_name)
             elif report_type == 'collection':
                 return self._export_collection_report(agent_name, from_date, to_date, reports_dir, user_name)
+            elif report_type == 'fulfillment_report':  # ✅ جدید - گزارش تحقق (ساختار پیوستی)
+                return self._export_fulfillment_report(agent_name, from_date, to_date, reports_dir, user_name)
             elif report_type == 'detailed_targets':
-                # ✅ برای سوپروایزر از تابع جداگانه استفاده کن
                 if role == 'سوپروایزر':
                     return self._export_detailed_targets_report_supervisor(agent_name, from_date, to_date, reports_dir, user_name)
                 else:
@@ -687,7 +691,6 @@ class TotalReportScreen(Screen):
             # گزارش‌های تخصصی سوپروایزر
             # ============================================================
             elif report_type == 'targets':
-                # ✅ برای سوپروایزر از تابع جداگانه استفاده کن
                 if role == 'سوپروایزر':
                     return self._export_targets_report_supervisor(agent_name, from_date, to_date, reports_dir, user_name)
                 else:
@@ -952,13 +955,13 @@ class TotalReportScreen(Screen):
             
             file_path = os.path.join(get_data_path(), 'do_missions.json')
             if not os.path.exists(file_path):
-                print(f"⚠️ فایل do_missions.json یافت نشد: {file_path}")
+                print(f"فایل do_missions.json یافت نشد: {file_path}")
                 return None
             
             with open(file_path, 'r', encoding='utf-8') as f:
                 all_missions = json.load(f)
             
-            print(f"📋 نوع داده ماموریت‌ها: {type(all_missions)}")
+            print(f"نوع داده ماموریت‌ها: {type(all_missions)}")
             
             # اگر دیکشنری بود تبدیل به لیست
             if isinstance(all_missions, dict):
@@ -970,13 +973,13 @@ class TotalReportScreen(Screen):
                                 m['date'] = date
                                 missions_list.append(m)
                 all_missions = missions_list
-                print(f"📋 تبدیل دیکشنری به لیست: {len(all_missions)} ماموریت")
+                print(f"تبدیل دیکشنری به لیست: {len(all_missions)} ماموریت")
             
             if not isinstance(all_missions, list):
-                print(f"⚠️ داده ماموریت‌ها لیست نیست: {type(all_missions)}")
+                print(f"داده ماموریت‌ها لیست نیست: {type(all_missions)}")
                 all_missions = []
             
-            print(f"📋 تعداد کل ماموریت‌ها: {len(all_missions)}")
+            print(f"تعداد کل ماموریت‌ها: {len(all_missions)}")
             
             filtered = []
             for m in all_missions:
@@ -989,10 +992,10 @@ class TotalReportScreen(Screen):
                 if from_date <= m_date <= to_date:
                     filtered.append(m)
             
-            print(f"📋 ماموریت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            print(f"ماموریت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
             
             if not filtered:
-                print(f"⚠️ هیچ ماموریتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ ماموریتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             filename = f'گزارش_ماموریت_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
@@ -1083,11 +1086,11 @@ class TotalReportScreen(Screen):
             ws.cell(row=summary_row + 2, column=8).font = Font(bold=True, size=11, color="FFD700")
             
             wb.save(filepath)
-            print(f"✅ گزارش ماموریت ساخته شد: {filename}")
+            print(f"گزارش ماموریت ساخته شد: {filename}")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی ماموریت: {e}")
+            print(f"خطا در خروجی ماموریت: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -1133,7 +1136,162 @@ class TotalReportScreen(Screen):
         except Exception as e:
             print(f"خطا در خروجی ویزیت روزانه: {e}")
             return None
-    
+
+    def _export_fulfillment_report(self, agent_name, from_date, to_date, reports_dir, user_name):
+        """
+        خروجی گزارش تحقق ریزتارگت - مشابه فایل اکسل پیوستی
+        ساختار: شناسه | عامل | گروه کالا | تارگت روز | تحقق | کسر تارگت | واحد
+        """
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+            from datetime import datetime
+            
+            file_path = os.path.join(get_data_path(), 'detailed_targets.json')
+            if not os.path.exists(file_path):
+                print(f"فایل detailed_targets.json یافت نشد")
+                return None
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                all_targets = json.load(f)
+            
+            if not isinstance(all_targets, list):
+                all_targets = []
+            
+            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
+            
+            # ✅ فیلتر بر اساس نام عامل و تاریخ تحقق
+            filtered = []
+            for t in all_targets:
+                if not isinstance(t, dict):
+                    continue
+                
+                t_agent = t.get('agent_name', '')
+                if agent_name not in t_agent and t_agent not in agent_name:
+                    continue
+                
+                # بررسی تاریخ تحقق (آخرین باری که کاربر تحقق ثبت کرده)
+                fulfillment_date = t.get('last_fulfillment_date', '')
+                
+                # اگر تاریخ تحقق در بازه است
+                if fulfillment_date and from_date <= fulfillment_date <= to_date:
+                    filtered.append(t)
+                else:
+                    # اگر تحققی ثبت نشده، بررسی کن که آیا تاریخ شروع در بازه است
+                    start_date = t.get('start_date', '')
+                    if start_date and from_date <= start_date <= to_date:
+                        filtered.append(t)
+            
+            print(f"ریزتارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            
+            if not filtered:
+                print(f"هیچ ریزتارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                return None
+            
+            # ✅ نام فایل با timestamp
+            timestamp = datetime.now().strftime("%H%M%S")
+            filename = f'گزارش_تحقق_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
+            filepath = os.path.join(reports_dir, filename)
+            
+            # ✅ اگر فایل وجود دارد، نام جدید بساز
+            counter = 1
+            original_filepath = filepath
+            while os.path.exists(filepath):
+                name, ext = os.path.splitext(original_filepath)
+                filepath = f"{name}_{counter}{ext}"
+                counter += 1
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "گزارش تحقق"
+            ws.right_to_left = True
+            
+            # ========== استایل‌ها ==========
+            header_font = Font(bold=True, size=11, color="FFFFFF")
+            header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+            thin_border = Border(
+                left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin')
+            )
+            center_alignment = Alignment(horizontal="center", vertical="center")
+            
+            # ========== هدرها (مشابه فایل پیوستی) ==========
+            headers = ['شناسه', 'عامل', 'گروه کالا', 'تارگت روز', 'تحقق', 'کسر تارگت', 'واحد']
+            column_widths = [18, 20, 25, 16, 16, 16, 14]
+            
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+                cell.border = thin_border
+            
+            # ========== پر کردن داده‌ها ==========
+            row_idx = 2
+            
+            for target in filtered:
+                target_id = target.get('id', '')
+                agent = target.get('agent_name', '')
+                product_group = target.get('product_group', '')
+                daily_target = target.get('daily_target', 0)
+                achieved = target.get('achieved_value', 0)
+                remaining = max(0, daily_target - achieved)
+                unit = target.get('unit', '')
+                
+                values = [
+                    target_id,
+                    agent,
+                    product_group,
+                    daily_target,
+                    achieved,
+                    remaining,
+                    unit
+                ]
+                
+                for col_idx, value in enumerate(values, 1):
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.alignment = center_alignment
+                    cell.border = thin_border
+                    
+                    # رنگ‌بندی کسر تارگت
+                    if col_idx == 6:  # ستون کسر تارگت
+                        if remaining > 0:
+                            cell.font = Font(color="CC3333", bold=True)
+                        else:
+                            cell.font = Font(color="00CC44", bold=True)
+                
+                row_idx += 1
+            
+            # ========== تنظیم عرض ستون‌ها ==========
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
+            # ✅ ذخیره فایل
+            wb.save(filepath)
+            print(f"گزارش تحقق ریزتارگت ساخته شد: {os.path.basename(filepath)}")
+            return filename
+            
+        except PermissionError as e:
+            print(f"خطای دسترسی به فایل: {e}")
+            try:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%H%M%S")
+                filename = f'گزارش_تحقق_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}_{timestamp}.xlsx'
+                filepath = os.path.join(reports_dir, filename)
+                wb.save(filepath)
+                print(f"گزارش تحقق ریزتارگت با نام جدید ساخته شد: {filename}")
+                return filename
+            except Exception as e2:
+                print(f"خطا در ذخیره فایل: {e2}")
+                return None
+            
+        except Exception as e:
+            print(f"خطا در خروجی گزارش تحقق ریزتارگت: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     # ============================================================
     # ۵. گزارش وصول - مطابق با خروجی برنامه
     # ============================================================
@@ -1309,7 +1467,7 @@ class TotalReportScreen(Screen):
             
             file_path = os.path.join(get_data_path(), 'detailed_targets.json')
             if not os.path.exists(file_path):
-                print(f"⚠️ فایل detailed_targets.json یافت نشد")
+                print(f"فایل detailed_targets.json یافت نشد")
                 return None
             
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -1318,7 +1476,7 @@ class TotalReportScreen(Screen):
             if not isinstance(all_targets, list):
                 all_targets = []
             
-            print(f"📋 تعداد کل ریزتارگت‌ها: {len(all_targets)}")
+            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
             
             # ✅ فیلتر بر اساس نام عامل و تاریخ شروع (برای بازاریاب)
             filtered = []
@@ -1340,10 +1498,10 @@ class TotalReportScreen(Screen):
                     if fulfillment_date and from_date <= fulfillment_date <= to_date:
                         filtered.append(t)
             
-            print(f"📋 ریزتارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            print(f"ریزتارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
             
             if not filtered:
-                print(f"⚠️ هیچ ریزتارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ ریزتارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             # ========== مرتب‌سازی بر اساس تاریخ ==========
@@ -1475,11 +1633,11 @@ class TotalReportScreen(Screen):
             ws.cell(row=summary_row + 4, column=8).font = Font(bold=True, size=11, color="FFFFFF")
             
             wb.save(filepath)
-            print(f"✅ گزارش ریزتارگت ساخته شد: {filename}")
+            print(f"گزارش ریزتارگت ساخته شد: {filename}")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی ریزتارگت‌ها: {e}")
+            print(f"خطا در خروجی ریزتارگت‌ها: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -1782,10 +1940,10 @@ class TotalReportScreen(Screen):
                     elif agent_name in t_agent or t_agent in agent_name:
                         filtered.append(t)
             
-            print(f"📋 تارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            print(f"تارگت‌های فیلتر شده برای {agent_name}: {len(filtered)}")
             
             if not filtered:
-                print(f"⚠️ هیچ تارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ تارگتی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             # استفاده از تابع اصلی export_targets_to_excel
@@ -1797,13 +1955,13 @@ class TotalReportScreen(Screen):
                 dest_path = os.path.join(reports_dir, filename)
                 if os.path.exists(filepath):
                     shutil.copy2(filepath, dest_path)
-                    print(f"✅ گزارش تارگت ساخته شد: {filename}")
+                    print(f"گزارش تارگت ساخته شد: {filename}")
                     return filename
             
             return None
             
         except Exception as e:
-            print(f"❌ خطا در خروجی تارگت‌ها: {e}")
+            print(f"خطا در خروجی تارگت‌ها: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -1822,7 +1980,7 @@ class TotalReportScreen(Screen):
             all_targets = get_all_targets()
             
             if not all_targets:
-                print(f"⚠️ هیچ تارگتی یافت نشد")
+                print(f"هیچ تارگتی یافت نشد")
                 return None
             
             # ✅ فیلتر بر اساس created_by و تاریخ ایجاد
@@ -1861,10 +2019,10 @@ class TotalReportScreen(Screen):
                         if from_date <= t_date <= to_date:
                             filtered.append(t)
             
-            print(f"📋 تارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
+            print(f"تارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
             
             if not filtered:
-                print(f"⚠️ هیچ تارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ تارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             filename = f'تارگت_سوپروایزر_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
@@ -1963,11 +2121,11 @@ class TotalReportScreen(Screen):
             ws.cell(row=summary_row + 2, column=10).font = Font(bold=True, size=11, color="FFFFFF")
             
             wb.save(filepath)
-            print(f"✅ گزارش تارگت سوپروایزر ساخته شد: {filename}")
+            print(f"گزارش تارگت سوپروایزر ساخته شد: {filename}")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی تارگت‌ها (سوپروایزر): {e}")
+            print(f"خطا در خروجی تارگت‌ها (سوپروایزر): {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -1993,7 +2151,7 @@ class TotalReportScreen(Screen):
             if not isinstance(all_targets, list):
                 all_targets = []
             
-            print(f"📋 تعداد کل ریزتارگت‌ها: {len(all_targets)}")
+            print(f"تعداد کل ریزتارگت‌ها: {len(all_targets)}")
             
             # ✅ فیلتر بر اساس created_by و تاریخ ایجاد
             filtered = []
@@ -2031,10 +2189,10 @@ class TotalReportScreen(Screen):
                         if from_date <= t_date <= to_date:
                             filtered.append(t)
             
-            print(f"📋 ریزتارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
+            print(f"ریزتارگت‌های فیلتر شده برای سوپروایزر {agent_name}: {len(filtered)}")
             
             if not filtered:
-                print(f"⚠️ هیچ ریزتارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ ریزتارگتی برای سوپروایزر {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             filename = f'ریزتارگت_سوپروایزر_{user_name}_{from_date.replace("/", "-")}_تا_{to_date.replace("/", "-")}.xlsx'
@@ -2109,7 +2267,7 @@ class TotalReportScreen(Screen):
             # ========== خلاصه در انتها ==========
             summary_row = len(filtered) + 3
             ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
-            ws.cell(row=summary_row, column=1, value='📊 خلاصه ریزتارگت‌های سوپروایزر:').font = Font(bold=True, size=12, color="FFD700")
+            ws.cell(row=summary_row, column=1, value='خلاصه ریزتارگت‌های سوپروایزر:').font = Font(bold=True, size=12, color="FFD700")
             
             total_target = sum(t.get('target_count', 0) for t in filtered)
             total_achieved = sum(t.get('achieved_value', 0) for t in filtered)
@@ -2126,11 +2284,11 @@ class TotalReportScreen(Screen):
             ws.cell(row=summary_row + 2, column=10).font = Font(bold=True, size=11, color="FFFFFF")
             
             wb.save(filepath)
-            print(f"✅ گزارش ریزتارگت سوپروایزر ساخته شد: {filename}")
+            print(f"گزارش ریزتارگت سوپروایزر ساخته شد: {filename}")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی ریزتارگت‌ها (سوپروایزر): {e}")
+            print(f"خطا در خروجی ریزتارگت‌ها (سوپروایزر): {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -2149,7 +2307,7 @@ class TotalReportScreen(Screen):
             # ✅ خواندن مستقیم فایل supervisor_visits.json
             file_path = os.path.join(get_data_path(), 'supervisor_visits.json')
             if not os.path.exists(file_path):
-                print(f"⚠️ فایل supervisor_visits.json یافت نشد: {file_path}")
+                print(f"فایل supervisor_visits.json یافت نشد: {file_path}")
                 return None
             
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -2158,7 +2316,7 @@ class TotalReportScreen(Screen):
             if not isinstance(all_visits, list):
                 all_visits = []
             
-            print(f"📋 تعداد کل سرکشی‌ها: {len(all_visits)}")
+            print(f"تعداد کل سرکشی‌ها: {len(all_visits)}")
             
             # ✅ فیلتر بر اساس تاریخ و نام کاربر
             filtered = []
@@ -2181,10 +2339,10 @@ class TotalReportScreen(Screen):
                         if agent_name in created_by or created_by in agent_name:
                             filtered.append(v)
             
-            print(f"📋 سرکشی‌های فیلتر شده برای {agent_name}: {len(filtered)}")
+            print(f"سرکشی‌های فیلتر شده برای {agent_name}: {len(filtered)}")
             
             if not filtered:
-                print(f"⚠️ هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             # ========== مرتب‌سازی بر اساس تاریخ ==========
@@ -2280,11 +2438,11 @@ class TotalReportScreen(Screen):
             ws.cell(row=summary_row + 2, column=10).font = Font(bold=True, size=11, color="00CC44")
             
             wb.save(filepath)
-            print(f"✅ گزارش سرکشی ساخته شد: {filename}")
+            print(f"گزارش سرکشی ساخته شد: {filename}")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی سرکشی‌ها: {e}")
+            print(f"خطا در خروجی سرکشی‌ها: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -2326,10 +2484,10 @@ class TotalReportScreen(Screen):
             visits = [v for v in visits if from_date <= v.get('date', '') <= to_date]
             
             if not visits:
-                print(f"⚠️ هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ سرکشی برای {agent_name} در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
-            print(f"📋 تعداد سرکشی‌های {agent_name}: {len(visits)}")
+            print(f"تعداد سرکشی‌های {agent_name}: {len(visits)}")
             
             # ============================================================
             # ساخت فایل اکسل با فرمت نامه اداری
@@ -2523,11 +2681,11 @@ class TotalReportScreen(Screen):
             # ذخیره فایل
             # ============================================================
             wb.save(filepath)
-            print(f"✅ گزارش بازاری ساخته شد: {filename} ({len(visits)} نامه)")
+            print(f"گزارش بازاری ساخته شد: {filename} ({len(visits)} نامه)")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی گزارش بازاری: {e}")
+            print(f"خطا در خروجی گزارش بازاری: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -2565,7 +2723,7 @@ class TotalReportScreen(Screen):
                     date_list.append(date)
             
             if not date_list:
-                print(f"⚠️ هیچ داده‌ای برای ارزیابی در بازه {from_date} تا {to_date} یافت نشد")
+                print(f"هیچ داده‌ای برای ارزیابی در بازه {from_date} تا {to_date} یافت نشد")
                 return None
             
             # ============================================================
@@ -2806,11 +2964,11 @@ class TotalReportScreen(Screen):
                 ws.column_dimensions[get_column_letter(i)].width = width
             
             wb.save(filepath)
-            print(f"✅ گزارش ارزیابی ساخته شد: {filename}")
+            print(f"گزارش ارزیابی ساخته شد: {filename}")
             return filename
             
         except Exception as e:
-            print(f"❌ خطا در خروجی ارزیابی: {e}")
+            print(f"خطا در خروجی ارزیابی: {e}")
             import traceback
             traceback.print_exc()
             return None
