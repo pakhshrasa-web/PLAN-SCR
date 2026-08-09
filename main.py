@@ -189,7 +189,7 @@ try:
         get_daily_logs, save_daily_log
     )
     from utils.jalali_date import get_today_jalali, get_current_time
-    from utils.user_manager import login, register_user, get_users, delete_user_by_id, get_codes, create_code
+    from utils.user_manager import login, register_user, get_users, delete_user_by_id, get_codes, create_code, get_current_user, clear_current_user
     from utils.auth import get_admin_password, set_admin_password, verify_password
     from utils.excel_importer import import_routes_from_excel, import_customers_from_excel
     from utils.excel_exporter import export_to_excel
@@ -246,8 +246,9 @@ class MainApp(App):
             return ScreenManager()
     
     def on_start(self):
-        """بعد از شروع برنامه - تنظیم لوگو (در صورت نیاز)"""
+        """بعد از شروع برنامه - تنظیم لوگو و چک کردن کاربر ذخیره شده"""
         try:
+            # ========== تنظیم لوگو ==========
             if platform == 'win':
                 icon_path = os.path.join(os.path.dirname(__file__), 'icon', 'kivy-icon-64.ico')
                 if os.path.exists(icon_path):
@@ -256,8 +257,33 @@ class MainApp(App):
                         print(f"✅ لوگو بارگذاری شد: {icon_path}")
                     except Exception as e:
                         print(f"❌ خطا در بارگذاری لوگو: {e}")
+            
+            # ========== چک کردن کاربر ذخیره شده ==========
+            from utils.user_manager import get_current_user
+            from utils.reminder_manager import should_show_reminder
+            
+            current_user = get_current_user()
+            if current_user:
+                username = current_user.get('name', '') or current_user.get('username', '')
+                print(f"✅ کاربر ذخیره شده پیدا شد: {username}")
+                
+                # ذخیره در متغیرهای برنامه
+                self.current_user_role = current_user.get('role', '')
+                self.current_username = current_user.get('username', '')
+                
+                # ========== نمایش پاپ‌آپ یادآوری ==========
+                if should_show_reminder(username):
+                    # با تأخیر کوتاه نمایش بده تا صفحه کامل بارگذاری بشه
+                    Clock.schedule_once(lambda dt: self._show_greeting_popup(username, current_user), 0.5)
+                else:
+                    print("ℹ️ امروز یادآوری قبلاً نمایش داده شده")
+            else:
+                print("ℹ️ هیچ کاربر ذخیره‌ای یافت نشد")
+                
         except Exception as e:
-            print(f"❌ خطا در تنظیم لوگو: {e}")
+            print(f"❌ خطا در on_start: {e}")
+            import traceback
+            traceback.print_exc()
     
     def on_keyboard(self, window, key, *args):
         if key == 27:
@@ -301,7 +327,386 @@ class MainApp(App):
                 return True
         
         return False
-    
+
+    def _show_greeting_popup(self, username, user_data):
+        """نمایش پاپ‌آپ خوش‌آمدگویی و یادآوری"""
+        try:
+            from kivy.uix.boxlayout import BoxLayout
+            from kivy.uix.label import Label
+            from kivy.uix.button import Button
+            from kivy.uix.popup import Popup
+            from kivy.metrics import dp, sp
+            from kivy.graphics import Color, Rectangle
+            from kivy.clock import Clock
+            from utils.reminder_manager import (
+                get_greeting_by_time,
+                get_reminder_messages_by_role,
+                mark_reminder_shown
+            )
+            from utils.score_calculator import calculate_all_scores
+            from utils.jalali_date import get_today_jalali
+            
+            # ========== ایمپورت bidi ==========
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+            except:
+                arabic_reshaper = None
+                get_display = None
+            
+            def fix_text(text):
+                """اصلاح متن برای نمایش درست فارسی"""
+                if not text:
+                    return text
+                if arabic_reshaper and get_display:
+                    try:
+                        reshaped = arabic_reshaper.reshape(text)
+                        return get_display(reshaped)
+                    except:
+                        return text
+                return text
+            
+            role = user_data.get('role', 'بازاریاب')
+            
+            # دریافت پیام‌ها بر اساس ساعت و نقش
+            line1, line2 = get_greeting_by_time(username)
+            reminder_msg = get_reminder_messages_by_role(role)
+            
+            # محاسبه امتیازات فعلی
+            today = get_today_jalali()
+            score_data = calculate_all_scores(username, role, today)
+            total_points = score_data.get('total_points', 0)
+            
+            # ========== ساخت محتوای پاپ‌آپ ==========
+            content = BoxLayout(
+                orientation='vertical',
+                padding=dp(20),
+                spacing=dp(10),
+                size_hint_y=None,
+                height=dp(480)
+            )
+            
+            with content.canvas.before:
+                Color(0.08, 0.08, 0.08, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+            
+            # ========== خط اول ==========
+            label1 = Label(
+                text=fix_text(f"{line1}"),
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(24),
+                bold=True,
+                color=(0.4, 0.8, 1, 1),
+                halign='center',
+                valign='middle'
+            )
+            label1.bind(size=lambda s, w: setattr(s, 'text_size', (s.width, None)))
+            content.add_widget(label1)
+            
+            # ========== خط دوم ==========
+            label2 = Label(
+                text=fix_text(f"{line2}"),
+                size_hint_y=None,
+                height=dp(40),
+                font_size=sp(18),
+                color=(0.8, 0.8, 0.8, 1),
+                halign='center',
+                valign='middle'
+            )
+            label2.bind(size=lambda s, w: setattr(s, 'text_size', (s.width, None)))
+            content.add_widget(label2)
+            
+            # ========== خط جداکننده ==========
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ========== امتیاز امروز ==========
+            label3 = Label(
+                text=fix_text(f"امتیاز امروز: {total_points:,}"),
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(18),
+                bold=True,
+                color=(1, 0.8, 0.2, 1),
+                halign='center',
+                valign='middle'
+            )
+            label3.bind(size=lambda s, w: setattr(s, 'text_size', (s.width, None)))
+            content.add_widget(label3)
+            
+            # ========== پیام یادآوری ==========
+            label4 = Label(
+                text=fix_text(reminder_msg),
+                size_hint_y=None,
+                height=dp(200),
+                font_size=sp(14),
+                color=(1, 1, 1, 1),
+                halign='center',
+                valign='top'
+            )
+            label4.bind(size=lambda s, w: setattr(s, 'text_size', (s.width - dp(20), None)))
+            content.add_widget(label4)
+            
+            # ========== دکمه‌ها ==========
+            btn_layout = BoxLayout(
+                size_hint_y=None,
+                height=dp(50),
+                spacing=dp(10)
+            )
+            
+            ok_btn = Button(
+                text=fix_text('انجامش میدم'),
+                size_hint_y=None,
+                height=dp(45),
+                background_color=(0.2, 0.7, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(16),
+                bold=True
+            )
+            
+            later_btn = Button(
+                text=fix_text('بعداً'),
+                size_hint_y=None,
+                height=dp(45),
+                background_color=(0.4, 0.3, 0.6, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(ok_btn)
+            btn_layout.add_widget(later_btn)
+            content.add_widget(btn_layout)
+            
+            # ========== ایجاد پاپ‌آپ ==========
+            popup = Popup(
+                title=fix_text('روز بخیر'),
+                content=content,
+                size_hint=(0.9, 0.85),
+                background_color=(0.05, 0.05, 0.05, 1),
+                auto_dismiss=False
+            )
+            
+            # ========== توابع دکمه‌ها ==========
+            def on_ok(instance):
+                mark_reminder_shown(username)
+                popup.dismiss()
+                Clock.schedule_once(lambda dt: self._show_score_popup(username, user_data), 0.3)
+            
+            def on_later(instance):
+                mark_reminder_shown(username)
+                popup.dismiss()
+            
+            ok_btn.bind(on_press=on_ok)
+            later_btn.bind(on_press=on_later)
+            
+            popup.open()
+            
+        except Exception as e:
+            print(f"خطا در نمایش پاپ‌آپ خوش‌آمدگویی: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    def _show_score_popup(self, username, user_data):
+        """نمایش پاپ‌آپ امتیازات"""
+        try:
+            from kivy.uix.boxlayout import BoxLayout
+            from kivy.uix.label import Label
+            from kivy.uix.button import Button
+            from kivy.uix.popup import Popup
+            from kivy.metrics import dp, sp
+            from kivy.graphics import Color, Rectangle
+            from kivy.clock import Clock
+            from utils.score_calculator import calculate_all_scores
+            from utils.reminder_manager import mark_reminder_completed, get_total_points
+            from utils.jalali_date import get_today_jalali
+            
+            # ========== ایمپورت bidi ==========
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+            except:
+                arabic_reshaper = None
+                get_display = None
+            
+            def fix_text(text):
+                """اصلاح متن برای نمایش درست فارسی"""
+                if not text:
+                    return text
+                if arabic_reshaper and get_display:
+                    try:
+                        reshaped = arabic_reshaper.reshape(text)
+                        return get_display(reshaped)
+                    except:
+                        return text
+                return text
+            
+            role = user_data.get('role', 'بازاریاب')
+            today = get_today_jalali()
+            
+            # محاسبه امتیازات
+            score_data = calculate_all_scores(username, role, today)
+            total_points = score_data.get('total_points', 0)
+            
+            # ذخیره امتیازات
+            mark_reminder_completed(username, score_data)
+            
+            # دریافت مجموع امتیازات کل
+            total_all_points = get_total_points(username)
+            
+            # ========== ساخت محتوای پاپ‌آپ ==========
+            content = BoxLayout(
+                orientation='vertical',
+                padding=dp(20),
+                spacing=dp(8),
+                size_hint_y=None,
+                height=dp(520)
+            )
+            
+            with content.canvas.before:
+                Color(0.08, 0.08, 0.08, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+            
+            # ========== عنوان ==========
+            label_title = Label(
+                text=fix_text("تبریک!"),
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(26),
+                bold=True,
+                color=(0.2, 0.9, 0.2, 1),
+                halign='center',
+                valign='middle'
+            )
+            label_title.bind(size=lambda s, w: setattr(s, 'text_size', (s.width, None)))
+            content.add_widget(label_title)
+            
+            # ========== امتیاز امروز ==========
+            label_score = Label(
+                text=fix_text(f"امتیاز امروز: {total_points:,}"),
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(20),
+                bold=True,
+                color=(1, 0.8, 0.2, 1),
+                halign='center',
+                valign='middle'
+            )
+            label_score.bind(size=lambda s, w: setattr(s, 'text_size', (s.width, None)))
+            content.add_widget(label_score)
+            
+            # ========== نمایش تفکیک امتیازات ==========
+            details = []
+            
+            # حضور
+            att = score_data.get('attendance', {})
+            if att.get('points', 0) > 0:
+                details.append(f"• حضور: {att['points']} امتیاز ({att.get('detail', '')})")
+            
+            # ماموریت
+            mission = score_data.get('mission', {})
+            if mission.get('points', 0) > 0:
+                details.append(f"• ماموریت‌ها: {mission['points']} امتیاز ({mission.get('detail', '')})")
+            
+            # ویزیت و فروش (بازاریاب)
+            if role == 'بازاریاب':
+                visit = score_data.get('visit', {})
+                if visit.get('total_points', 0) > 0:
+                    details.append(f"• ویزیت‌ها: {visit.get('total_points', 0)} امتیاز")
+                    if visit.get('successful_visits', 0) > 0:
+                        details.append(f"  - ویزیت موفق: {visit.get('successful_visits', 0)} × ۵ = {visit.get('successful_visits', 0) * 5}")
+                    if visit.get('failed_visits', 0) > 0:
+                        details.append(f"  - ویزیت ناموفق: {visit.get('failed_visits', 0)} × ۱ = {visit.get('failed_visits', 0)}")
+                    if visit.get('sales_points', 0) > 0:
+                        details.append(f"  - فروش‌ها: {visit.get('sales_points', 0)} امتیاز")
+                    if visit.get('new_customer_points', 0) > 0:
+                        details.append(f"  - مشتری جدید: {visit.get('new_customers', 0)} × ۲۰ = {visit.get('new_customer_points', 0)}")
+                
+                collection = score_data.get('collection', {})
+                if collection.get('total_points', 0) > 0:
+                    details.append(f"• وصول‌ها: {collection.get('total_points', 0)} امتیاز")
+                    if collection.get('success_count', 0) > 0:
+                        details.append(f"  - موفق: {collection.get('success_count', 0)} × ۳۰ = {collection.get('success_count', 0) * 30}")
+                    if collection.get('fail_count', 0) > 0:
+                        details.append(f"  - ناموفق: {collection.get('fail_count', 0)} × ۱۰ = {collection.get('fail_count', 0) * 10}")
+            
+            # توزیع (موزع)
+            if role == 'موزع':
+                delivery = score_data.get('delivery', {})
+                if delivery.get('total_points', 0) > 0:
+                    details.append(f"• توزیع‌ها: {delivery.get('total_points', 0)} امتیاز")
+                    if delivery.get('successful_deliveries', 0) > 0:
+                        details.append(f"  - موفق: {delivery.get('successful_deliveries', 0)} × ۱۰ = {delivery.get('successful_deliveries', 0) * 10}")
+                    if delivery.get('full_deliveries', 0) > 0:
+                        details.append(f"  - تحویل کامل: {delivery.get('full_deliveries', 0)} × ۵ = {delivery.get('full_deliveries', 0) * 5}")
+            
+            # نمایش تفکیک
+            detail_text = "\n".join(details) if details else "هیچ امتیازی ثبت نشده"
+            
+            label_details = Label(
+                text=fix_text(detail_text),
+                size_hint_y=None,
+                height=dp(min(220, len(details) * 22 + 30)),
+                font_size=sp(13),
+                color=(0.8, 0.8, 0.8, 1),
+                halign='left',
+                valign='top'
+            )
+            label_details.bind(size=lambda s, w: setattr(s, 'text_size', (s.width - dp(20), None)))
+            content.add_widget(label_details)
+            
+            # ========== جمع کل ==========
+            content.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            label_total = Label(
+                text=fix_text(f"مجموع امتیازات کل: {total_all_points:,}"),
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(18),
+                bold=True,
+                color=(0.4, 0.8, 1, 1),
+                halign='center',
+                valign='middle'
+            )
+            label_total.bind(size=lambda s, w: setattr(s, 'text_size', (s.width, None)))
+            content.add_widget(label_total)
+            
+            # ========== دکمه بستن ==========
+            close_btn = Button(
+                text=fix_text('عالی!'),
+                size_hint_y=None,
+                height=dp(48),
+                background_color=(0.2, 0.6, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(18),
+                bold=True
+            )
+            
+            def on_close(instance):
+                popup.dismiss()
+            
+            close_btn.bind(on_press=on_close)
+            content.add_widget(close_btn)
+            
+            popup = Popup(
+                title=fix_text('امتیازات شما'),
+                content=content,
+                size_hint=(0.92, 0.85),
+                background_color=(0.05, 0.05, 0.05, 1),
+                auto_dismiss=False
+            )
+            popup.open()
+            
+        except Exception as e:
+            print(f"خطا در نمایش پاپ‌آپ امتیازات: {e}")
+            import traceback
+            traceback.print_exc()
+
+
     def init_json_files(self):
         try:
             from utils.auth import hash_password
