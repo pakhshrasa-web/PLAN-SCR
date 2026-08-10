@@ -68,6 +68,14 @@ class AgentsScreen(Screen):
             ErrorPopup.show_error(f"خطا در ساخت AgentsScreen: {e}", error_details)
             raise
 
+    def set_user(self, user):
+        """تنظیم کاربر جاری"""
+        self.current_user = user
+        if user:
+            print(f"AgentsScreen: current_user تنظیم شد: {user.get('name', '') or user.get('username', '')}")
+        else:
+            print("AgentsScreen: current_user None است")
+
     def number_to_persian_words(self, number):
         try:
             if number == 0:
@@ -2326,16 +2334,69 @@ class AgentsScreen(Screen):
         try:
             today = get_today_jalali()
             logs = get_daily_logs()
-            if today not in logs: logs[today] = []
-            if not isinstance(logs[today], list): logs[today] = []
+            if today not in logs: 
+                logs[today] = []
+            if not isinstance(logs[today], list): 
+                logs[today] = []
             
             customer_name = kwargs.get('customer_name')
             is_new_customer = customer_name in self.session_new_customers
             
+            # ========== ✅ دریافت نام کاربر ==========
+            agent_name = ''
+            
+            # 1. اول از current_user (که در UserScreen تنظیم میشه)
+            if hasattr(self, 'current_user') and self.current_user:
+                agent_name = self.current_user.get('name', '') or self.current_user.get('username', '')
+                print(f"✅ agent_name از current_user: {agent_name}")
+            
+            # 2. اگر خالی بود، از App بگیر
+            if not agent_name:
+                try:
+                    from kivy.app import App
+                    app = App.get_running_app()
+                    if app and hasattr(app, 'current_username'):
+                        agent_name = app.current_username or ''
+                        print(f"✅ agent_name از App: {agent_name}")
+                except:
+                    pass
+            
+            # 3. اگر باز هم خالی بود، از user_manager بگیر
+            if not agent_name:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        agent_name = user.get('name', '') or user.get('username', '')
+                        print(f"✅ agent_name از user_manager: {agent_name}")
+                except:
+                    pass
+            
+            # 4. اگر باز هم خالی بود، از users.json بگیر (با user_id)
+            if not agent_name and hasattr(self, 'current_user') and self.current_user:
+                try:
+                    user_id = self.current_user.get('id')
+                    if user_id:
+                        from utils.user_manager import get_users
+                        users = get_users()
+                        for u in users:
+                            if u.get('id') == user_id:
+                                agent_name = u.get('name', '') or u.get('username', '')
+                                print(f"✅ agent_name از users.json: {agent_name}")
+                                break
+                except:
+                    pass
+            
+            # 5. اگر باز هم خالی بود، از route استفاده کن (Fallback نهایی)
+            if not agent_name:
+                route = self.route_spinner.text if hasattr(self, 'route_spinner') else ''
+                agent_name = route or 'کاربر'
+                print(f"✅ agent_name از route (fallback): {agent_name}")
+            
             log_data = {
                 'date': today,
                 'route': self.route_spinner.text,
-                'agent_name': App.get_running_app().current_username,
+                'agent_name': agent_name,
                 'customer': customer_name,
                 'visit_status': kwargs.get('visit_status'),
                 'time': get_current_time(),
@@ -2357,15 +2418,20 @@ class AgentsScreen(Screen):
                     if detailed_sales:
                         log_data['detailed_sales'] = detailed_sales
             
+            # حذف رکورد قبلی مشتری (اگر وجود داشت)
             logs[today] = [log for log in logs[today] if log.get('customer') != customer_name]
             logs[today].append(log_data)
             save_daily_log(today, logs[today])
             
+            # قفل مسیر
             self.locked_route = self.route_spinner.text
             if hasattr(self, 'route_spinner'):
                 self.route_spinner.main_btn.disabled = True
                 self.route_spinner.main_btn.background_color = (0.15, 0.15, 0.15, 1)
                 self.route_spinner.main_btn.color = (0.6, 0.6, 0.6, 1)
+            
+            print(f"✅ ویزیت برای {customer_name} با agent_name={agent_name} ذخیره شد")
+                
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در ذخیره لاگ ویزیت: {e}", error_details)

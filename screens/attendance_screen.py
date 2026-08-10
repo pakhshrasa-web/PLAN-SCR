@@ -19,10 +19,12 @@ from utils.rtl_widgets import PersianButton, RTLLabel, PersianPopup, RTLTextInpu
 from utils.attendance_manager import AttendanceManager
 from utils.jalali_date import get_today_jalali
 from utils.file_manager import get_settings
-from utils.storage import get_data_path
 from error_handler import ErrorPopup
+from utils.storage import get_data_path, load_json, save_json
 
 from screens.report_attendance_screen import ReportAttendanceScreen
+from utils.name_matcher import (normalize_persian_text, is_name_match, extract_name_from_agent_string)
+
 
 class AttendanceScreen(Screen):
     """صفحه اصلی حضور و غیاب با ۴ تب"""
@@ -370,6 +372,8 @@ class AttendanceScreen(Screen):
             return
         
         user_id = self.current_user.get('id')
+        
+        # ✅ فقط user_id ارسال میشه (بدون user_data اضافی)
         success, message = AttendanceManager.check_in(user_id)
         
         if success:
@@ -383,7 +387,8 @@ class AttendanceScreen(Screen):
             self.show_message('موفق', message)
         else:
             ErrorPopup.show_error(message)
-    
+
+
     def do_check_out(self, instance):
         """ثبت خروج"""
         if not self.current_user:
@@ -391,6 +396,8 @@ class AttendanceScreen(Screen):
             return
         
         user_id = self.current_user.get('id')
+        
+        # ✅ فقط user_id ارسال میشه (بدون user_data اضافی)
         success, message = AttendanceManager.check_out(user_id)
         
         if success:
@@ -408,7 +415,8 @@ class AttendanceScreen(Screen):
             self.show_message('موفق', message)
         else:
             ErrorPopup.show_error(message)
-    
+
+
     def do_end_day(self, instance):
         """ثبت پایان کار"""
         # بررسی کامل بودن همه جفت‌ها
@@ -989,7 +997,7 @@ class AttendanceScreen(Screen):
             today = get_today_jalali()
             parts = today.split('/')
             if len(parts) != 3:
-                print(f"⚠️ تاریخ نامعتبر: {today}, استفاده از سقف سالانه")
+                print(f"تاریخ نامعتبر: {today}, استفاده از سقف سالانه")
                 return annual_limit
             
             current_month = int(parts[1])
@@ -1006,12 +1014,12 @@ class AttendanceScreen(Screen):
             import math
             dynamic_limit = math.floor(dynamic_limit)
             
-            print(f"✅ سقف داینامیک: {dynamic_limit} (annual={annual_limit}, months={months_passed})")
+            print(f"سقف داینامیک: {dynamic_limit} (annual={annual_limit}, months={months_passed})")
             
             return max(0, dynamic_limit)
             
         except Exception as e:
-            print(f"❌ خطا در محاسبه سقف داینامیک: {e}")
+            print(f"خطا در محاسبه سقف داینامیک: {e}")
             return 30
 
 
@@ -1838,17 +1846,17 @@ class AttendanceScreen(Screen):
         try:
             config = AttendanceManager.load_config()
             if config:
-                print(f"✅ تنظیمات مرخصی از AttendanceManager: {config}")
+                print(f"تنظیمات مرخصی از AttendanceManager: {config}")
                 return config
             
             file_path = os.path.join(get_data_path(), 'attendance_config.json')
             if os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    print(f"✅ تنظیمات از فایل مستقیم: {config}")
+                    print(f"تنظیمات از فایل مستقیم: {config}")
                     return config
             
-            print("⚠️ تنظیمات مرخصی یافت نشد، از مقدار پیش‌فرض استفاده می‌شود")
+            print("تنظیمات مرخصی یافت نشد، از مقدار پیش‌فرض استفاده می‌شود")
             return {
                 'leave_types': ['ساعتی', 'استحقاقی', 'استعلاجی', 'اضطراری', 'بدون حقوق'],
                 'annual_leave_limit': 30,
@@ -1856,7 +1864,7 @@ class AttendanceScreen(Screen):
                 'hourly_to_daily_ratio': 5
             }
         except Exception as e:
-            print(f"❌ خطا در بارگذاری تنظیمات مرخصی: {e}")
+            print(f"خطا در بارگذاری تنظیمات مرخصی: {e}")
             return {
                 'leave_types': ['ساعتی', 'استحقاقی', 'استعلاجی', 'اضطراری', 'بدون حقوق'],
                 'annual_leave_limit': 30,
@@ -1879,10 +1887,10 @@ class AttendanceScreen(Screen):
             if hasattr(self, 'dynamic_limit_field'):
                 self.dynamic_limit_field.text = f'سقف مجاز (تا امروز): {dynamic_limit} روز'
             
-            print(f"✅ سقف‌ها به‌روز شد: سالانه={annual_limit}, داینامیک={dynamic_limit}")
+            print(f"سقف‌ها به‌روز شد: سالانه={annual_limit}, داینامیک={dynamic_limit}")
             
         except Exception as e:
-            print(f"❌ خطا در به‌روزرسانی سقف‌ها: {e}")
+            print(f"خطا در به‌روزرسانی سقف‌ها: {e}")
 
     # ============================================================
     # تب 3: ماموریت - کامل
@@ -2058,6 +2066,8 @@ class AttendanceScreen(Screen):
     def _load_missions(self):
         """بارگذاری و نمایش ماموریت‌های فعال"""
         try:
+            from utils.name_matcher import normalize_persian_text
+            
             self.mission_list_container.clear_widgets()
             
             all_missions = self._load_missions_from_file()
@@ -2068,6 +2078,15 @@ class AttendanceScreen(Screen):
                 if not current_user_name:
                     current_user_name = self.current_user.get('username', '')
             
+            # نرمال‌سازی نام کاربر جاری
+            current_user_norm = normalize_persian_text(current_user_name)
+            
+            print(f"\n{'='*50}")
+            print(f"🔍 بارگذاری ماموریت‌ها برای: {current_user_name}")
+            print(f"📝 نرمال‌سازی شده: {current_user_norm}")
+            print(f"📂 تعداد کل ماموریت‌ها: {len(all_missions)}")
+            print(f"{'='*50}")
+            
             active_missions = []
             history_missions = []
             expired_missions = []
@@ -2076,22 +2095,37 @@ class AttendanceScreen(Screen):
             for m in all_missions:
                 agent_name = m.get('agent_name', '').strip()
                 
-                if agent_name != current_user_name:
-                    continue
+                # نرمال‌سازی نام عامل
+                agent_norm = normalize_persian_text(agent_name)
                 
+                # چاپ اطلاعات هر ماموریت برای دیباگ
+                mission_id = m.get('id', 'N/A')
                 status = m.get('status', '')
-                end_date = m.get('end_date', '')
                 is_active = m.get('active', True)
+                end_date = m.get('end_date', '')
+                
+                print(f"   📌 {mission_id}: agent='{agent_name}' | agent_norm='{agent_norm}' | status='{status}' | active={is_active} | end_date='{end_date}'")
+                
+                # ✅ تطابق با نام نرمال‌سازی شده
+                if agent_norm != current_user_norm:
+                    continue
                 
                 if status in ['✅ موفق', '❌ ناموفق'] or not is_active:
                     history_missions.append(m)
+                    print(f"      → تاریخچه (موفق/ناموفق/غیرفعال)")
                 elif status in ['⏳ در انتظار', 'در انتظار']:
                     if end_date and end_date < today:
                         expired_missions.append(m)
+                        print(f"      → منقضی شده (end_date={end_date} < {today})")
                     else:
                         active_missions.append(m)
+                        print(f"      → فعال ✅")
                 else:
                     history_missions.append(m)
+                    print(f"      → تاریخچه (سایر: {status})")
+            
+            print(f"\n📊 نتیجه: فعال={len(active_missions)}, تاریخچه={len(history_missions)}, منقضی={len(expired_missions)}")
+            print(f"{'='*50}\n")
             
             self._history_missions = history_missions
             self._expired_missions = expired_missions
@@ -2105,6 +2139,7 @@ class AttendanceScreen(Screen):
                     color=(0.5, 0.5, 0.5, 1)
                 ))
                 return
+        
             
             header = BoxLayout(size_hint_y=None, height=dp(26), spacing=dp(1), size_hint_x=None, width=dp(780))
             headers = ['', 'شناسه', 'نوع', 'روش', 'تاریخ شروع', 'مدت', 'امتیاز', 'هدف', 'توضیحات']
@@ -2128,7 +2163,7 @@ class AttendanceScreen(Screen):
                     row.bind(pos=lambda i, v, r=rect: setattr(r, 'pos', v),
                             size=lambda i, v, r=rect: setattr(r, 'size', v))
                 
-                # ✅ چک‌باکس با وضعیت selected از فایل
+                # چک‌باکس با وضعیت selected از فایل
                 is_selected = mission.get('selected', False)
                 cb = CheckBox(
                     active=is_selected,
@@ -2202,41 +2237,130 @@ class AttendanceScreen(Screen):
 
 
     def _load_missions_from_file(self):
-        """بارگذاری ماموریت‌ها از فایل"""
+        """بارگذاری ماموریت‌ها از فایل - پشتیبانی از ساختار دیکشنری و لیست"""
         try:
+            from utils.storage import get_data_path
+            
             file_path = os.path.join(get_data_path(), 'do_missions.json')
-            if os.path.exists(file_path):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+            if not os.path.exists(file_path):
+                return []
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # ✅ اگر دیکشنری است (ساختار {date: [missions]})
+            if isinstance(data, dict):
+                missions_list = []
+                for date, missions in data.items():
+                    if isinstance(missions, list):
+                        for m in missions:
+                            if isinstance(m, dict):
+                                # اضافه کردن date به هر ماموریت
+                                m['date'] = date
+                                missions_list.append(m)
+                print(f"✅ {len(missions_list)} ماموریت از دیکشنری بارگذاری شد")
+                return missions_list
+            
+            # ✅ اگر لیست است (ساختار قدیمی [missions])
+            if isinstance(data, list):
+                print(f"✅ {len(data)} ماموریت از لیست بارگذاری شد")
+                return data
+            
             return []
+            
         except Exception as e:
-            print(f"خطا در بارگذاری ماموریت‌ها: {e}")
+            print(f"❌ خطا در بارگذاری ماموریت‌ها: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
 
     def _save_missions_to_file(self, missions):
-        """ذخیره ماموریت‌ها در فایل"""
+        """ذخیره ماموریت‌ها در فایل با ساختار دیکشنری {date: [missions]}"""
         try:
+            from utils.jalali_date import get_today_jalali
+            from utils.storage import get_data_path
+            
             file_path = os.path.join(get_data_path(), 'do_missions.json')
+            
+            # ✅ بارگذاری فایل موجود
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                data = {}
+            
+            # ✅ اگر داده لیست است، به دیکشنری تبدیل کن
+            if isinstance(data, list):
+                data = {}
+                for m in data:
+                    date = m.get('date', get_today_jalali())
+                    if date not in data:
+                        data[date] = []
+                    m_copy = m.copy()
+                    m_copy.pop('date', None)
+                    data[date].append(m_copy)
+            
+            # ✅ اگر دیکشنری نیست، ایجاد کن
+            if not isinstance(data, dict):
+                data = {}
+            
+            # ✅ به‌روزرسانی ماموریت‌ها
+            today = get_today_jalali()
+            
+            for m in missions:
+                m_copy = m.copy()
+                date = m_copy.pop('date', today)
+                
+                if date not in data:
+                    data[date] = []
+                
+                # پیدا کردن و به‌روزرسانی
+                found = False
+                for i, existing in enumerate(data[date]):
+                    if existing.get('id') == m_copy.get('id'):
+                        data[date][i] = m_copy
+                        found = True
+                        break
+                
+                if not found:
+                    data[date].append(m_copy)
+            
+            # ✅ ذخیره با ساختار دیکشنری
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(missions, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                
+            print(f"✅ {len(missions)} ماموریت در {file_path} ذخیره شدند")
+            
         except Exception as e:
-            print(f"خطا در ذخیره ماموریت‌ها: {e}")
+            print(f"❌ خطا در ذخیره ماموریت‌ها: {e}")
+            import traceback
+            traceback.print_exc()
 
 
     def _on_mission_select(self, instance, value):
         """انتخاب/لغو انتخاب ماموریت"""
-        mission_id = instance.mission_id
-        all_missions = self._load_missions_from_file()
-        
-        for m in all_missions:
-            if m.get('id') == mission_id:
-                m['selected'] = value
-                break
-        
-        self._save_missions_to_file(all_missions)
-        
-        instance.active = value
+        try:
+            mission_id = instance.mission_id
+            
+            # ✅ بارگذاری با تابع جدید
+            all_missions = self._load_missions_from_file()
+            
+            for m in all_missions:
+                if m.get('id') == mission_id:
+                    m['selected'] = value
+                    break
+            
+            # ✅ ذخیره با تابع جدید
+            self._save_missions_to_file(all_missions)
+            
+            # ✅ به‌روزرسانی وضعیت چک‌باکس
+            instance.active = value
+            
+        except Exception as e:
+            print(f"❌ خطا در انتخاب ماموریت: {e}")
+            import traceback
+            traceback.print_exc()
 
 
     def _assign_selected_missions(self, instance):
@@ -2396,22 +2520,31 @@ class AttendanceScreen(Screen):
 
     def _apply_assignment(self, status):
         """اعمال وضعیت به ماموریت‌های انتخاب شده"""
-        if hasattr(self, '_assign_popup'):
-            self._assign_popup.dismiss()
-        
-        all_missions = self._load_missions_from_file()
-        updated = 0
-        
-        for m in all_missions:
-            if m.get('selected', False):
-                m['status'] = status
-                m['active'] = False
-                m['selected'] = False
-                updated += 1
-        
-        self._save_missions_to_file(all_missions)
-        self._load_missions()
-        self.show_message('موفق', f'{updated} ماموریت با موفقیت تعیین تکلیف شد')
+        try:
+            if hasattr(self, '_assign_popup'):
+                self._assign_popup.dismiss()
+            
+            all_missions = self._load_missions_from_file()
+            updated = 0
+            today = get_today_jalali()  # دریافت تاریخ امروز به فرمت شمسی
+            
+            for m in all_missions:
+                if m.get('selected', False):
+                    m['status'] = status
+                    m['active'] = False
+                    m['selected'] = False
+                    m['completed_at'] = today  # اضافه کردن تاریخ انجام
+                    updated += 1
+            
+            self._save_missions_to_file(all_missions)
+            self._load_missions()
+            self.show_message('موفق', f'{updated} ماموریت با موفقیت تعیین تکلیف شد')
+            
+        except Exception as e:
+            print(f"خطا در اعمال تعیین تکلیف: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_message('خطا', f'خطا در تعیین تکلیف ماموریت‌ها: {str(e)}')
 
 
     def _show_history_dialog(self, instance):
@@ -2951,10 +3084,18 @@ class AttendanceScreen(Screen):
 
 
     def _process_imported_missions(self, filepath):
-        """پردازش فایل اکسل وارد شده"""
+        """پردازش فایل اکسل وارد شده با تطابق هوشمند نام"""
         try:
             import openpyxl
             import os
+            import re
+            
+            # ایمپورت توابع تطابق نام
+            from utils.name_matcher import (
+                normalize_persian_text,
+                extract_name_from_agent_string,
+                normalize_agent_string
+            )
             
             if not filepath or not os.path.exists(filepath):
                 self.show_message('خطا', 'فایل انتخاب شده وجود ندارد')
@@ -2970,12 +3111,26 @@ class AttendanceScreen(Screen):
             wb = openpyxl.load_workbook(filepath)
             ws = wb.active
             
+            # دریافت نام کاربر جاری
             current_user_name = ''
             if self.current_user:
                 current_user_name = self.current_user.get('name', '')
                 if not current_user_name:
                     current_user_name = self.current_user.get('username', '')
             
+            if not current_user_name:
+                self.show_message('خطا', 'نام کاربر جاری یافت نشد')
+                return
+            
+            # نرمال‌سازی نام کاربر جاری
+            current_user_norm = normalize_persian_text(current_user_name)
+            print(f"\n{'='*50}")
+            print(f"🔍 فراخوانی ماموریت‌ها")
+            print(f"👤 نام کاربر: {current_user_name}")
+            print(f"📝 نرمال‌سازی شده: {current_user_norm}")
+            print(f"{'='*50}")
+            
+            # خواندن هدرها
             headers = []
             for col in range(1, ws.max_column + 1):
                 cell_value = ws.cell(row=1, column=col).value
@@ -2984,59 +3139,83 @@ class AttendanceScreen(Screen):
                 else:
                     headers.append(f'ستون{col}')
             
+            print(f"📋 هدرها: {headers}")
+            
+            # نگاشت ستون‌ها
             col_map = {}
             for idx, header in enumerate(headers):
-                if 'شناسه' in header:
+                header_lower = header.lower()
+                if 'شناسه' in header or 'id' in header_lower:
                     col_map['id'] = idx
-                elif 'عامل' in header:
+                elif 'عامل' in header or 'agent' in header_lower:
                     col_map['agent'] = idx
-                elif 'نوع' in header:
+                elif 'نوع' in header or 'type' in header_lower:
                     col_map['type'] = idx
-                elif 'روش' in header:
+                elif 'روش' in header or 'method' in header_lower:
                     col_map['method'] = idx
-                elif 'تاریخ شروع' in header:
+                elif 'تاریخ شروع' in header or 'start_date' in header_lower:
                     col_map['start_date'] = idx
-                elif 'مدت' in header:
+                elif 'مدت' in header or 'duration' in header_lower:
                     col_map['duration'] = idx
-                elif 'امتیاز' in header:
+                elif 'امتیاز' in header or 'score' in header_lower:
                     col_map['score'] = idx
-                elif 'هدف' in header:
+                elif 'هدف' in header or 'target' in header_lower:
                     col_map['target'] = idx
-                elif 'توضیحات' in header:
+                elif 'توضیحات' in header or 'description' in header_lower:
                     col_map['description'] = idx
-                elif 'تاریخ پایان' in header:
+                elif 'تاریخ پایان' in header or 'end_date' in header_lower:
                     col_map['end_date'] = idx
-                elif 'وضعیت' in header:
+                elif 'وضعیت' in header or 'status' in header_lower:
                     col_map['status'] = idx
-                elif 'فعال' in header:
+                elif 'فعال' in header or 'active' in header_lower:
                     col_map['active'] = idx
             
-            imported_count = 0
+            if 'agent' not in col_map:
+                self.show_message('خطا', 'ستون "عامل" در فایل یافت نشد')
+                return
+            
             missions = self._load_missions_from_file()
-            existing_ids = [m.get('id') for m in missions]
+            existing_ids = [m.get('id') for m in missions if m.get('id')]
+            
+            imported_count = 0
+            skipped_count = 0
+            updated_count = 0
+            matched_names = set()
+            
+            total_rows = ws.max_row - 1
+            print(f"📊 تعداد کل ردیف‌ها: {total_rows}")
+            print(f"{'='*50}\n")
             
             for row_idx in range(2, ws.max_row + 1):
+                # خواندن مقدار عامل
                 agent_col = col_map.get('agent')
-                if agent_col is None:
-                    continue
-                
                 agent_value = ws.cell(row=row_idx, column=agent_col + 1).value
+                
                 if not agent_value:
+                    skipped_count += 1
                     continue
                 
                 agent_full = str(agent_value).strip()
                 
-                agent_name = agent_full
-                if ' - ' in agent_full:
-                    agent_name = agent_full.split(' - ')[-1].strip()
-                elif '-' in agent_full:
-                    agent_name = agent_full.split('-')[-1].strip()
-                elif '–' in agent_full:
-                    agent_name = agent_full.split('–')[-1].strip()
+                # استخراج نام عامل از رشته کامل
+                agent_name = extract_name_from_agent_string(agent_full)
                 
-                if agent_name != current_user_name:
+                # نرمال‌سازی نام عامل
+                agent_norm = normalize_persian_text(agent_name)
+                
+                # چاپ اطلاعات برای دیباگ
+                print(f"   ردیف {row_idx}: '{agent_norm}' vs '{current_user_norm}'")
+                
+                # بررسی تطابق
+                if agent_norm != current_user_norm:
+                    print(f"   ❌ تطابق نیافت: {agent_name} != {current_user_name}")
+                    skipped_count += 1
                     continue
                 
+                print(f"   ✅ تطابق یافت: {agent_name} == {current_user_name}")
+                matched_names.add(agent_name)
+                
+                # استخراج ID
                 id_col = col_map.get('id')
                 mission_id = None
                 if id_col is not None:
@@ -3044,41 +3223,93 @@ class AttendanceScreen(Screen):
                     if mission_id:
                         mission_id = str(mission_id).strip()
                 
+                # بررسی تکراری نبودن
                 if mission_id and mission_id in existing_ids:
+                    print(f"   ⏭ تکراری: {mission_id} - رد شد")
+                    skipped_count += 1
                     continue
                 
+                # خواندن مقادیر سایر ستون‌ها
+                def get_cell_value(col_key, default=''):
+                    col_idx = col_map.get(col_key)
+                    if col_idx is not None:
+                        value = ws.cell(row=row_idx, column=col_idx + 1).value
+                        if value is not None:
+                            return value
+                    return default
+                
+                # ساخت ماموریت جدید
                 mission = {
                     'id': mission_id or f'M{row_idx:04d}',
                     'agent': agent_full,
                     'agent_name': agent_name,
-                    'type': ws.cell(row=row_idx, column=col_map.get('type', 0) + 1).value or '',
-                    'method': ws.cell(row=row_idx, column=col_map.get('method', 0) + 1).value or '',
-                    'start_date': ws.cell(row=row_idx, column=col_map.get('start_date', 0) + 1).value or '',
-                    'duration': ws.cell(row=row_idx, column=col_map.get('duration', 0) + 1).value or 0,
-                    'score': ws.cell(row=row_idx, column=col_map.get('score', 0) + 1).value or 0,
-                    'target': ws.cell(row=row_idx, column=col_map.get('target', 0) + 1).value or 0,
-                    'description': ws.cell(row=row_idx, column=col_map.get('description', 0) + 1).value or '',
-                    'end_date': ws.cell(row=row_idx, column=col_map.get('end_date', 0) + 1).value or '',
+                    'type': get_cell_value('type', ''),
+                    'method': get_cell_value('method', ''),
+                    'start_date': get_cell_value('start_date', ''),
+                    'duration': get_cell_value('duration', 0),
+                    'score': get_cell_value('score', 0),
+                    'target': get_cell_value('target', 0),
+                    'description': get_cell_value('description', ''),
+                    'end_date': get_cell_value('end_date', ''),
                     'status': '⏳ در انتظار',
                     'active': True,
                     'imported_at': get_today_jalali(),
                     'selected': False
                 }
                 
+                # اگر تاریخ پایان خالی بود، از تاریخ شروع + مدت محاسبه کن
+                if not mission['end_date'] and mission['start_date'] and mission['duration']:
+                    try:
+                        from utils.jalali_date import add_days_to_jalali
+                        mission['end_date'] = add_days_to_jalali(mission['start_date'], mission['duration'])
+                    except:
+                        pass
+                
+                # اگر باز هم خالی بود، یک تاریخ پیش‌فرض بذار (مثلاً ۷ روز بعد)
+                if not mission['end_date']:
+                    try:
+                        from utils.jalali_date import add_days_to_jalali
+                        mission['end_date'] = add_days_to_jalali(get_today_jalali(), 7)
+                    except:
+                        mission['end_date'] = get_today_jalali()
+                
                 missions.append(mission)
                 imported_count += 1
                 existing_ids.append(mission_id)
+                
+                print(f"   ✅ اضافه شد: {mission['id']} - {mission['type']}")
             
             self._save_missions_to_file(missions)
             self._load_missions()
             
-            if imported_count > 0:
-                self.show_message('موفق', f'{imported_count} ماموریت با موفقیت فراخوانی شد')
-            else:
-                self.show_message('توجه', 'هیچ ماموریت جدیدی برای کاربر جاری یافت نشد')
+            # نمایش نتیجه
+            print(f"\n{'='*50}")
+            print(f"📊 نتیجه نهایی:")
+            print(f"   ✅ وارد شده: {imported_count}")
+            print(f"   ⏭ رد شده (تکراری/تطابق نیافت): {skipped_count}")
+            if matched_names:
+                print(f"   👤 تطابق با نام‌ها: {', '.join(matched_names)}")
+            print(f"{'='*50}\n")
             
-        except ImportError:
-            self.show_message('خطا', 'ماژول openpyxl نصب نیست')
+            if imported_count > 0:
+                msg = f'{imported_count} ماموریت با موفقیت فراخوانی شد'
+                if matched_names:
+                    msg += f'\nتطابق با نام‌ها: {", ".join(matched_names)}'
+                if skipped_count > 0:
+                    msg += f'\n{skipped_count} مورد نادیده گرفته شد (تکراری یا تطابق نیافت)'
+                self.show_message('موفق', msg)
+            else:
+                msg = f'هیچ ماموریت جدیدی برای "{current_user_name}" یافت نشد.\n'
+                msg += f'تعداد ردیف‌های بررسی شده: {total_rows}\n'
+                msg += f'تعداد تطابق نیافته: {skipped_count}\n\n'
+                msg += '💡 نکات:'
+                msg += '\n• مطمئن شوید نام عامل در فایل با نام کاربر مطابقت دارد'
+                msg += '\n• بررسی کنید که ستون "عامل" در فایل وجود داشته باشد'
+                msg += '\n• اگر نام دارای حروف عربی (ي، ك) است، به صورت خودکار تصحیح میشود'
+                self.show_message('توجه', msg)
+            
+        except ImportError as e:
+            self.show_message('خطا', f'ماژول مورد نیاز نصب نیست: {str(e)}')
         except Exception as e:
             self.show_message('خطا', f'خطا در فراخوانی ماموریت‌ها: {str(e)}')
             import traceback
@@ -3129,6 +3360,7 @@ class AttendanceScreen(Screen):
         self.update_buttons_state()
         self.update_entries_list()
         self.update_summary()
+
     
     def show_message(self, title, message):
         """نمایش پیام با پشتیبانی از متن طولانی"""

@@ -259,6 +259,40 @@ class LoginScreen(Screen):
         if hasattr(self, 'scroll'):
             self.scroll.scroll_y = 1
     
+
+    def check_and_show_reminder(self):
+        """بررسی و نمایش پاپ‌آپ یادآوری در صورت نیاز"""
+        try:
+            from kivy.app import App
+            from utils.user_manager import get_current_user
+            from utils.reminder_manager import should_show_reminder, show_complete_reminder_popup
+            from kivy.clock import Clock
+            
+            app = App.get_running_app()
+            current_user = get_current_user()
+            
+            if current_user:
+                username = current_user.get('name', '') or current_user.get('username', '')
+                
+                if should_show_reminder(username):
+                    Clock.schedule_once(
+                        lambda dt: show_complete_reminder_popup(username, current_user, app), 
+                        0.5
+                    )
+                    return True
+            return False
+        except Exception as e:
+            print(f"خطا در بررسی یادآوری: {e}")
+            return False
+    
+    def on_enter(self):
+        """هر بار که صفحه لاگین نمایش داده میشه (از هر جایی)"""
+        try:
+            # نمایش پاپ‌آپ یادآوری
+            self.check_and_show_reminder()
+        except Exception as e:
+            print(f"خطا در on_enter LoginScreen: {e}")
+
     # ============================================================
     # مدیریت فوکوس
     # ============================================================
@@ -874,6 +908,7 @@ class LoginScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا: {e}", error_details)
+
 
     # ============================================================
     # نمایش پیام

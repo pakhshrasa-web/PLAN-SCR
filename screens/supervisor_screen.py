@@ -4626,6 +4626,106 @@ class SupervisorScreen(Screen):
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در انتخاب مشتری: {e}", error_details)
 
+    def _show_text_input_dialog(self, title, hint, on_save_callback, initial_text=''):
+        """نمایش دیالوگ با فیلد متنی چندخطی برای نوشتن توضیحات"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text=title,
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(18),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # ✅ فیلد متنی چندخطی با فونت بزرگ
+            text_input = RTLTextInput(
+                text=initial_text,
+                hint_text=hint,
+                multiline=True,
+                size_hint_y=None,
+                height=dp(200),
+                font_size=sp(20)  # فونت بزرگ برای خوانایی بهتر
+            )
+            text_input.bg_color = (0.15, 0.15, 0.15, 1)
+            text_input.border_color = (0.3, 0.3, 0.3, 1)
+            text_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            text_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(text_input)
+            
+            # نمایش تعداد کاراکترها
+            char_count_label = RTLLabel(
+                text=f'تعداد کاراکترها: {len(initial_text)}',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(13),
+                color=(0.6, 0.6, 0.6, 1)
+            )
+            content.add_widget(char_count_label)
+            
+            # بروزرسانی تعداد کاراکترها هنگام تایپ
+            def update_char_count(instance, value):
+                char_count_label.text = f'تعداد کاراکترها: {len(value)}'
+            text_input._hidden_input.bind(text=update_char_count)
+            
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(8))
+            
+            save_btn = PersianButton(
+                text='ذخیره',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.3, 0.3, 0.3, 1),
+                size_hint_x=0.5,
+                size_hint_y=None,
+                height=dp(40),
+                color=(1, 1, 1, 1),
+                font_size=sp(16)
+            )
+            
+            btn_layout.add_widget(save_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title=title,
+                content=content,
+                size_hint=(0.9, 0.6),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def do_save(instance):
+                text = text_input.text.strip()
+                if text:
+                    on_save_callback(text)
+                popup.dismiss()
+            
+            def do_cancel(instance):
+                popup.dismiss()
+            
+            save_btn.bind(on_press=do_save)
+            cancel_btn.bind(on_press=do_cancel)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش دیالوگ نوشتن: {e}", error_details)
+
 
     def show_market_check_dialog(self, customer_name):
         """نمایش دیالوگ بررسی بازار با اسکرول و ساختار جابجا شده"""
@@ -4737,20 +4837,24 @@ class SupervisorScreen(Screen):
             self.market_dialog_visit_reason.size_hint_x = 0.72
             content.add_widget(make_row('علت سرکشی:', self.market_dialog_visit_reason))
 
-            # ۳- توضیحات سوپروایزر
-            self.market_dialog_supervisor_note = RTLTextInput(
-                hint_text='توضیحات را وارد کنید...',
-                multiline=True,
+            # ✅ ۳- توضیحات سوپروایزر (با دکمه)
+            self.market_dialog_supervisor_note = ''
+            note_btn = PersianButton(
+                text='✏️ نوشتن توضیحات',
+                size_hint_x=0.72,
                 size_hint_y=None,
-                height=dp(60),
-                font_size=sp(15)
+                height=dp(44),
+                background_color=(0.3, 0.4, 0.6, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
-            self.market_dialog_supervisor_note.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_dialog_supervisor_note.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_dialog_supervisor_note.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_dialog_supervisor_note._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.market_dialog_supervisor_note.size_hint_x = 0.72
-            content.add_widget(make_row('توضیحات سوپروایزر:', self.market_dialog_supervisor_note, height=dp(70)))
+            note_btn.bind(on_press=lambda x: self._show_text_input_dialog(
+                'توضیحات سوپروایزر',
+                'توضیحات را وارد کنید...',
+                lambda text: setattr(self, 'market_dialog_supervisor_note', text),
+                getattr(self, 'market_dialog_supervisor_note', '')
+            ))
+            content.add_widget(make_row('توضیحات سوپروایزر:', note_btn, height=dp(48)))
 
             # ۴- وضعیت مشتری
             self.market_dialog_customer_status = PersianComboBox(
@@ -4860,20 +4964,24 @@ class SupervisorScreen(Screen):
             self.market_dialog_customer_satisfaction.size_hint_x = 0.72
             content.add_widget(make_row('رضایتمندی مشتری:', self.market_dialog_customer_satisfaction))
 
-            # ۱۳- نظرات مشتری
-            self.market_dialog_customer_feedback = RTLTextInput(
-                hint_text='حداکثر ۱۰۰۰ کاراکتر...',
-                multiline=True,
+            # ✅ ۱۳- نظرات مشتری (با دکمه)
+            self.market_dialog_customer_feedback = ''
+            feedback_btn = PersianButton(
+                text='✏️ نوشتن نظر مشتری',
+                size_hint_x=0.72,
                 size_hint_y=None,
-                height=dp(60),
-                font_size=sp(15)
+                height=dp(44),
+                background_color=(0.3, 0.4, 0.6, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
-            self.market_dialog_customer_feedback.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_dialog_customer_feedback.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_dialog_customer_feedback.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_dialog_customer_feedback._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.market_dialog_customer_feedback.size_hint_x = 0.72
-            content.add_widget(make_row('نظرات مشتری:', self.market_dialog_customer_feedback, height=dp(70)))
+            feedback_btn.bind(on_press=lambda x: self._show_text_input_dialog(
+                'نظرات مشتری',
+                'نظر مشتری را وارد کنید...',
+                lambda text: setattr(self, 'market_dialog_customer_feedback', text),
+                getattr(self, 'market_dialog_customer_feedback', '')
+            ))
+            content.add_widget(make_row('نظرات مشتری:', feedback_btn, height=dp(48)))
 
             # ۱۴- میزان تحقق هدف سرکشی
             self.market_dialog_target_achievement = PersianComboBox(
@@ -4887,20 +4995,24 @@ class SupervisorScreen(Screen):
             self.market_dialog_target_achievement.size_hint_x = 0.72
             content.add_widget(make_row('تحقق هدف سرکشی:', self.market_dialog_target_achievement))
 
-            # ۱۵- نظریه سوپروایزر
-            self.market_dialog_supervisor_opinion = RTLTextInput(
-                hint_text='حداکثر ۱۵۰۰ کاراکتر...',
-                multiline=True,
+            # ✅ ۱۵- نظریه سوپروایزر (با دکمه)
+            self.market_dialog_supervisor_opinion = ''
+            opinion_btn = PersianButton(
+                text='✏️ نوشتن نظریه',
+                size_hint_x=0.72,
                 size_hint_y=None,
-                height=dp(60),
-                font_size=sp(15)
+                height=dp(44),
+                background_color=(0.3, 0.4, 0.6, 1),
+                color=(1, 1, 1, 1),
+                font_size=sp(14)
             )
-            self.market_dialog_supervisor_opinion.bg_color = (0.15, 0.15, 0.15, 1)
-            self.market_dialog_supervisor_opinion.border_color = (0.3, 0.3, 0.3, 1)
-            self.market_dialog_supervisor_opinion.border_color_focus = (0.2, 0.5, 0.9, 1)
-            self.market_dialog_supervisor_opinion._hidden_input.foreground_color = (1, 1, 1, 1)
-            self.market_dialog_supervisor_opinion.size_hint_x = 0.72
-            content.add_widget(make_row('نظریه سوپروایزر:', self.market_dialog_supervisor_opinion, height=dp(70)))
+            opinion_btn.bind(on_press=lambda x: self._show_text_input_dialog(
+                'نظریه سوپروایزر',
+                'نظریه خود را وارد کنید...',
+                lambda text: setattr(self, 'market_dialog_supervisor_opinion', text),
+                getattr(self, 'market_dialog_supervisor_opinion', '')
+            ))
+            content.add_widget(make_row('نظریه سوپروایزر:', opinion_btn, height=dp(48)))
 
             # ۱۶- آیا پیگیری مجدد نیاز است؟
             self.market_dialog_need_followup = PersianComboBox(
@@ -5007,7 +5119,8 @@ class SupervisorScreen(Screen):
                 'customer': customer_name,
                 'visit_type': self.market_dialog_visit_type.text,
                 'visit_reason': self.market_dialog_visit_reason.text,
-                'supervisor_note': self.market_dialog_supervisor_note.text.strip(),
+                # ✅ از متغیرهای ذخیره شده استفاده کن
+                'supervisor_note': getattr(self, 'market_dialog_supervisor_note', ''),
                 'customer_status': self.market_dialog_customer_status.text,
                 'shelf_status': self.market_dialog_shelf_status.text,
                 'monthly_visits': self.market_dialog_monthly_visits.text,
@@ -5017,14 +5130,17 @@ class SupervisorScreen(Screen):
                 'agent_behavior': self.market_dialog_agent_behavior.text,
                 'distributor_behavior': self.market_dialog_distributor_behavior.text,
                 'customer_satisfaction': self.market_dialog_customer_satisfaction.text,
-                'customer_feedback': self.market_dialog_customer_feedback.text.strip(),
+                # ✅ از متغیرهای ذخیره شده استفاده کن
+                'customer_feedback': getattr(self, 'market_dialog_customer_feedback', ''),
                 'target_achievement': self.market_dialog_target_achievement.text,
-                'supervisor_opinion': self.market_dialog_supervisor_opinion.text.strip(),
+                # ✅ از متغیرهای ذخیره شده استفاده کن
+                'supervisor_opinion': getattr(self, 'market_dialog_supervisor_opinion', ''),
                 'need_followup': self.market_dialog_need_followup.text,
                 'next_visit_date': self.market_dialog_next_visit_date.text.strip(),
                 'created_by': current_username,
                 'agent_name': current_username
             }
+
 
             if not data['route'] or data['route'] == '':
                 self.show_message('خطا', 'لطفاً یک مسیر را انتخاب کنید')

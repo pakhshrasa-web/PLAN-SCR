@@ -88,6 +88,17 @@ class AdminSettingsScreen(Screen):
             btn_leave.bind(on_press=lambda x: self.switch_tab(5))
             tabs_layout.add_widget(btn_leave)
             
+            btn_score = PersianButton(
+                text='امتیازدهی',
+                background_color=(0.2, 0.6, 0.3, 0.8),
+                size_hint_y=None,
+                height=dp(34),
+                color=(1, 1, 1, 1),
+                font_size=sp(13)
+            )
+            btn_score.bind(on_press=lambda x: self.switch_tab(6))
+            tabs_layout.add_widget(btn_score)
+
             btn_codes = PersianButton(
                 text='کدهای ثبت نام',
                 background_color=(0.3, 0.5, 0.8, 0.6),
@@ -150,7 +161,6 @@ class AdminSettingsScreen(Screen):
     def switch_tab(self, tab_id):
         try:
             self.content_area.clear_widgets()
-            # ریست کردن لیست فیلدها برای هر تب جدید
             self.focusable_fields = []
             
             if tab_id == 0:
@@ -165,6 +175,8 @@ class AdminSettingsScreen(Screen):
                 self.show_change_password_tab()
             elif tab_id == 5:
                 self.show_leave_settings_tab()
+            elif tab_id == 6:  # ✅ تب جدید امتیازدهی
+                self.show_score_settings_tab()
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در تغییر تب: {e}", error_details)
@@ -1516,7 +1528,649 @@ class AdminSettingsScreen(Screen):
         except Exception as e:
             error_details = traceback.format_exc()
             ErrorPopup.show_error(f"خطا در خام سازی: {e}", error_details)
-    
+
+    # ============================================================
+    # تب امتیازدهی
+    # ============================================================
+
+    def show_score_settings_tab(self):
+        """نمایش تب تنظیمات امتیازدهی"""
+        try:
+            scroll = ScrollView(
+                do_scroll_x=False,
+                do_scroll_y=True,
+                size_hint=(1, 1),
+                scroll_type=['bars', 'content'],
+                bar_width=dp(8)
+            )
+            
+            layout = BoxLayout(
+                orientation='vertical',
+                padding=dp(15),
+                spacing=dp(8),
+                size_hint_y=None
+            )
+            layout.bind(minimum_height=layout.setter('height'))
+            
+            # عنوان
+            layout.add_widget(RTLLabel(
+                text='تنظیمات امتیازدهی',
+                size_hint_y=None,
+                height=dp(45),
+                font_size=sp(22),
+                bold=True,
+                color=(0.2, 0.8, 0.3, 1)
+            ))
+            
+            layout.add_widget(RTLLabel(
+                text='تنظیم امتیازات برای فعالیت‌های مختلف',
+                size_hint_y=None,
+                height=dp(28),
+                font_size=sp(14),
+                color=(0.6, 0.6, 0.6, 1)
+            ))
+            
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 1: امتیاز ورود (بر اساس بازه‌های زمانی)
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='امتیاز ورود موفق',
+                size_hint_y=None,
+                height=dp(32),
+                font_size=sp(17),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # بازه صبح (05:00 - 10:29)
+            row1 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb1 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row1.add_widget(cb1)
+            row1.add_widget(RTLLabel(text='صبح (۰۵:۰۰ - ۱۰:۲۹)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_morning_input = RTLTextInput(text='30', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_morning_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_morning_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_morning_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_morning_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row1.add_widget(self.score_morning_input)
+            self.morning_checkbox = cb1
+            layout.add_widget(row1)
+            
+            # بازه پیش از ظهر (10:30 - 11:59)
+            row2 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb2 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row2.add_widget(cb2)
+            row2.add_widget(RTLLabel(text='پیش از ظهر (۱۰:۳۰ - ۱۱:۵۹)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_noon_input = RTLTextInput(text='20', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_noon_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_noon_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_noon_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_noon_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row2.add_widget(self.score_noon_input)
+            self.noon_checkbox = cb2
+            layout.add_widget(row2)
+            
+            # بازه ظهر (12:00 - 14:29)
+            row3 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb3 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row3.add_widget(cb3)
+            row3.add_widget(RTLLabel(text='ظهر (۱۲:۰۰ - ۱۴:۲۹)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_afternoon_input = RTLTextInput(text='10', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_afternoon_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_afternoon_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_afternoon_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_afternoon_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row3.add_widget(self.score_afternoon_input)
+            self.afternoon_checkbox = cb3
+            layout.add_widget(row3)
+            
+            # بازه بعدازظهر (14:30 - 16:29)
+            row4 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb4 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row4.add_widget(cb4)
+            row4.add_widget(RTLLabel(text='بعدازظهر (۱۴:۳۰ - ۱۶:۲۹)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_evening_input = RTLTextInput(text='5', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_evening_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_evening_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_evening_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_evening_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row4.add_widget(self.score_evening_input)
+            self.evening_checkbox = cb4
+            layout.add_widget(row4)
+            
+            # بازه عصر (16:30 - 18:59)
+            row5 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb5 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row5.add_widget(cb5)
+            row5.add_widget(RTLLabel(text='عصر (۱۶:۳۰ - ۱۸:۵۹)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_night_input = RTLTextInput(text='5', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_night_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_night_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_night_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_night_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row5.add_widget(self.score_night_input)
+            self.night_checkbox = cb5
+            layout.add_widget(row5)
+            
+            # بازه شب (19:00 - 23:59)
+            row6 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb6 = CheckBox(active=False, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row6.add_widget(cb6)
+            row6.add_widget(RTLLabel(text='شب (۱۹:۰۰ - ۲۳:۵۹)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_late_night_input = RTLTextInput(text='0', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_late_night_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_late_night_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_late_night_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_late_night_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row6.add_widget(self.score_late_night_input)
+            self.late_night_checkbox = cb6
+            layout.add_widget(row6)
+            
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 2: امتیازات ویزیت و فروش
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='امتیازات ویزیت و فروش',
+                size_hint_y=None,
+                height=dp(32),
+                font_size=sp(17),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # اولین ویزیت
+            row7 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb7 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row7.add_widget(cb7)
+            row7.add_widget(RTLLabel(text='اولین ویزیت', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_first_visit = RTLTextInput(text='5', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_first_visit.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_first_visit.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_first_visit.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_first_visit._hidden_input.foreground_color = (1, 1, 1, 1)
+            row7.add_widget(self.score_first_visit)
+            self.first_visit_checkbox = cb7
+            layout.add_widget(row7)
+            
+            # هر ویزیت موفق
+            row8 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb8 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row8.add_widget(cb8)
+            row8.add_widget(RTLLabel(text='هر ویزیت موفق', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_success_visit = RTLTextInput(text='5', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_success_visit.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_success_visit.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_success_visit.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_success_visit._hidden_input.foreground_color = (1, 1, 1, 1)
+            row8.add_widget(self.score_success_visit)
+            self.success_visit_checkbox = cb8
+            layout.add_widget(row8)
+            
+            # هر ویزیت ناموفق
+            row9 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb9 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row9.add_widget(cb9)
+            row9.add_widget(RTLLabel(text='هر ویزیت ناموفق', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_fail_visit = RTLTextInput(text='1', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_fail_visit.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_fail_visit.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_fail_visit.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_fail_visit._hidden_input.foreground_color = (1, 1, 1, 1)
+            row9.add_widget(self.score_fail_visit)
+            self.fail_visit_checkbox = cb9
+            layout.add_widget(row9)
+            
+            # هر فروش موفق
+            row10 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb10 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row10.add_widget(cb10)
+            row10.add_widget(RTLLabel(text='هر فروش موفق', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_success_sale = RTLTextInput(text='10', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_success_sale.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_success_sale.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_success_sale.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_success_sale._hidden_input.foreground_color = (1, 1, 1, 1)
+            row10.add_widget(self.score_success_sale)
+            self.success_sale_checkbox = cb10
+            layout.add_widget(row10)
+            
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 3: امتیازات وصول
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='امتیازات وصول',
+                size_hint_y=None,
+                height=dp(32),
+                font_size=sp(17),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # هر وصول موفق
+            row11 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb11 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row11.add_widget(cb11)
+            row11.add_widget(RTLLabel(text='هر وصول موفق', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_success_collection = RTLTextInput(text='30', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_success_collection.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_success_collection.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_success_collection.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_success_collection._hidden_input.foreground_color = (1, 1, 1, 1)
+            row11.add_widget(self.score_success_collection)
+            self.success_collection_checkbox = cb11
+            layout.add_widget(row11)
+            
+            # امتیاز مبلغ وصول
+            row12 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb12 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row12.add_widget(cb12)
+            row12.add_widget(RTLLabel(text='امتیاز مبلغ وصول (هر ۱۰ میلیون)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_collection_amount = RTLTextInput(text='1', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_collection_amount.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_collection_amount.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_collection_amount.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_collection_amount._hidden_input.foreground_color = (1, 1, 1, 1)
+            row12.add_widget(self.score_collection_amount)
+            self.collection_amount_checkbox = cb12
+            layout.add_widget(row12)
+            
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 4: امتیازات تارگت و هدف‌گذاری
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='امتیازات تارگت و هدف‌گذاری',
+                size_hint_y=None,
+                height=dp(32),
+                font_size=sp(17),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # امتیاز هدف‌گذاری
+            row13 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb13 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row13.add_widget(cb13)
+            row13.add_widget(RTLLabel(text='هدف‌گذاری', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_target_setting = RTLTextInput(text='100', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_target_setting.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_target_setting.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_target_setting.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_target_setting._hidden_input.foreground_color = (1, 1, 1, 1)
+            row13.add_widget(self.score_target_setting)
+            self.target_setting_checkbox = cb13
+            layout.add_widget(row13)
+            
+            # امتیاز تحقق تارگت
+            row14 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb14 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row14.add_widget(cb14)
+            row14.add_widget(RTLLabel(text='تحقق تارگت', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_target_achieve = RTLTextInput(text='25', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_target_achieve.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_target_achieve.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_target_achieve.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_target_achieve._hidden_input.foreground_color = (1, 1, 1, 1)
+            row14.add_widget(self.score_target_achieve)
+            self.target_achieve_checkbox = cb14
+            layout.add_widget(row14)
+            
+            # امتیاز تحقق ریزتارگت
+            row15 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb15 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row15.add_widget(cb15)
+            row15.add_widget(RTLLabel(text='تحقق ریزتارگت', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_detail_target = RTLTextInput(text='25', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_detail_target.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_detail_target.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_detail_target.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_detail_target._hidden_input.foreground_color = (1, 1, 1, 1)
+            row15.add_widget(self.score_detail_target)
+            self.detail_target_checkbox = cb15
+            layout.add_widget(row15)
+            
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(5)))
+            
+            # ============================================================
+            # بخش 5: امتیازات توزیع و گزارش
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='امتیازات توزیع و گزارش',
+                size_hint_y=None,
+                height=dp(32),
+                font_size=sp(17),
+                bold=True,
+                color=(0.4, 0.7, 1, 1)
+            ))
+            
+            # هر بررسی بازار (سرکشی)
+            row16 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb16 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row16.add_widget(cb16)
+            row16.add_widget(RTLLabel(text='هر بررسی بازار (سرکشی)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_market_visit = RTLTextInput(text='15', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_market_visit.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_market_visit.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_market_visit.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_market_visit._hidden_input.foreground_color = (1, 1, 1, 1)
+            row16.add_widget(self.score_market_visit)
+            self.market_visit_checkbox = cb16
+            layout.add_widget(row16)
+            
+            # هر توزیع
+            row17 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb17 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row17.add_widget(cb17)
+            row17.add_widget(RTLLabel(text='هر توزیع', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_delivery = RTLTextInput(text='10', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_delivery.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_delivery.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_delivery.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_delivery._hidden_input.foreground_color = (1, 1, 1, 1)
+            row17.add_widget(self.score_delivery)
+            self.delivery_checkbox = cb17
+            layout.add_widget(row17)
+            
+            # امتیاز مبلغ توزیع (هر ۱۰ میلیون)
+            row18 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb18 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row18.add_widget(cb18)
+            row18.add_widget(RTLLabel(text='امتیاز مبلغ توزیع (هر ۱۰ میلیون)', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_delivery_amount = RTLTextInput(text='1', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_delivery_amount.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_delivery_amount.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_delivery_amount.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_delivery_amount._hidden_input.foreground_color = (1, 1, 1, 1)
+            row18.add_widget(self.score_delivery_amount)
+            self.delivery_amount_checkbox = cb18
+            layout.add_widget(row18)
+            
+            # امتیاز ارسال گزارش
+            row19 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb19 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row19.add_widget(cb19)
+            row19.add_widget(RTLLabel(text='ارسال گزارش', size_hint_x=0.5, font_size=sp(14), color=(1,1,1,1)))
+            self.score_report = RTLTextInput(text='100', multiline=False, size_hint_x=0.3, size_hint_y=None, height=dp(36), font_size=sp(16))
+            self.score_report.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_report.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_report.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_report._hidden_input.foreground_color = (1, 1, 1, 1)
+            row19.add_widget(self.score_report)
+            self.report_checkbox = cb19
+            layout.add_widget(row19)
+            
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
+            
+            # ============================================================
+            # بخش 6: ضریب پاداش
+            # ============================================================
+            layout.add_widget(RTLLabel(
+                text='ضریب پاداش',
+                size_hint_y=None,
+                height=dp(32),
+                font_size=sp(17),
+                bold=True,
+                color=(1, 0.8, 0.2, 1)
+            ))
+
+            layout.add_widget(RTLLabel(
+                text='ضریب پاداش به صورت درصدی اعمال میشود (مثال: ۱۰ = ۱۰٪)',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(13),
+                color=(0.6, 0.6, 0.6, 1)
+            ))
+
+            # ضریب پاداش
+            row20 = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            cb20 = CheckBox(active=True, size_hint_x=0.1, size_hint_y=None, height=dp(30), color=(0.4, 0.7, 1, 1))
+            row20.add_widget(cb20)
+            row20.add_widget(RTLLabel(
+                text='فعالسازی ضریب پاداش',
+                size_hint_x=0.5,
+                font_size=sp(14),
+                color=(1, 1, 1, 1)
+            ))
+            self.score_bonus_input = RTLTextInput(
+                text='0',
+                multiline=False,
+                size_hint_x=0.3,
+                size_hint_y=None,
+                height=dp(36),
+                font_size=sp(16),
+                hint_text='درصد'
+            )
+            self.score_bonus_input.bg_color = (0.15, 0.15, 0.15, 1)
+            self.score_bonus_input.border_color = (0.3, 0.3, 0.3, 1)
+            self.score_bonus_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            self.score_bonus_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            row20.add_widget(self.score_bonus_input)
+            self.bonus_checkbox = cb20
+            layout.add_widget(row20)
+
+            layout.add_widget(RTLLabel(
+                text='توضیح: ضریب پاداش به صورت درصدی به مجموع امتیازات روز اضافه میشود',
+                size_hint_y=None,
+                height=dp(25),
+                font_size=sp(12),
+                color=(0.5, 0.5, 0.5, 1)
+            ))
+
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(10)))
+
+            # ============================================================
+            # دکمه‌های عملیاتی
+            # ============================================================
+            btn_layout = BoxLayout(
+                spacing=dp(10),
+                size_hint_y=None,
+                height=dp(50)
+            )
+            
+            save_btn = PersianButton(
+                text='ذخیره تنظیمات امتیازدهی',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(16),
+                bold=True
+            )
+            save_btn.bind(on_press=self.save_score_settings)
+            btn_layout.add_widget(save_btn)
+            
+            reset_btn = PersianButton(
+                text='بازنشانی به پیش‌فرض',
+                background_color=(0.8, 0.5, 0.2, 1),
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                font_size=sp(15)
+            )
+            reset_btn.bind(on_press=self.reset_score_settings)
+            btn_layout.add_widget(reset_btn)
+            
+            layout.add_widget(btn_layout)
+            layout.add_widget(BoxLayout(size_hint_y=None, height=dp(20)))
+            
+            scroll.add_widget(layout)
+            self.content_area.add_widget(scroll)
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در نمایش تنظیمات امتیازدهی: {e}", error_details)
+
+    def save_score_settings(self, instance):
+        """ذخیره تنظیمات امتیازدهی"""
+        try:
+            score_config = {
+                'attendance': {
+                    'morning': {'active': self.morning_checkbox.active, 'score': int(self.score_morning_input.text or 0)},
+                    'noon': {'active': self.noon_checkbox.active, 'score': int(self.score_noon_input.text or 0)},
+                    'afternoon': {'active': self.afternoon_checkbox.active, 'score': int(self.score_afternoon_input.text or 0)},
+                    'evening': {'active': self.evening_checkbox.active, 'score': int(self.score_evening_input.text or 0)},
+                    'night': {'active': self.night_checkbox.active, 'score': int(self.score_night_input.text or 0)},
+                    'late_night': {'active': self.late_night_checkbox.active, 'score': int(self.score_late_night_input.text or 0)}
+                },
+                'visit': {
+                    'first_visit': {'active': self.first_visit_checkbox.active, 'score': int(self.score_first_visit.text or 0)},
+                    'success_visit': {'active': self.success_visit_checkbox.active, 'score': int(self.score_success_visit.text or 0)},
+                    'fail_visit': {'active': self.fail_visit_checkbox.active, 'score': int(self.score_fail_visit.text or 0)},
+                    'success_sale': {'active': self.success_sale_checkbox.active, 'score': int(self.score_success_sale.text or 0)}
+                },
+                'collection': {
+                    'success': {'active': self.success_collection_checkbox.active, 'score': int(self.score_success_collection.text or 0)},
+                    'amount_per_10m': {'active': self.collection_amount_checkbox.active, 'score': int(self.score_collection_amount.text or 0)}
+                },
+                'target': {
+                    'setting': {'active': self.target_setting_checkbox.active, 'score': int(self.score_target_setting.text or 0)},
+                    'achieve': {'active': self.target_achieve_checkbox.active, 'score': int(self.score_target_achieve.text or 0)},
+                    'detail': {'active': self.detail_target_checkbox.active, 'score': int(self.score_detail_target.text or 0)}
+                },
+                'other': {
+                    'market_visit': {'active': self.market_visit_checkbox.active, 'score': int(self.score_market_visit.text or 0)},
+                    'delivery': {'active': self.delivery_checkbox.active, 'score': int(self.score_delivery.text or 0)},
+                    'delivery_amount_per_10m': {'active': self.delivery_amount_checkbox.active, 'score': int(self.score_delivery_amount.text or 0)},
+                    'report': {'active': self.report_checkbox.active, 'score': int(self.score_report.text or 0)}
+                },
+                # ✅ اضافه شدن ضریب پاداش
+                'bonus': {
+                    'active': self.bonus_checkbox.active,
+                    'percent': int(self.score_bonus_input.text or 0)
+                }
+            }
+            
+            # ذخیره در فایل
+            from utils.file_manager import save_json
+            save_json('score_settings.json', score_config)
+            
+            self.show_message('موفق', 'تنظیمات امتیازدهی با موفقیت ذخیره شد')
+            
+        except ValueError as e:
+            self.show_message('خطا', 'لطفاً همه مقادیر را به صورت عدد وارد کنید')
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در ذخیره تنظیمات امتیازدهی: {e}", error_details)
+
+
+    def reset_score_settings(self, instance):
+        """بازنشانی تنظیمات امتیازدهی به پیش‌فرض"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                content_rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
+                        size=lambda i, v: setattr(content_rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text='آیا از بازنشانی تنظیمات امتیازدهی به مقادیر پیش‌فرض مطمئن هستید؟',
+                size_hint_y=None,
+                height=dp(50),
+                font_size=sp(18),
+                color=(255, 255, 255, 255)
+            ))
+            
+            btn_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(50))
+            yes_btn = PersianButton(
+                text='بله',
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                background_color=(0.8, 0.2, 0.2, 1),
+                font_size=sp(16)
+            )
+            no_btn = PersianButton(
+                text='خیر',
+                size_hint_y=None,
+                height=dp(45),
+                color=(1, 1, 1, 1),
+                background_color=(0.3, 0.3, 0.3, 1),
+                font_size=sp(16)
+            )
+            btn_layout.add_widget(yes_btn)
+            btn_layout.add_widget(no_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='تأیید بازنشانی',
+                content=content,
+                size_hint=(0.8, 0.3),
+                background_color=(0.08, 0.08, 0.08, 1)
+            )
+            
+            def do_reset(inst):
+                popup.dismiss()
+                # بازنشانی به مقادیر پیش‌فرض
+                self.morning_checkbox.active = True
+                self.score_morning_input.text = '30'
+                self.noon_checkbox.active = True
+                self.score_noon_input.text = '20'
+                self.afternoon_checkbox.active = True
+                self.score_afternoon_input.text = '10'
+                self.evening_checkbox.active = True
+                self.score_evening_input.text = '5'
+                self.night_checkbox.active = True
+                self.score_night_input.text = '5'
+                self.late_night_checkbox.active = False
+                self.score_late_night_input.text = '0'
+                
+                self.first_visit_checkbox.active = True
+                self.score_first_visit.text = '5'
+                self.success_visit_checkbox.active = True
+                self.score_success_visit.text = '5'
+                self.fail_visit_checkbox.active = True
+                self.score_fail_visit.text = '1'
+                self.success_sale_checkbox.active = True
+                self.score_success_sale.text = '10'
+                
+                self.success_collection_checkbox.active = True
+                self.score_success_collection.text = '30'
+                self.collection_amount_checkbox.active = True
+                self.score_collection_amount.text = '1'
+                
+                self.target_setting_checkbox.active = True
+                self.score_target_setting.text = '100'
+                self.target_achieve_checkbox.active = True
+                self.score_target_achieve.text = '25'
+                self.detail_target_checkbox.active = True
+                self.score_detail_target.text = '25'
+                
+                self.market_visit_checkbox.active = True
+                self.score_market_visit.text = '15'
+                self.delivery_checkbox.active = True
+                self.score_delivery.text = '10'
+                self.delivery_amount_checkbox.active = True
+                self.score_delivery_amount.text = '1'
+                self.report_checkbox.active = True
+                self.score_report.text = '100'
+                
+                # ✅ بازنشانی ضریب پاداش
+                self.bonus_checkbox.active = False
+                self.score_bonus_input.text = '0'
+                
+                self.show_message('موفق', 'تنظیمات به مقادیر پیش‌فرض بازنشانی شد')
+            
+            def cancel_reset(inst):
+                popup.dismiss()
+            
+            yes_btn.bind(on_press=do_reset)
+            no_btn.bind(on_press=cancel_reset)
+            popup.open()
+            
+        except Exception as e:
+            error_details = traceback.format_exc()
+            ErrorPopup.show_error(f"خطا در بازنشانی تنظیمات امتیازدهی: {e}", error_details)
+
+
+
     # ========== تب تغییر رمز ==========
     
     def show_change_password_tab(self):
