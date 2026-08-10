@@ -33,7 +33,7 @@ def init_data_path():
     if _cache['data_path'] is not None:
         return _cache['data_path']
     
-    app_name = 'planandroid'
+    app_name = 'planandroid'  # ✅ نام ثابت
     
     if platform == 'android':
         try:
@@ -48,6 +48,7 @@ def init_data_path():
             logger.warning(f"خطا در دریافت مسیر اندروید: {e}")
             _cache['data_path'] = '/data/data/org.pakhshrasa.planandroid/files'
     elif platform == 'win':
+        # ✅ استفاده از نام یکسان
         _cache['data_path'] = os.path.join(os.environ.get('APPDATA', os.getcwd()), app_name)
         logger.info(f"مسیر ویندوز: {_cache['data_path']}")
     elif platform in ('linux', 'macosx'):

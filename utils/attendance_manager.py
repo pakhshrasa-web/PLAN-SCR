@@ -7,7 +7,8 @@ import shutil
 from datetime import datetime
 from utils.jalali_date import get_today_jalali
 from utils.storage import get_data_path
-from utils.file_manager import get_agents, get_settings  # ✅ اضافه شدن get_settings
+from utils.file_manager import get_agents, get_settings
+from utils.user_manager import get_users  # ✅ اضافه شد
 
 
 class AttendanceManager:
@@ -102,6 +103,44 @@ class AttendanceManager:
         return True
     
     @staticmethod
+    def _get_user_info(user_id):
+        """
+        دریافت اطلاعات کاربر از user_manager
+        
+        Args:
+            user_id: شناسه کاربر
+        
+        Returns:
+            dict: اطلاعات کاربر یا دیکشنری خالی
+        """
+        try:
+            users = get_users()
+            for user in users:
+                if user.get('id') == user_id:
+                    return {
+                        'name': user.get('name', '') or user.get('username', ''),
+                        'username': user.get('username', ''),
+                        'role': user.get('role', '')
+                    }
+        except Exception as e:
+            print(f"خطا در دریافت اطلاعات کاربر: {e}")
+        
+        # Fallback: جستجو در agents
+        try:
+            agents = get_agents()
+            for agent in agents:
+                if agent.get('id') == user_id:
+                    return {
+                        'name': agent.get('name', '') or agent.get('username', ''),
+                        'username': agent.get('username', ''),
+                        'role': agent.get('role', '')
+                    }
+        except Exception as e:
+            print(f"خطا در دریافت اطلاعات عامل: {e}")
+        
+        return {'name': '', 'username': '', 'role': ''}
+    
+    @staticmethod
     def check_in(user_id, date=None, time=None, note=''):
         """ثبت ورود - بدون محدودیت روزانه"""
         if date is None:
@@ -111,11 +150,10 @@ class AttendanceManager:
         
         attendance = AttendanceManager.load_attendance()
         
-        # دریافت اطلاعات پرسنل از get_agents
-        personnel = get_agents()
-        user_info = next((u for u in personnel if u.get('id') == user_id), {})
+        # ✅ دریافت اطلاعات کاربر از user_manager
+        user_info = AttendanceManager._get_user_info(user_id)
         
-        # ✅ دریافت ساعات کاری از settings.json
+        # دریافت ساعات کاری از settings.json
         work_hours = AttendanceManager.get_work_hours()
         work_start = work_hours.get('work_start_time', '08:00')
         
@@ -124,9 +162,12 @@ class AttendanceManager:
         is_late = time > work_start
         late_minutes = 0
         if is_late:
-            start_hour, start_min = map(int, work_start.split(':'))
-            hour, minute = map(int, time.split(':'))
-            late_minutes = (hour - start_hour) * 60 + (minute - start_min)
+            try:
+                start_hour, start_min = map(int, work_start.split(':'))
+                hour, minute = map(int, time.split(':'))
+                late_minutes = (hour - start_hour) * 60 + (minute - start_min)
+            except:
+                pass
         
         record = {
             'user_id': user_id,
@@ -172,12 +213,11 @@ class AttendanceManager:
                 record = r
                 break
         
+        # ✅ دریافت اطلاعات کاربر از user_manager
+        user_info = AttendanceManager._get_user_info(user_id)
+        
         # اگر رکوردی برای خروج پیدا نشد، یک رکورد جدید با زمان ورود و خروج همزمان ثبت کن
         if not record:
-            personnel = get_agents()
-            user_info = next((u for u in personnel if u.get('id') == user_id), {})
-            
-            # ✅ دریافت ساعات کاری از settings.json
             work_hours = AttendanceManager.get_work_hours()
             work_start = work_hours.get('work_start_time', '08:00')
             
@@ -185,9 +225,12 @@ class AttendanceManager:
             is_late = time > work_start
             late_minutes = 0
             if is_late:
-                start_hour, start_min = map(int, work_start.split(':'))
-                hour, minute = map(int, time.split(':'))
-                late_minutes = (hour - start_hour) * 60 + (minute - start_min)
+                try:
+                    start_hour, start_min = map(int, work_start.split(':'))
+                    hour, minute = map(int, time.split(':'))
+                    late_minutes = (hour - start_hour) * 60 + (minute - start_min)
+                except:
+                    pass
             
             new_record = {
                 'user_id': user_id,
@@ -214,7 +257,7 @@ class AttendanceManager:
             AttendanceManager.save_attendance(attendance)
             return True, 'خروج با موفقیت ثبت شد (ورود و خروج همزمان)'
         
-        # ✅ دریافت ساعات کاری از settings.json
+        # دریافت ساعات کاری از settings.json
         work_hours = AttendanceManager.get_work_hours()
         work_end = work_hours.get('work_end_time', '17:00')
         
@@ -223,9 +266,12 @@ class AttendanceManager:
         is_early = time < work_end
         early_minutes = 0
         if is_early:
-            end_hour, end_min = map(int, work_end.split(':'))
-            hour, minute = map(int, time.split(':'))
-            early_minutes = (end_hour - hour) * 60 + (end_min - minute)
+            try:
+                end_hour, end_min = map(int, work_end.split(':'))
+                hour, minute = map(int, time.split(':'))
+                early_minutes = (end_hour - hour) * 60 + (end_min - minute)
+            except:
+                pass
         
         record['check_out'] = time
         if is_early and early_minutes > config.get('early_leave_threshold', 15):
@@ -236,6 +282,12 @@ class AttendanceManager:
         record['updated_at'] = datetime.now().isoformat()
         record['note'] = note if note else record.get('note', '')
         
+        # ✅ به‌روزرسانی نام کاربر اگر خالی بود
+        if not record.get('user_name') and user_info.get('name'):
+            record['user_name'] = user_info.get('name', '')
+            record['username'] = user_info.get('username', '')
+            record['role'] = user_info.get('role', '')
+        
         AttendanceManager.save_attendance(attendance)
         return True, 'خروج با موفقیت ثبت شد'
     
@@ -244,8 +296,8 @@ class AttendanceManager:
         """ثبت مرخصی"""
         attendance = AttendanceManager.load_attendance()
         
-        personnel = get_agents()
-        user_info = next((u for u in personnel if u.get('id') == user_id), {})
+        # ✅ دریافت اطلاعات کاربر از user_manager
+        user_info = AttendanceManager._get_user_info(user_id)
         
         record = {
             'user_id': user_id,
@@ -277,8 +329,8 @@ class AttendanceManager:
         """ثبت ماموریت"""
         attendance = AttendanceManager.load_attendance()
         
-        personnel = get_agents()
-        user_info = next((u for u in personnel if u.get('id') == user_id), {})
+        # ✅ دریافت اطلاعات کاربر از user_manager
+        user_info = AttendanceManager._get_user_info(user_id)
         
         record = {
             'user_id': user_id,
