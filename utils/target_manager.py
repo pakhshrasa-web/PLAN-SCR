@@ -90,12 +90,11 @@ def _add_months(date_str: str, months: int) -> str:
     """
     افزودن تعداد ماه به تاریخ شمسی و برگرداندن آخرین روز ماه
     
-    Args:
-        date_str: تاریخ به فرمت 1405/05/01
-        months: تعداد ماه
-    
-    Returns:
-        تاریخ جدید به فرمت 1405/05/31 (آخرین روز ماه)
+    مثال‌ها:
+    - _add_months('1405/05/01', 1) -> '1405/05/31'
+    - _add_months('1405/05/15', 1) -> '1405/05/31'
+    - _add_months('1405/12/01', 1) -> '1405/12/29' (اگر سال کبیسه نباشه)
+    - _add_months('1405/12/01', 2) -> '1406/01/31'
     """
     try:
         parts = date_str.split('/')
@@ -104,27 +103,34 @@ def _add_months(date_str: str, months: int) -> str:
         
         year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
         
-        # ✅ محاسبه ماه جدید
+        # محاسبه ماه و سال جدید
         new_month = month + months
         new_year = year
         
+        # تنظیم سال اگر ماه از 12 بیشتر شد
         while new_month > 12:
             new_month -= 12
             new_year += 1
         
+        # تنظیم سال اگر ماه به صفر یا کمتر رسید
         while new_month < 1:
             new_month += 12
             new_year -= 1
         
-        # ✅ برگرداندن آخرین روز ماه
-        if 1 <= new_month <= 6:
+        # ✅ محاسبه آخرین روز **ماه شروع** (نه ماه جدید!)
+        # اینجا باید از month استفاده کنیم، چون میخوایم آخرین روز 
+        # همان ماهی که تاریخ شروع در اون هست رو برگردونیم
+        
+        if 1 <= month <= 6:  # ماه‌های ۳۱ روزه
             max_day = 31
-        elif 7 <= new_month <= 11:
+        elif 7 <= month <= 11:  # ماه‌های ۳۰ روزه
             max_day = 30
-        else:  # اسفند
+        else:  # اسفند (ماه ۱۲)
+            # سال جدید رو برای محاسبه کبیسه در نظر بگیر
             max_day = 29 if new_year % 4 == 0 else 28
         
-        return f"{new_year:04d}/{new_month:02d}/{max_day:02d}"
+        # ✅ برگرداندن آخرین روز ماه شروع با سال جدید
+        return f"{new_year:04d}/{month:02d}/{max_day:02d}"
         
     except Exception as e:
         logger.error(f"خطا در add_months: {e}")

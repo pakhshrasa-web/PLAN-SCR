@@ -245,7 +245,7 @@ def get_end_day_points(user_name, date, settings=None):
 
 def get_mission_points(agent_name, date=None):
     """
-    محاسبه امتیاز ماموریت‌های انجام شده
+    محاسبه امتیاز ماموریت‌های انجام شده - فقط ماموریت‌های موفق
     """
     try:
         from utils.name_matcher import normalize_persian_text
@@ -286,20 +286,30 @@ def get_mission_points(agent_name, date=None):
             if m_agent_norm != agent_norm:
                 continue
             
+            # فقط ماموریت‌های تعیین تکلیف شده (active = False)
             if m.get('active') == False:
                 status = m.get('status', '')
                 completed_at = m.get('completed_at', '')
                 
+                # فیلتر بر اساس تاریخ
                 if date is not None and completed_at != date:
                     continue
                 
-                if 'موفق' in status:
-                    total_score += m.get('score', 0)
-                    success_count += 1
-                    completed_count += 1
-                elif 'ناموفق' in status:
+                # ✅ فقط ماموریت‌های موفق امتیاز دارند
+                # ❌ ماموریت‌های ناموفق امتیاز ندارند (0 امتیاز)
+                if '✅ موفق' in status or 'موفق' in status:
+                    # اطمینان از اینکه ناموفق نباشد
+                    if 'ناموفق' not in status:
+                        total_score += m.get('score', 0)
+                        success_count += 1
+                        completed_count += 1
+                    else:
+                        fail_count += 1
+                        completed_count += 1
+                elif '❌ ناموفق' in status or 'ناموفق' in status:
                     fail_count += 1
                     completed_count += 1
+                    # ✅ بدون امتیاز
         
         detail = f"{completed_count} ماموریت انجام شده (موفق: {success_count}، ناموفق: {fail_count})"
         return total_score, completed_count, detail
