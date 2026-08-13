@@ -2525,23 +2525,286 @@ class AttendanceScreen(Screen):
                 self._assign_popup.dismiss()
             
             all_missions = self._load_missions_from_file()
+            selected = [m for m in all_missions if m.get('selected', False)]
+            
+            if not selected:
+                self.show_message('خطا', 'هیچ ماموریتی انتخاب نشده است')
+                return
+            
+            # ========== بررسی وضعیت موفق و نمایش دیالوگ وصول ==========
+            if status == '✅ موفق':
+                # بررسی اینکه آیا ماموریت از نوع وصول است
+                is_collection_mission = any(m.get('type') == 'وصول' for m in selected)
+                
+                # اگر ماموریت وصول است، دیالوگ وصول را نمایش بده
+                if is_collection_mission:
+                    self._show_collection_for_mission_dialog(selected, all_missions)
+                    return
+            
+            # ========== ادامه روند عادی برای سایر موارد ==========
+            self._apply_assignment_direct(selected, all_missions, status)
+            
+        except Exception as e:
+            print(f"خطا در اعمال تعیین تکلیف: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_message('خطا', f'خطا در تعیین تکلیف ماموریت‌ها: {str(e)}')
+
+
+    def _show_collection_for_mission_dialog(self, selected_missions, all_missions):
+        """نمایش دیالوگ وصول برای ماموریت‌های وصول"""
+        try:
+            # ========== گرفتن مشتری از توضیحات ماموریت ==========
+            customer_name = None
+            for m in selected_missions:
+                desc = m.get('description', '')
+                # استخراج نام مشتری از توضیحات (الگو: "وصول بدهی از مشتری XXX")
+                import re
+                match = re.search(r'مشتری\s*([^\s\-]+(?:\s+[^\s\-]+)*)', desc)
+                if match:
+                    customer_name = match.group(1).strip()
+                    break
+            
+            if not customer_name:
+                # اگر مشتری پیدا نشد، از کاربر بپرس
+                self._ask_customer_for_collection(selected_missions, all_missions)
+                return
+            
+            # ========== نمایش دیالوگ تأیید وصول ==========
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(15))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text=f'آیا برای مشتری "{customer_name}" وصول ثبت می‌کنید؟',
+                size_hint_y=None,
+                height=dp(60),
+                font_size=sp(20),
+                color=(1, 1, 1, 1),
+                halign='center'
+            ))
+            
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10))
+            
+            yes_btn = PersianButton(
+                text='بله',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18),
+                bold=True
+            )
+            
+            no_btn = PersianButton(
+                text='خیر',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18),
+                bold=True
+            )
+            
+            btn_layout.add_widget(yes_btn)
+            btn_layout.add_widget(no_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='ثبت وصول',
+                content=content,
+                size_hint=(0.85, 0.35),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def on_yes(instance):
+                popup.dismiss()
+                # باز کردن دیالوگ وصول با مشتری شناسایی شده
+                self._open_collection_dialog(customer_name, selected_missions, all_missions)
+            
+            def on_no(instance):
+                popup.dismiss()
+                # ادامه روند تعیین تکلیف بدون وصول
+                self._apply_assignment_direct(selected_missions, all_missions, '✅ موفق')
+            
+            yes_btn.bind(on_press=on_yes)
+            no_btn.bind(on_press=on_no)
+            popup.open()
+            
+        except Exception as e:
+            print(f"خطا در نمایش دیالوگ وصول: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_message('خطا', f'خطا: {str(e)}')
+
+
+    def _ask_customer_for_collection(self, selected_missions, all_missions):
+        """اگر مشتری از توضیحات شناسایی نشد، از کاربر بپرس"""
+        try:
+            content = BoxLayout(orientation='vertical', padding=dp(20), spacing=dp(12))
+            with content.canvas.before:
+                Color(0.12, 0.12, 0.12, 1)
+                rect = Rectangle(pos=content.pos, size=content.size)
+                content.bind(pos=lambda i, v: setattr(rect, 'pos', v),
+                            size=lambda i, v: setattr(rect, 'size', v))
+            
+            content.add_widget(RTLLabel(
+                text='نام مشتری را وارد کنید:',
+                size_hint_y=None,
+                height=dp(35),
+                font_size=sp(18),
+                color=(1, 1, 1, 1)
+            ))
+            
+            customer_input = RTLTextInput(
+                hint_text='نام مشتری...',
+                multiline=False,
+                size_hint_y=None,
+                height=dp(55),
+                font_size=sp(22)
+            )
+            customer_input.bg_color = (0.15, 0.15, 0.15, 1)
+            customer_input.border_color = (0.3, 0.3, 0.3, 1)
+            customer_input.border_color_focus = (0.2, 0.5, 0.9, 1)
+            customer_input._hidden_input.foreground_color = (1, 1, 1, 1)
+            content.add_widget(customer_input)
+            
+            btn_layout = BoxLayout(size_hint_y=None, height=dp(55), spacing=dp(10))
+            
+            confirm_btn = PersianButton(
+                text='ادامه',
+                background_color=(0.2, 0.7, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18),
+                bold=True
+            )
+            
+            cancel_btn = PersianButton(
+                text='انصراف',
+                background_color=(0.8, 0.2, 0.2, 1),
+                size_hint_y=None,
+                height=dp(50),
+                color=(1, 1, 1, 1),
+                font_size=sp(18),
+                bold=True
+            )
+            
+            btn_layout.add_widget(confirm_btn)
+            btn_layout.add_widget(cancel_btn)
+            content.add_widget(btn_layout)
+            
+            popup = PersianPopup(
+                title='ورود نام مشتری',
+                content=content,
+                size_hint=(0.85, 0.4),
+                background_color=(0.08, 0.08, 0.08, 1),
+                auto_dismiss=False
+            )
+            
+            def on_confirm(instance):
+                customer_name = customer_input.text.strip()
+                if not customer_name:
+                    self.show_message('خطا', 'لطفاً نام مشتری را وارد کنید')
+                    return
+                popup.dismiss()
+                self._open_collection_dialog(customer_name, selected_missions, all_missions)
+            
+            def on_cancel(instance):
+                popup.dismiss()
+                self._apply_assignment_direct(selected_missions, all_missions, '✅ موفق')
+            
+            confirm_btn.bind(on_press=on_confirm)
+            cancel_btn.bind(on_press=on_cancel)
+            popup.open()
+            
+        except Exception as e:
+            print(f"خطا: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    def _open_collection_dialog(self, customer_name, selected_missions, all_missions):
+        """باز کردن دیالوگ وصول با مشتری مشخص"""
+        try:
+            from screens.collection_dialog import CollectionDialog
+            from kivy.app import App
+            
+            agent_name = App.get_running_app().current_username if hasattr(App.get_running_app(), 'current_username') else ''
+            
+            if not agent_name:
+                agent_name = self.current_user.get('name', '') if self.current_user else ''
+            
+            # مسیر پیش فرض
+            default_route = ''
+            if hasattr(self, 'route_spinner') and self.route_spinner:
+                default_route = self.route_spinner.text
+            
+            # باز کردن دیالوگ وصول
+            collection_dialog = CollectionDialog(
+                agent_name=agent_name,
+                route=default_route,
+                on_save_callback=lambda col_id, status: self._on_collection_done(
+                    col_id, status, selected_missions, all_missions
+                )
+            )
+            
+            # انتخاب مشتری به صورت خودکار
+            if hasattr(collection_dialog, 'selected_customer'):
+                collection_dialog.selected_customer = customer_name
+            
+        except Exception as e:
+            print(f"خطا در باز کردن دیالوگ وصول: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_message('خطا', f'خطا در باز کردن دیالوگ وصول: {str(e)}')
+
+
+    def _on_collection_done(self, collection_id, status, selected_missions, all_missions):
+        """بعد از اتمام وصول، ماموریت‌ها را تعیین تکلیف کن"""
+        try:
+            if status == 'موفق':
+                self._apply_assignment_direct(selected_missions, all_missions, '✅ موفق')
+            else:
+                # اگر وصول ناموفق بود، ماموریت را ناموفق ثبت کن
+                self._apply_assignment_direct(selected_missions, all_missions, '❌ ناموفق')
+                
+        except Exception as e:
+            print(f"خطا در پردازش نتیجه وصول: {e}")
+            import traceback
+            traceback.print_exc()
+
+
+    def _apply_assignment_direct(self, selected_missions, all_missions, status):
+        """اعمال مستقیم تعیین تکلیف به ماموریت‌ها (بدون دیالوگ)"""
+        try:
+            today = get_today_jalali()
             updated = 0
-            today = get_today_jalali()  # دریافت تاریخ امروز به فرمت شمسی
+            mission_ids = [m.get('id') for m in selected_missions]
             
             for m in all_missions:
-                if m.get('selected', False):
+                if m.get('id') in mission_ids:
                     m['status'] = status
                     m['active'] = False
                     m['selected'] = False
-                    m['completed_at'] = today  # اضافه کردن تاریخ انجام
+                    m['completed_at'] = today
                     updated += 1
             
             self._save_missions_to_file(all_missions)
             self._load_missions()
-            self.show_message('موفق', f'{updated} ماموریت با موفقیت تعیین تکلیف شد')
+            
+            if updated > 0:
+                self.show_message('موفق', f'{updated} ماموریت با موفقیت تعیین تکلیف شد')
+            else:
+                self.show_message('توجه', 'هیچ ماموریتی تعیین تکلیف نشد')
             
         except Exception as e:
-            print(f"خطا در اعمال تعیین تکلیف: {e}")
+            print(f"خطا در اعمال تعیین تکلیف مستقیم: {e}")
             import traceback
             traceback.print_exc()
             self.show_message('خطا', f'خطا در تعیین تکلیف ماموریت‌ها: {str(e)}')
