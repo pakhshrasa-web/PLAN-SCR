@@ -36,9 +36,13 @@ jobs:
           libffi-dev libssl-dev wget \
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
+
     - name: Install Python packages
       run: |
         pip install -q buildozer cython==0.29.37
+        # ✅ جلوگیری از hostpython3 3.14.2
+        pip install python-for-android==2023.9.16
+
     - name: Set GCC as default compiler
       run: |
         sudo apt-get install -y gcc g++
@@ -48,10 +52,12 @@ jobs:
         sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
         sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
         gcc --version
+
     - name: Clean ALL NDK versions
       run: |
         rm -rf ~/.buildozer/android/platform/android-ndk-*
         rm -rf .buildozer/android/platform/android-ndk-*
+
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -62,7 +68,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
+        requirements = python3==3.10,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
@@ -92,6 +98,7 @@ jobs:
         android.debug = 0
         android.release = 1
         EOF
+
     - name: Create initial json files
       run: |
         mkdir -p data
@@ -144,6 +151,7 @@ jobs:
         cat > data/daily_log.json << 'EOF'
         {}
         EOF
+
     - name: Copy fonts and data to build directory
       run: |
         mkdir -p .buildozer/android/app/fonts
@@ -152,19 +160,21 @@ jobs:
 
         cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "No fonts"
         cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "No data"
-        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || echo "No icon" 
+        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || echo "No icon"
 
     - name: Update version and version_code
       run: |
         sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
         sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
         echo "Version set to: ${{ github.run_number }}"
+
     - name: Restore Keystore from Secrets
       run: |
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
         mkdir -p .buildozer/android/platform/
         cp keystore.jks .buildozer/android/platform/planandroid.keystore
         echo "Keystore restored successfully"
+
     - name: Update buildozer.spec with keystore paths
       run: |
         echo "" >> buildozer.spec
@@ -174,22 +184,7 @@ jobs:
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "buildozer.spec updated with keystore info"
-    - name: Pre-copy freetype to buildozer cache
-      run: |
-        echo "Checking if freetype file exists:"
-        ls -la packages/freetype-2.14.1.tar.gz
-        
-        mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-        cp packages/freetype-2.14.1.tar.gz .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
-        touch .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
-        
-        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-        cp packages/freetype-2.14.1.tar.gz ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
-        touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
-        
-        echo "Verifying copied files:"
-        ls -la .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
-        ls -la ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+
     - name: Build with Buildozer
       run: |
         echo "y" | buildozer -v android release
@@ -232,6 +227,7 @@ jobs:
             exit 1
           fi
         fi
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
