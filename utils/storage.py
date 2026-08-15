@@ -1,12 +1,13 @@
 ﻿"""
-مدیریت ذخیره‌سازی داده‌ها - نسخه نهایی با Python IO
+مدیریت ذخیره‌سازی داده‌ها - نسخه یکپارچه نهایی
+هماهنگ‌سازی مسیرها در ویندوز و اندروید
 """
 
 import os
 import json
-import time  # ← اضافه شد
-import hashlib  # ← اضافه شد
-import urllib.parse  # ← اضافه شد
+import time
+import hashlib
+import urllib.parse
 from kivy.utils import platform
 from kivy.logger import Logger as logger
 
@@ -25,7 +26,7 @@ _cache = {
 }
 
 # ============================================================
-# مسیر ذخیره‌سازی داخلی اپ
+# مسیر ذخیره‌سازی داخلی اپ (یکسان در ویندوز و اندروید)
 # ============================================================
 
 def init_data_path():
@@ -33,7 +34,7 @@ def init_data_path():
     if _cache['data_path'] is not None:
         return _cache['data_path']
     
-    app_name = 'planandroid'  # ✅ نام ثابت
+    app_name = 'planandroid'
     
     if platform == 'android':
         try:
@@ -48,7 +49,6 @@ def init_data_path():
             logger.warning(f"خطا در دریافت مسیر اندروید: {e}")
             _cache['data_path'] = '/data/data/org.pakhshrasa.planandroid/files'
     elif platform == 'win':
-        # ✅ استفاده از نام یکسان
         _cache['data_path'] = os.path.join(os.environ.get('APPDATA', os.getcwd()), app_name)
         logger.info(f"مسیر ویندوز: {_cache['data_path']}")
     elif platform in ('linux', 'macosx'):
@@ -160,7 +160,7 @@ def get_public_backup_path():
     return _cache['public_backup']
 
 # ============================================================
-# توابع اصلی
+# توابع اصلی مسیردهی
 # ============================================================
 
 def get_import_path():
@@ -172,10 +172,7 @@ def get_import_path():
 
 def get_export_path():
     """دریافت مسیر export (در اندروید: عمومی، در دسکتاپ: عمومی)"""
-    if platform == 'android':
-        return get_public_export_path()
-    else:
-        return get_public_export_path()
+    return get_public_export_path()
 
 def get_backup_path():
     """دریافت مسیر backup (در اندروید: عمومی، در دسکتاپ: شخصی)"""
@@ -189,18 +186,7 @@ def get_backup_path():
 # ============================================================
 
 def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type='excel'):
-    """
-    کپی فایل از URI به پوشه شخصی برنامه با Python IO
-    
-    Args:
-        uri: content:// URI (string یا Uri)
-        filename: نام فایل (اختیاری)
-        target_folder: 'import', 'export', 'backup'
-        file_type: 'excel' یا 'backup' (برای پسوند پیش‌فرض)
-    
-    Returns:
-        مسیر فایل کپی شده یا None
-    """
+    """کپی فایل از URI به پوشه شخصی برنامه"""
     try:
         from android import mActivity
         from jnius import autoclass
@@ -274,6 +260,72 @@ def copy_uri_to_app_folder(uri, filename=None, target_folder='import', file_type
         return None
 
 # ============================================================
+# استخراج نام فایل از URI
+# ============================================================
+
+def _extract_filename_from_uri(uri, file_type='excel'):
+    """استخراج نام فایل از URI"""
+    try:
+        from android import mActivity
+        from android.provider import OpenableColumns
+        from jnius import autoclass
+        
+        if isinstance(uri, str):
+            Uri_class = autoclass("android.net.Uri")
+            uri = Uri_class.parse(uri)
+        
+        content_resolver = mActivity.getContentResolver()
+        
+        try:
+            cursor = content_resolver.query(
+                uri,
+                [OpenableColumns.DISPLAY_NAME],
+                None,
+                None,
+                None
+            )
+            if cursor and cursor.moveToFirst():
+                name_index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if name_index >= 0:
+                    filename = cursor.getString(name_index)
+                    cursor.close()
+                    if filename:
+                        logger.info(f"نام فایل از cursor: {filename}")
+                        return filename
+            if cursor:
+                cursor.close()
+        except Exception as e:
+            logger.warning(f"خطا در OpenableColumns: {e}")
+        
+        raw = str(uri)
+        if '%' in raw:
+            raw = urllib.parse.unquote(raw)
+        
+        filename = raw.split('/')[-1]
+        if '?' in filename:
+            filename = filename.split('?')[0]
+        
+        if filename and '.' in filename:
+            logger.info(f"نام فایل از Uri: {filename}")
+            return filename
+        
+        hash_val = hashlib.md5(str(uri).encode()).hexdigest()[:8]
+        
+        if file_type == 'excel':
+            filename = f"file_{hash_val}.xlsx"
+        elif file_type == 'backup':
+            filename = f"file_{hash_val}.zip"
+        else:
+            filename = f"file_{hash_val}.dat"
+        
+        logger.info(f"نام فایل پیش‌فرض: {filename}")
+        return filename
+        
+    except Exception as e:
+        logger.warning(f"خطا در استخراج نام فایل: {e}")
+        return None
+
+# ============================================================
 # حذف فایل‌های قدیمی
 # ============================================================
 
@@ -307,85 +359,9 @@ def delete_old_backup_files(days=30):
         return 0
 
 # ============================================================
-# استخراج نام فایل از URI
 # ============================================================
-
-def _extract_filename_from_uri(uri, file_type='excel'):
-    """
-    استخراج نام فایل از URI با OpenableColumns
-    
-    Args:
-        uri: content:// URI
-        file_type: 'excel' یا 'backup' (برای پسوند پیش‌فرض)
-    
-    Returns:
-        نام فایل یا None
-    """
-    try:
-        from android import mActivity
-        from android.provider import OpenableColumns
-        from jnius import autoclass
-        
-        if isinstance(uri, str):
-            Uri_class = autoclass("android.net.Uri")
-            uri = Uri_class.parse(uri)
-        
-        content_resolver = mActivity.getContentResolver()
-        
-        # روش ۱: OpenableColumns.DISPLAY_NAME
-        try:
-            cursor = content_resolver.query(
-                uri,
-                [OpenableColumns.DISPLAY_NAME],
-                None,
-                None,
-                None
-            )
-            if cursor and cursor.moveToFirst():
-                name_index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if name_index >= 0:
-                    filename = cursor.getString(name_index)
-                    cursor.close()
-                    if filename:
-                        logger.info(f"نام فایل از cursor: {filename}")
-                        return filename
-            if cursor:
-                cursor.close()
-        except Exception as e:
-            logger.warning(f"خطا در OpenableColumns: {e}")
-        
-        # روش ۲: استخراج از URI
-        raw = str(uri)
-        if '%' in raw:
-            raw = urllib.parse.unquote(raw)
-        
-        filename = raw.split('/')[-1]
-        if '?' in filename:
-            filename = filename.split('?')[0]
-        
-        if filename and '.' in filename:
-            logger.info(f"نام فایل از Uri: {filename}")
-            return filename
-        
-        # روش ۳: نام پیش‌فرض با پسوند مناسب
-        hash_val = hashlib.md5(str(uri).encode()).hexdigest()[:8]
-        
-        if file_type == 'excel':
-            filename = f"file_{hash_val}.xlsx"
-        elif file_type == 'backup':
-            filename = f"file_{hash_val}.zip"
-        else:
-            filename = f"file_{hash_val}.dat"
-        
-        logger.info(f"نام فایل پیش‌فرض: {filename}")
-        return filename
-        
-    except Exception as e:
-        logger.warning(f"خطا در استخراج نام فایل: {e}")
-        return None
-
+# ✅ توابع JSON پایه
 # ============================================================
-# توابع JSON
 # ============================================================
 
 def load_json(filename):
@@ -409,6 +385,457 @@ def save_json(filename, data):
     except Exception as e:
         logger.error(f"خطا در ذخیره {filename}: {e}")
         return False
+
+# ============================================================
+# ============================================================
+# ✅ توابع مدیریت داده‌ها (منتقل شده از file_manager.py)
+# ============================================================
+# ============================================================
+
+# ========== مدیریت عامل‌ها ==========
+
+def get_agents():
+    """دریافت لیست عاملین"""
+    data = load_json('definitions.json')
+    return data.get('agents', [])
+
+def add_agent(agent):
+    """افزودن عامل جدید"""
+    data = load_json('definitions.json')
+    agents = data.get('agents', [])
+    new_id = max([a.get('id', 0) for a in agents]) + 1 if agents else 1
+    agent['id'] = new_id
+    agents.append(agent)
+    data['agents'] = agents
+    save_json('definitions.json', data)
+    return new_id
+
+def update_agent(agent_id, updated_agent):
+    """به‌روزرسانی عامل"""
+    data = load_json('definitions.json')
+    agents = data.get('agents', [])
+    for i, agent in enumerate(agents):
+        if agent.get('id') == agent_id:
+            updated_agent['id'] = agent_id
+            agents[i] = updated_agent
+            break
+    data['agents'] = agents
+    save_json('definitions.json', data)
+
+def delete_agent(agent_id):
+    """حذف عامل"""
+    data = load_json('definitions.json')
+    agents = data.get('agents', [])
+    agents = [a for a in agents if a.get('id') != agent_id]
+    data['agents'] = agents
+    save_json('definitions.json', data)
+
+# ========== مدیریت مسیرها ==========
+
+def get_routes():
+    """دریافت لیست مسیرها"""
+    data = load_json('definitions.json')
+    return data.get('routes', [])
+
+def add_route(route):
+    """افزودن مسیر جدید"""
+    data = load_json('definitions.json')
+    routes = data.get('routes', [])
+    new_id = max([r.get('id', 0) for r in routes]) + 1 if routes else 1
+    route['id'] = new_id
+    routes.append(route)
+    data['routes'] = routes
+    save_json('definitions.json', data)
+    return new_id
+
+def update_route(route_id, updated_route):
+    """به‌روزرسانی مسیر"""
+    data = load_json('definitions.json')
+    routes = data.get('routes', [])
+    for i, route in enumerate(routes):
+        if route.get('id') == route_id:
+            updated_route['id'] = route_id
+            routes[i] = updated_route
+            break
+    data['routes'] = routes
+    save_json('definitions.json', data)
+
+def delete_route(route_id):
+    """حذف مسیر"""
+    data = load_json('definitions.json')
+    routes = data.get('routes', [])
+    routes = [r for r in routes if r.get('id') != route_id]
+    data['routes'] = routes
+    save_json('definitions.json', data)
+
+# ========== مدیریت مشتریان ==========
+
+def get_customers():
+    """دریافت لیست مشتریان"""
+    data = load_json('definitions.json')
+    return data.get('customers', [])
+
+def get_customers_by_route(route_name):
+    """دریافت مشتریان یک مسیر"""
+    customers = get_customers()
+    return [c for c in customers if c.get('route_name') == route_name]
+
+def add_customer(customer):
+    """افزودن مشتری جدید"""
+    data = load_json('definitions.json')
+    customers = data.get('customers', [])
+    new_id = max([c.get('id', 0) for c in customers]) + 1 if customers else 1
+    customer['id'] = new_id
+    customers.append(customer)
+    data['customers'] = customers
+    save_json('definitions.json', data)
+    return new_id
+
+def update_customer(customer_id, updated_customer):
+    """به‌روزرسانی مشتری"""
+    data = load_json('definitions.json')
+    customers = data.get('customers', [])
+    for i, customer in enumerate(customers):
+        if customer.get('id') == customer_id:
+            updated_customer['id'] = customer_id
+            customers[i] = updated_customer
+            break
+    data['customers'] = customers
+    save_json('definitions.json', data)
+
+def delete_customer(customer_id):
+    """حذف مشتری"""
+    data = load_json('definitions.json')
+    customers = data.get('customers', [])
+    customers = [c for c in customers if c.get('id') != customer_id]
+    data['customers'] = customers
+    save_json('definitions.json', data)
+
+# ========== مدیریت تنظیمات ==========
+
+def get_settings():
+    """دریافت تنظیمات"""
+    return load_json('settings.json')
+
+def update_settings(new_settings):
+    """به‌روزرسانی تنظیمات"""
+    settings = get_settings()
+    settings.update(new_settings)
+    save_json('settings.json', settings)
+
+# ========== مدیریت لاگ روزانه ==========
+
+def get_daily_logs():
+    """دریافت لاگ‌های روزانه"""
+    return load_json('daily_log.json')
+
+def get_daily_log(date):
+    """دریافت لاگ یک روز"""
+    logs = get_daily_logs()
+    return logs.get(date, {})
+
+def save_daily_log(date, log_data):
+    """ذخیره لاگ روزانه"""
+    logs = get_daily_logs()
+    logs[date] = log_data
+    save_json('daily_log.json', logs)
+
+def delete_daily_log(date):
+    """حذف لاگ روزانه"""
+    logs = get_daily_logs()
+    if date in logs:
+        del logs[date]
+        save_json('daily_log.json', logs)
+
+def get_all_logs_sorted():
+    """دریافت همه لاگ‌ها به صورت مرتب"""
+    logs = get_daily_logs()
+    return sorted(logs.items(), key=lambda x: x[0], reverse=True)
+
+# ========== مدیریت تنظیمات تارگت ==========
+
+def get_target_settings():
+    """دریافت تنظیمات تارگت"""
+    data = load_json('target_settings.json')
+    if not data:
+        data = {
+            'target_units': ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"],
+            'target_periods': ["روزانه", "ماهانه", "فصلی", "سالیانه"]
+        }
+        save_json('target_settings.json', data)
+    return data
+
+def save_target_settings(settings_data):
+    """ذخیره تنظیمات تارگت"""
+    return save_json('target_settings.json', settings_data)
+
+# ========== مدیریت واحدهای تارگت ==========
+
+def get_target_units():
+    """دریافت لیست واحدهای تارگت"""
+    settings = get_target_settings()
+    return settings.get('target_units', ["کارتن", "عدد", "شل", "بسته", "جعبه", "بانکه"])
+
+def add_target_unit(name):
+    """افزودن واحد تارگت جدید"""
+    settings = get_target_settings()
+    units = settings.get('target_units', [])
+    if name not in units:
+        units.append(name)
+        settings['target_units'] = units
+        save_target_settings(settings)
+        return True
+    return False
+
+def update_target_unit(old_name, new_name):
+    """ویرایش واحد تارگت"""
+    settings = get_target_settings()
+    units = settings.get('target_units', [])
+    if old_name in units:
+        idx = units.index(old_name)
+        units[idx] = new_name
+        settings['target_units'] = units
+        save_target_settings(settings)
+        return True
+    return False
+
+def delete_target_unit(name):
+    """حذف واحد تارگت"""
+    settings = get_target_settings()
+    units = settings.get('target_units', [])
+    if len(units) <= 2:
+        return False
+    if name in units:
+        units.remove(name)
+        settings['target_units'] = units
+        save_target_settings(settings)
+        return True
+    return False
+
+# ========== مدیریت دوره‌های تارگت ==========
+
+def get_target_periods():
+    """دریافت لیست دوره‌های تارگت"""
+    settings = get_target_settings()
+    return settings.get('target_periods', ["روزانه", "ماهانه", "فصلی", "سالیانه"])
+
+def add_target_period(name):
+    """افزودن دوره تارگت جدید"""
+    settings = get_target_settings()
+    periods = settings.get('target_periods', [])
+    if name not in periods:
+        periods.append(name)
+        settings['target_periods'] = periods
+        save_target_settings(settings)
+        return True
+    return False
+
+def update_target_period(old_name, new_name):
+    """ویرایش دوره تارگت"""
+    settings = get_target_settings()
+    periods = settings.get('target_periods', [])
+    if old_name in periods:
+        idx = periods.index(old_name)
+        periods[idx] = new_name
+        settings['target_periods'] = periods
+        save_target_settings(settings)
+        return True
+    return False
+
+def delete_target_period(name):
+    """حذف دوره تارگت"""
+    settings = get_target_settings()
+    periods = settings.get('target_periods', [])
+    if len(periods) <= 2:
+        return False
+    if name in periods:
+        periods.remove(name)
+        settings['target_periods'] = periods
+        save_target_settings(settings)
+        return True
+    return False
+
+# ========== مدیریت محصولات (گروه کالا) ==========
+
+def get_product_groups():
+    """دریافت لیست گروه‌های کالا"""
+    data = load_json('products.json')
+    return data.get('product_groups', [])
+
+def add_product_group(name):
+    """افزودن گروه کالا جدید"""
+    data = load_json('products.json')
+    groups = data.get('product_groups', [])
+    if name not in groups:
+        groups.append(name)
+        data['product_groups'] = groups
+        save_json('products.json', data)
+        return True
+    return False
+
+def update_product_group(old_name, new_name):
+    """ویرایش نام گروه کالا"""
+    data = load_json('products.json')
+    groups = data.get('product_groups', [])
+    if old_name in groups:
+        idx = groups.index(old_name)
+        groups[idx] = new_name
+        data['product_groups'] = groups
+        save_json('products.json', data)
+        return True
+    return False
+
+def delete_product_group(name):
+    """حذف گروه کالا"""
+    data = load_json('products.json')
+    groups = data.get('product_groups', [])
+    if name in groups:
+        groups.remove(name)
+        data['product_groups'] = groups
+        save_json('products.json', data)
+        return True
+    return False
+
+# ========== مدیریت ماموریت‌ها ==========
+
+def get_do_missions():
+    """دریافت لیست ماموریت‌ها"""
+    try:
+        data = load_json('do_missions.json')
+        if data is None:
+            return []
+        
+        if isinstance(data, dict):
+            missions_list = []
+            for date, missions in data.items():
+                if isinstance(missions, list):
+                    for m in missions:
+                        if isinstance(m, dict):
+                            m['date'] = date
+                            missions_list.append(m)
+            return missions_list
+        
+        if isinstance(data, list):
+            return data
+        
+        return []
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت ماموریت‌ها: {e}")
+        return []
+
+def save_do_mission(mission_data):
+    """ذخیره یک ماموریت جدید"""
+    try:
+        import uuid
+        from utils.jalali_date import get_today_jalali, get_current_time
+        
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            missions = {}
+        
+        mission_id = f"MSN-{uuid.uuid4().hex[:4].upper()}"
+        mission_data['id'] = mission_id
+        mission_data['created_at'] = f"{get_today_jalali()} {get_current_time()}"
+        
+        today = get_today_jalali()
+        if today not in missions:
+            missions[today] = []
+        
+        missions[today].append(mission_data)
+        
+        if save_json('do_missions.json', missions):
+            return True, "ماموریت با موفقیت ثبت شد", mission_id
+        else:
+            return False, "خطا در ذخیره ماموریت", None
+            
+    except Exception as e:
+        logger.error(f"خطا در ذخیره ماموریت: {e}")
+        return False, f"خطا: {str(e)}", None
+
+def update_do_mission(mission_id, updated_data):
+    """به‌روزرسانی یک ماموریت"""
+    try:
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            return False, "هیچ ماموریتی یافت نشد"
+        
+        for date, items in missions.items():
+            if isinstance(items, list):
+                for i, item in enumerate(items):
+                    if isinstance(item, dict) and item.get('id') == mission_id:
+                        for key, value in updated_data.items():
+                            item[key] = value
+                        missions[date][i] = item
+                        
+                        if save_json('do_missions.json', missions):
+                            return True, "ماموریت با موفقیت به‌روزرسانی شد"
+                        else:
+                            return False, "خطا در ذخیره تغییرات"
+        
+        return False, "ماموریت یافت نشد"
+        
+    except Exception as e:
+        logger.error(f"خطا در به‌روزرسانی ماموریت: {e}")
+        return False, f"خطا: {str(e)}"
+
+def delete_do_mission(mission_id):
+    """حذف یک ماموریت"""
+    try:
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            return False, "هیچ ماموریتی یافت نشد"
+        
+        for date, items in missions.items():
+            if isinstance(items, list):
+                for i, item in enumerate(items):
+                    if isinstance(item, dict) and item.get('id') == mission_id:
+                        del missions[date][i]
+                        if not missions[date]:
+                            del missions[date]
+                        
+                        if save_json('do_missions.json', missions):
+                            return True, "ماموریت با موفقیت حذف شد"
+                        else:
+                            return False, "خطا در ذخیره تغییرات"
+        
+        return False, "ماموریت یافت نشد"
+        
+    except Exception as e:
+        logger.error(f"خطا در حذف ماموریت: {e}")
+        return False, f"خطا: {str(e)}"
+
+def get_do_missions_by_date(date=None):
+    """دریافت ماموریت‌های یک تاریخ مشخص"""
+    try:
+        from utils.jalali_date import get_today_jalali
+        
+        if not date:
+            date = get_today_jalali()
+        
+        missions = load_json('do_missions.json')
+        if not isinstance(missions, dict):
+            return []
+        
+        return missions.get(date, [])
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت ماموریت‌های تاریخ {date}: {e}")
+        return []
+
+def get_do_missions_by_agent(agent_name, date=None):
+    """دریافت ماموریت‌های یک عامل در تاریخ مشخص"""
+    try:
+        if date:
+            missions = get_do_missions_by_date(date)
+            return [m for m in missions if isinstance(m, dict) and m.get('agent_name') == agent_name]
+        else:
+            all_missions = get_do_missions()
+            return [m for m in all_missions if isinstance(m, dict) and m.get('agent_name') == agent_name]
+        
+    except Exception as e:
+        logger.error(f"خطا در دریافت ماموریت‌های عامل {agent_name}: {e}")
+        return []
 
 # ============================================================
 # تابع تست
