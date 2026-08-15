@@ -276,6 +276,18 @@ def get_mission_points(agent_name, date=None):
         success_count = 0
         fail_count = 0
         
+        # ✅ لیست وضعیت‌های موفق
+        success_statuses = [
+            'موفق', '✅ موفق', 'انجام شده', 'تکمیل شده', 
+            'انجام شد', 'تکمیل', 'موفقیت', '✅ انجام شده'
+        ]
+        
+        # ✅ لیست وضعیت‌های ناموفق
+        fail_statuses = [
+            'ناموفق', '❌ ناموفق', 'انجام نشده', 'لغو شده',
+            'لغو', 'ناقص', '❌ انجام نشده'
+        ]
+        
         for m in missions:
             if not isinstance(m, dict):
                 continue
@@ -288,28 +300,45 @@ def get_mission_points(agent_name, date=None):
             
             # فقط ماموریت‌های تعیین تکلیف شده (active = False)
             if m.get('active') == False:
-                status = m.get('status', '')
+                status = m.get('status', '').strip()
                 completed_at = m.get('completed_at', '')
                 
                 # فیلتر بر اساس تاریخ
                 if date is not None and completed_at != date:
                     continue
                 
-                # ✅ فقط ماموریت‌های موفق امتیاز دارند
-                # ❌ ماموریت‌های ناموفق امتیاز ندارند (0 امتیاز)
-                if '✅ موفق' in status or 'موفق' in status:
-                    # اطمینان از اینکه ناموفق نباشد
-                    if 'ناموفق' not in status:
-                        total_score += m.get('score', 0)
-                        success_count += 1
-                        completed_count += 1
-                    else:
-                        fail_count += 1
-                        completed_count += 1
-                elif '❌ ناموفق' in status or 'ناموفق' in status:
+                # ✅ تشخیص وضعیت با normalize
+                status_normalized = status.replace('✅', '').replace('❌', '').strip()
+                
+                # بررسی موفق بودن
+                is_success = False
+                is_fail = False
+                
+                for s in success_statuses:
+                    if s in status or s in status_normalized:
+                        is_success = True
+                        break
+                
+                if not is_success:
+                    for f in fail_statuses:
+                        if f in status or f in status_normalized:
+                            is_fail = True
+                            break
+                
+                # اگر وضعیت مشخص نبود، پیش‌فرض موفق
+                if not is_success and not is_fail:
+                    is_success = True
+                    print(f"⚠️ وضعیت نامشخص '{status}' برای ماموریت {m.get('title', '')} - موفق در نظر گرفته شد")
+                
+                if is_success:
+                    total_score += m.get('score', 0)
+                    success_count += 1
+                    completed_count += 1
+                    print(f"   ✅ ماموریت موفق: {m.get('title', '')} - {status}")
+                else:
                     fail_count += 1
                     completed_count += 1
-                    # ✅ بدون امتیاز
+                    print(f"   ❌ ماموریت ناموفق: {m.get('title', '')} - {status}")
         
         detail = f"{completed_count} ماموریت انجام شده (موفق: {success_count}، ناموفق: {fail_count})"
         return total_score, completed_count, detail
