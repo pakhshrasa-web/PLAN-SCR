@@ -1518,14 +1518,32 @@ class SupervisorReportScreen(Screen):
             ErrorPopup.show_error(f"خطا در نمایش جزئیات: {e}", error_details)
 
     def _show_manager_report(self, visit):
-        """نمایش نامه اداری برای ارسال به مدیر"""
+        """نمایش نامه اداری برای ارسال به مدیر با نام کاربر"""
         try:
+            from kivy.app import App
+            
+            # ✅ دریافت نام کاربر جاری
+            app = App.get_running_app()
+            current_username = app.current_username if hasattr(app, 'current_username') else ''
+            
+            if not current_username:
+                try:
+                    from utils.user_manager import get_current_user
+                    user = get_current_user()
+                    if user:
+                        current_username = user.get('username', '') or user.get('name', '')
+                except:
+                    pass
+            
+            if not current_username:
+                current_username = 'supervisor'
+            
             content = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(8))
             with content.canvas.before:
                 Color(0.12, 0.12, 0.12, 1)
                 content_rect = Rectangle(pos=content.pos, size=content.size)
                 content.bind(pos=lambda i, v: setattr(content_rect, 'pos', v),
-                           size=lambda i, v: setattr(content_rect, 'size', v))
+                        size=lambda i, v: setattr(content_rect, 'size', v))
 
             content.add_widget(RTLLabel(
                 text='گزارش به مدیر',
@@ -1580,13 +1598,14 @@ class SupervisorReportScreen(Screen):
             def do_mark(inst):
                 from utils.supervisor_visits_manager import mark_visit_as_reported
                 import openpyxl
-                from openpyxl.styles import Font, Alignment
+                from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+                from openpyxl.utils import get_column_letter
                 from utils.storage import get_backup_path
                 
                 visit_id = visit.get('id', '')
                 
-                # علامت‌گذاری توی JSON
-                success, message = mark_visit_as_reported(visit_id)
+                # ✅ علامت‌گذاری با نام کاربر
+                success, message = mark_visit_as_reported(visit_id, reported_by=current_username)
                 
                 if success:
                     # ساخت فایل اکسل
@@ -1599,11 +1618,17 @@ class SupervisorReportScreen(Screen):
                         ws.sheet_view.rightToLeft = True
                         
                         # استایل‌ها
-                        title_font = Font(name='B Nazanin', size=16, bold=True)
-                        text_font = Font(name='B Nazanin', size=12)
-                        bold_font = Font(name='B Nazanin', size=11, bold=True)
+                        title_font = Font(bold=True, size=14)
+                        header_font = Font(bold=True, size=11, color="FFFFFF")
+                        header_fill = PatternFill(start_color="2E86C1", end_color="2E86C1", fill_type="solid")
+                        text_font = Font(size=11)
+                        bold_font = Font(bold=True, size=11)
                         center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
                         right_align = Alignment(horizontal='right', vertical='center', wrap_text=True)
+                        thin_border = Border(
+                            left=Side(style='thin'), right=Side(style='thin'),
+                            top=Side(style='thin'), bottom=Side(style='thin')
+                        )
                         
                         # عنوان
                         ws.merge_cells('A1:B1')
@@ -1612,8 +1637,9 @@ class SupervisorReportScreen(Screen):
                         title_cell.alignment = center_align
                         
                         ws.merge_cells('A2:B2')
-                        ws.cell(row=2, column=1, value=f'گزارش بررسی بازار - شماره: {visit_id}').font = title_font
-                        ws.cell(row=2, column=1).alignment = center_align
+                        report_title = ws.cell(row=2, column=1, value=f'گزارش بررسی بازار - شماره: {visit_id}')
+                        report_title.font = title_font
+                        report_title.alignment = center_align
                         
                         # اطلاعات
                         row_num = 4
@@ -1650,12 +1676,16 @@ class SupervisorReportScreen(Screen):
                                 row_num += 1
                                 continue
                             if value:
+                                # لیبل
                                 cell_a = ws.cell(row=row_num, column=1, value=f'{label}:')
                                 cell_a.font = bold_font
                                 cell_a.alignment = right_align
+                                cell_a.border = thin_border
+                                # مقدار
                                 cell_b = ws.cell(row=row_num, column=2, value=str(value))
                                 cell_b.font = text_font
                                 cell_b.alignment = right_align
+                                cell_b.border = thin_border
                                 row_num += 1
                         
                         # خط جداکننده
@@ -1664,6 +1694,7 @@ class SupervisorReportScreen(Screen):
                         sep_cell = ws.cell(row=row_num, column=1, value='─' * 50)
                         sep_cell.alignment = center_align
                         sep_cell.font = text_font
+                        sep_cell.border = thin_border
                         
                         # تاریخ ثبت
                         row_num += 1
@@ -1671,6 +1702,15 @@ class SupervisorReportScreen(Screen):
                         date_cell = ws.cell(row=row_num, column=1, value=f'تاریخ ثبت گزارش: {get_today_jalali()}')
                         date_cell.font = text_font
                         date_cell.alignment = center_align
+                        date_cell.border = thin_border
+                        
+                        # نام ثبت کننده
+                        row_num += 1
+                        ws.merge_cells(f'A{row_num}:B{row_num}')
+                        by_cell = ws.cell(row=row_num, column=1, value=f'ثبت شده توسط: {current_username}')
+                        by_cell.font = text_font
+                        by_cell.alignment = center_align
+                        by_cell.border = thin_border
                         
                         # عرض ستون‌ها
                         ws.column_dimensions['A'].width = 25
@@ -1679,17 +1719,19 @@ class SupervisorReportScreen(Screen):
                         # ارتفاع ردیف‌ها
                         ws.row_dimensions[1].height = 30
                         ws.row_dimensions[2].height = 30
-                        for r in range(4, row_num):
-                            ws.row_dimensions[r].height = 22
+                        for r in range(4, row_num + 1):
+                            ws.row_dimensions[r].height = 24
                         
                         # ذخیره
                         export_dir = get_backup_path()
                         os.makedirs(export_dir, exist_ok=True)
-                        filename = f'گزارش_بازاری_{visit_id}_{get_today_jalali().replace("/", "-")}.xlsx'
+                        today = get_today_jalali().replace('/', '-')
+                        filename = f'گزارش_بازاری_{visit_id}_{today}.xlsx'
                         filepath = os.path.join(export_dir, filename)
                         wb.save(filepath)
                         
                         message += f'\n\nفایل اکسل ذخیره شد:\n{filename}'
+                        
                     except Exception as e:
                         message += f'\n\n(هشدار: فایل اکسل ساخته نشد - {str(e)})'
                 
