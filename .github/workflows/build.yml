@@ -62,7 +62,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,requests,Pillow==10.3.0,jdatetime,persiantools,reportlab
+        requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,requests,jdatetime,persiantools,reportlab
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
