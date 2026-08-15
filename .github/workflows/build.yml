@@ -17,7 +17,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'  # ✅ تغییر از 3.10 به 3.11
 
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -35,7 +35,8 @@ jobs:
           libncursesw5-dev libtinfo5 cmake \
           libffi-dev libssl-dev wget \
           ccache \
-          libfreetype6-dev libjpeg-dev zlib1g-dev
+          libfreetype6-dev libjpeg-dev zlib1g-dev \
+          libsqlite3-dev  # ✅ اضافه شد برای پشتیبانی بهتر
     - name: Install Python packages
       run: |
         pip install -q buildozer cython==0.29.37
@@ -62,12 +63,13 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
+        # ✅ تغییرات مهم در requirements
+        requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,requests,Pillow==10.3.0,jdatetime,persiantools
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
         p4a.ndk_version = 25b
-        p4a.branch = develop
+        p4a.branch = master  # ✅ تغییر از develop به master
         [buildozer]
         log_level = 2
         warn_on_root = 1
@@ -78,7 +80,8 @@ jobs:
         android.ndk = 25b
         android.accept_sdk_license = True
         android.archs = armeabi-v7a, arm64-v8a
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
+        # ✅ مجوزهای کامل‌تر
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, CAMERA, RECORD_AUDIO
         android.enable_androidx = True
         android.allow_backup = True
         android.unsafe_ssl = False
@@ -191,6 +194,9 @@ jobs:
         CC: gcc
         CXX: g++
         LD: g++
+        # ✅ افزایش حافظه برای بیلد
+        GRADLE_OPTS: "-Xmx2048m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+        JAVA_OPTS: "-Xmx2048m"
 
     - name: Convert AAB to Signed APK
       run: |
@@ -223,6 +229,10 @@ jobs:
             echo "APK found and copied"
           else
             echo "No APK or AAB file found!"
+            echo "Listing contents of bin directory:"
+            ls -la bin/ || echo "No bin directory"
+            echo "Listing contents of current directory:"
+            ls -la
             exit 1
           fi
         fi
