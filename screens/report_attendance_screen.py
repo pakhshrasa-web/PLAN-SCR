@@ -1894,7 +1894,7 @@ class ReportAttendanceScreen(BoxLayout):
     # ============================================================
 
     def _show_mission_report_data(self, instance):
-        """نمایش داده‌های گزارش ماموریت با اعمال فیلترها"""
+        """نمایش داده‌های گزارش ماموریت با اعمال فیلترها - پشتیبانی از همه فرمت‌ها"""
         try:
             self.mission_report_container.clear_widgets()
             
@@ -1913,7 +1913,53 @@ class ReportAttendanceScreen(BoxLayout):
                 return
             
             with open(file_path, 'r', encoding='utf-8') as f:
-                all_missions = json.load(f)
+                raw_data = json.load(f)
+            
+            # ============================================================
+            # ✅ نرمال‌سازی داده‌ها به لیست دیکشنری
+            # ============================================================
+            all_missions = []
+            
+            if isinstance(raw_data, list):
+                # فرمت لیست ساده
+                for item in raw_data:
+                    if isinstance(item, dict):
+                        all_missions.append(item)
+                    else:
+                        print(f"⚠️ آیتم غیردیکشنری در لیست: {type(item)} - {item}")
+                        
+            elif isinstance(raw_data, dict):
+                # فرمت دیکشنری با کلید تاریخ
+                for date_key, items in raw_data.items():
+                    if isinstance(items, list):
+                        for item in items:
+                            if isinstance(item, dict):
+                                # اگر start_date نداشت، از کلید تاریخ استفاده کن
+                                if 'start_date' not in item:
+                                    item['start_date'] = date_key
+                                all_missions.append(item)
+                            else:
+                                print(f"⚠️ آیتم غیردیکشنری در تاریخ {date_key}: {type(item)}")
+                    elif isinstance(items, dict):
+                        # اگر مقدار دیکشنری بود
+                        if 'start_date' not in items:
+                            items['start_date'] = date_key
+                        all_missions.append(items)
+                    else:
+                        print(f"⚠️ مقدار غیرلیست در تاریخ {date_key}: {type(items)}")
+            else:
+                print(f"⚠️ فرمت ناشناخته: {type(raw_data)}")
+                self.mission_report_container.add_widget(RTLLabel(
+                    text='فرمت فایل ماموریت‌ها نامعتبر است',
+                    size_hint_y=None,
+                    height=dp(35),
+                    font_size=sp(14),
+                    color=(0.9, 0.2, 0.2, 1)
+                ))
+                self._update_mission_stats([])
+                return
+            
+            print(f"📊 تعداد ماموریت‌های بارگذاری شده: {len(all_missions)}")
             
             # ========== اعمال فیلترها ==========
             
@@ -1921,16 +1967,19 @@ class ReportAttendanceScreen(BoxLayout):
             selected_user = self.mission_user_combo.text
             if selected_user != 'همه':
                 all_missions = [m for m in all_missions if m.get('agent_name') == selected_user]
+                print(f"   بعد از فیلتر کاربر: {len(all_missions)} ماموریت")
             
             # فیلتر 2: ماه (بر اساس تاریخ شروع)
             selected_month = self.mission_month_combo.text
             if selected_month:
                 all_missions = [m for m in all_missions if m.get('start_date', '').startswith(selected_month)]
+                print(f"   بعد از فیلتر ماه: {len(all_missions)} ماموریت")
             
             # فیلتر 3: وضعیت
             selected_status = self.mission_status_combo.text
             if selected_status != 'همه':
                 all_missions = [m for m in all_missions if m.get('status') == selected_status]
+                print(f"   بعد از فیلتر وضعیت: {len(all_missions)} ماموریت")
             
             # ========== نمایش داده‌ها ==========
             if not all_missions:
@@ -2144,7 +2193,7 @@ class ReportAttendanceScreen(BoxLayout):
 
 
     def _export_mission_excel(self, instance):
-        """خروجی اکسل گزارش ماموریت با امتیاز ماموریت و امتیاز کسب شده"""
+        """خروجی اکسل گزارش ماموریت با امتیاز ماموریت و امتیاز کسب شده - پشتیبانی از همه فرمت‌ها"""
         try:
             import openpyxl
             from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -2157,20 +2206,66 @@ class ReportAttendanceScreen(BoxLayout):
                 return
             
             with open(file_path, 'r', encoding='utf-8') as f:
-                all_missions = json.load(f)
+                raw_data = json.load(f)
             
-            # اعمال فیلترها
+            # ============================================================
+            # ✅ نرمال‌سازی داده‌ها به لیست دیکشنری (همانند تابع نمایش)
+            # ============================================================
+            all_missions = []
+            
+            if isinstance(raw_data, list):
+                # فرمت لیست ساده
+                for item in raw_data:
+                    if isinstance(item, dict):
+                        all_missions.append(item)
+                    else:
+                        print(f"⚠️ آیتم غیردیکشنری در لیست: {type(item)} - {item}")
+                        
+            elif isinstance(raw_data, dict):
+                # فرمت دیکشنری با کلید تاریخ
+                for date_key, items in raw_data.items():
+                    if isinstance(items, list):
+                        for item in items:
+                            if isinstance(item, dict):
+                                # اگر start_date نداشت، از کلید تاریخ استفاده کن
+                                if 'start_date' not in item:
+                                    item['start_date'] = date_key
+                                all_missions.append(item)
+                            else:
+                                print(f"⚠️ آیتم غیردیکشنری در تاریخ {date_key}: {type(item)}")
+                    elif isinstance(items, dict):
+                        # اگر مقدار دیکشنری بود
+                        if 'start_date' not in items:
+                            items['start_date'] = date_key
+                        all_missions.append(items)
+                    else:
+                        print(f"⚠️ مقدار غیرلیست در تاریخ {date_key}: {type(items)}")
+            else:
+                print(f"⚠️ فرمت ناشناخته: {type(raw_data)}")
+                self.show_message('خطا', 'فرمت فایل ماموریت‌ها نامعتبر است')
+                return
+            
+            print(f"📊 تعداد ماموریت‌های بارگذاری شده برای خروجی: {len(all_missions)}")
+            
+            # ========== اعمال فیلترها ==========
+            
+            # فیلتر 1: کاربر
             selected_user = self.mission_user_combo.text
             if selected_user != 'همه':
                 all_missions = [m for m in all_missions if m.get('agent_name') == selected_user]
+                print(f"   بعد از فیلتر کاربر: {len(all_missions)} ماموریت")
             
+            # فیلتر 2: ماه
             selected_month = self.mission_month_combo.text
             if selected_month:
                 all_missions = [m for m in all_missions if m.get('start_date', '').startswith(selected_month)]
+                print(f"   بعد از فیلتر ماه: {len(all_missions)} ماموریت")
             
+            # فیلتر 3: وضعیت
             selected_status = self.mission_status_combo.text
             if selected_status != 'همه':
                 all_missions = [m for m in all_missions if m.get('status') == selected_status]
+                print(f"   بعد از فیلتر وضعیت: {len(all_missions)} ماموریت")
             
             if not all_missions:
                 self.show_message('خطا', 'هیچ داده‌ای برای خروجی وجود ندارد')
