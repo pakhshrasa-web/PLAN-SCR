@@ -63,13 +63,12 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        # ✅ تغییرات مهم در requirements
         requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,requests,Pillow==10.3.0,jdatetime,persiantools
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
         p4a.ndk_version = 25b
-        p4a.branch = master  # ✅ تغییر از develop به master
+        p4a.branch = release-2024.1
         [buildozer]
         log_level = 2
         warn_on_root = 1
@@ -80,7 +79,6 @@ jobs:
         android.ndk = 25b
         android.accept_sdk_license = True
         android.archs = armeabi-v7a, arm64-v8a
-        # ✅ مجوزهای کامل‌تر
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, CAMERA, RECORD_AUDIO
         android.enable_androidx = True
         android.allow_backup = True
