@@ -37,11 +37,11 @@ jobs:
           ccache \
           libfreetype6-dev libjpeg-dev zlib1g-dev
 
-    - name: Install Python packages
+    - name: Install Python packages (LOCKED VERSIONS)
       run: |
-        # ⚠️ قفل کردن نسخه pip و python-for-android
         pip install --upgrade pip==23.3.2
-        pip install -q buildozer cython==0.29.37
+        pip install buildozer==1.5.0
+        pip install cython==0.29.37
         pip install python-for-android==2023.9.16
 
     - name: Set GCC as default compiler
@@ -72,16 +72,12 @@ jobs:
         # ⚠️ نسخه با GitHub Run Number به‌روز می‌شود
         version = 1.0.${env:GITHUB_RUN_NUMBER}
         
-        # ⚠️ بدون نسخه دقیق کتابخانه‌ها - برای سازگاری با اندروید
+        # ⚠️ CRITICAL: بدون نسخه دقیق - فقط نام کتابخانه‌ها
         requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
         
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
-        
-        # ⚠️ استفاده از NDK 25b (نسخه پایدار)
-        p4a.ndk_version = 25b
-        p4a.branch = develop
         
         icon.filename = icon/kivy-icon-512.png
         presplash.filename = icon/kivy-icon-512.png
@@ -98,8 +94,7 @@ jobs:
         android.accept_sdk_license = True
         android.archs = armeabi-v7a, arm64-v8a
         
-        # ⚠️ حذف RECORD_AUDIO (غیرضروری)
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, RECORD_AUDIO
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
         
         android.enable_androidx = True
         android.allow_backup = True
@@ -110,7 +105,6 @@ jobs:
         android.debug = 0
         android.release = 1
         
-        # ⚠️ version_code با GitHub Run Number به‌روز می‌شود
         android.version_code = ${env:GITHUB_RUN_NUMBER}
         EOF
 
@@ -191,33 +185,24 @@ jobs:
         echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
         echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
-        echo "buildozer.spec updated with keystore info"
 
-    - name: Pre-copy freetype to buildozer cache
+    - name: ⚠️ FORCE NDK 25b with environment variable
       run: |
-        echo "Checking if freetype file exists:"
-        ls -la packages/freetype-2.14.1.tar.gz || echo "freetype not found in packages/"
-        
-        mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-        
-        if [ -f "packages/freetype-2.14.1.tar.gz" ]; then
-          cp packages/freetype-2.14.1.tar.gz .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
-          cp packages/freetype-2.14.1.tar.gz ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
-          touch .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
-          touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
-          echo "freetype copied successfully"
-        else
-          echo "⚠️ freetype-2.14.1.tar.gz not found - will be downloaded during build"
-        fi
+        echo "ANDROID_NDK_HOME=/home/runner/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
+        echo "ANDROID_NDK_VERSION=25b" >> $GITHUB_ENV
 
-    - name: Build with Buildozer
+    - name: Build with Buildozer (FORCE NDK 25b)
       run: |
-        echo "y" | buildozer -v android release
+        # حذف کامل کش NDK قبلی
+        rm -rf .buildozer/android/platform/android-ndk-*
+        
+        # بیلد با NDK 25b اجباری
+        echo "y" | buildozer android release --ndk-version=25b
       env:
         CC: gcc
         CXX: g++
         LD: g++
+        ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
 
     - name: Convert AAB to Signed APK
       run: |
