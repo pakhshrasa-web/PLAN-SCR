@@ -2,6 +2,5 @@ kivy
 openpyxl
 arabic-reshaper
 python-bidi
-requests
 Pillow
 jdatetime
