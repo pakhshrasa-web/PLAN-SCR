@@ -40,133 +40,10 @@ jobs:
     - name: Install Python packages
       run: |
         pip install --upgrade pip==23.3.2
-        pip install buildozer==1.5.0
-        pip install cython==0.29.37
+        # ⚠️ نصب نسخه‌های سازگار
         pip install python-for-android==2023.9.16
-
-    - name: Clean ALL NDK and build cache
-      run: |
-        rm -rf ~/.buildozer
-        rm -rf .buildozer
-
-    - name: Create buildozer.spec
-      run: |
-        cat > buildozer.spec << 'EOF'
-        [app]
-        title = Plan Android
-        package.name = planandroid
-        package.domain = org.pakhshrasa
-        source.dir = .
-        source.include_exts = py,png,jpg,kv,atlas,ttf,json
-        
-        # ⚠️ نسخه با GitHub Run Number به‌روز می‌شود
-        version = 1.0.${env:GITHUB_RUN_NUMBER}
-        
-        # ⚠️ بدون requests - فقط کتابخانه‌های ضروری
-        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime
-        
-        orientation = portrait
-        fullscreen = 1
-        icon.filename = icon/kivy-icon-512.png
-        presplash.filename = icon/kivy-icon-512.png
-        
-        [buildozer]
-        log_level = 2
-        warn_on_root = 1
-        
-        [buildozer:android]
-        android.api = 34
-        android.minapi = 21
-        android.ndk = 25b
-        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.accept_sdk_license = True
-        android.archs = armeabi-v7a, arm64-v8a
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
-        android.enable_androidx = True
-        android.allow_backup = True
-        android.debug = 0
-        android.release = 1
-        android.version_code = ${env:GITHUB_RUN_NUMBER}
-        EOF
-
-    - name: Create initial json files
-      run: |
-        mkdir -p data
-        
-        cat > data/definitions.json << 'EOF'
-        {
-          "agents": [],
-          "routes": [],
-          "customers": []
-        }
-        EOF
-        
-        cat > data/settings.json << 'EOF'
-        {
-          "supervision_rate": 0.3,
-          "conversion_rate": 0.25,
-          "avg_invoice_amount": 1000000,
-          "target_amount": 50000000,
-          "target_count": 100,
-          "target_invoice_count": 20,
-          "target_customer_count": 50,
-          "target_new_customer_count": 10,
-          "target_cash_sales": 30000000,
-          "target_credit_sales": 20000000,
-          "work_start_time": "08:00",
-          "first_visit_time": "09:00",
-          "min_daily_hours": 6,
-          "first_customer_of_route": ""
-        }
-        EOF
-        
-        cat > data/users.json << 'EOF'
-        {
-          "users": []
-        }
-        EOF
-        
-        cat > data/codes.json << 'EOF'
-        {
-          "codes": []
-        }
-        EOF
-        
-        cat > data/admin_password.json << 'EOF'
-        {
-          "hashed_password": ""
-        }
-        EOF
-        
-        cat > data/daily_log.json << 'EOF'
-        {}
-        EOF
-
-    - name: Copy fonts and data to build directory
-      run: |
-        mkdir -p .buildozer/android/app/fonts
-        mkdir -p .buildozer/android/app/data
-        mkdir -p .buildozer/android/app/icon  
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || true
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || true
-        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || true
-
-    - name: Restore Keystore from Secrets
-      run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
-        mkdir -p .buildozer/android/platform/
-        cp keystore.jks .buildozer/android/platform/planandroid.keystore
-        echo "Keystore restored successfully"
-
-    - name: Update buildozer.spec with keystore paths
-      run: |
-        echo "" >> buildozer.spec
-        echo "# Keystore configuration" >> buildozer.spec
-        echo "android.keystore = planandroid.keystore" >> buildozer.spec
-        echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
-        echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
-        echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
-        echo "buildozer.spec updated with keystore info"
+        pip install cython==0.29.37
+        pip install sh==1.14.3
 
     - name: Download and setup NDK 25b
       run: |
@@ -180,9 +57,6 @@ jobs:
         # تنظیم متغیرهای محیطی
         echo "ANDROID_NDK_HOME=/home/runner/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
         echo "ANDROID_SDK_ROOT=/home/runner/.buildozer/android/platform/android-sdk" >> $GITHUB_ENV
-        
-        # نمایش NDK نصب شده
-        ls -la /home/runner/.buildozer/android/platform/
 
     - name: Setup Android SDK with API 34
       run: |
@@ -208,52 +82,69 @@ jobs:
         echo "SDK installed successfully"
         ls -la /home/runner/.buildozer/android/platform/android-sdk/platforms/
 
-    - name: Build with Buildozer
+    - name: Create data files
       run: |
-        echo "y" | buildozer -v android release
+        mkdir -p data
+        echo '{"agents": [], "routes": [], "customers": []}' > data/definitions.json
+        echo '{"supervision_rate": 0.3, "conversion_rate": 0.25, "avg_invoice_amount": 1000000, "target_amount": 50000000, "target_count": 100, "target_invoice_count": 20, "target_customer_count": 50, "target_new_customer_count": 10, "target_cash_sales": 30000000, "target_credit_sales": 20000000, "work_start_time": "08:00", "first_visit_time": "09:00", "min_daily_hours": 6, "first_customer_of_route": ""}' > data/settings.json
+        echo '{"users": []}' > data/users.json
+        echo '{"codes": []}' > data/codes.json
+        echo '{"hashed_password": ""}' > data/admin_password.json
+        echo '{}' > data/daily_log.json
+
+    - name: Copy fonts and data to build directory
+      run: |
+        mkdir -p .buildozer/android/app/fonts
+        mkdir -p .buildozer/android/app/data
+        mkdir -p .buildozer/android/app/icon  
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || true
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || true
+        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || true
+
+    - name: Restore Keystore
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+        mkdir -p .buildozer/android/platform/
+        cp keystore.jks .buildozer/android/platform/planandroid.keystore
+
+    - name: Build APK with p4a directly
+      run: |
+        # استفاده مستقیم از p4a با NDK 25b
+        p4a apk \
+          --private . \
+          --package=org.pakhshrasa.planandroid \
+          --name="Plan Android" \
+          --version=1.0.${{ github.run_number }} \
+          --bootstrap=sdl2 \
+          --requirements=python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime \
+          --android-api=34 \
+          --ndk-api=21 \
+          --arch=arm64-v8a \
+          --arch=armeabi-v7a \
+          --permission=INTERNET \
+          --permission=WRITE_EXTERNAL_STORAGE \
+          --permission=READ_EXTERNAL_STORAGE \
+          --permission=MANAGE_EXTERNAL_STORAGE \
+          --enable-androidx \
+          --allow-backup \
+          --debug
       env:
-        CC: gcc
-        CXX: g++
-        LD: g++
         ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
         ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
 
-    - name: Convert AAB to Signed APK
+    - name: Find and rename APK
       run: |
-        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        if [ -f "$AAB_FILE" ]; then
-          echo "Found AAB: $AAB_FILE"
-          
-          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-          
-          java -jar bundletool.jar build-apks \
-            --bundle="$AAB_FILE" \
-            --output=app.apks \
-            --mode=universal \
-            --ks=keystore.jks \
-            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
-            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
-            --overwrite
-          
-          unzip -o app.apks -d apk_output
+        APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+        if [ -f "$APK_FILE" ]; then
           mkdir -p bin
-          cp apk_output/universal.apk bin/app-release.apk
-          echo "APK created successfully"
+          cp "$APK_FILE" bin/app-release.apk
+          echo "APK found at: $APK_FILE"
         else
-          echo "No AAB file found, checking for APK..."
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
-          if [ -f "$APK_FILE" ]; then
-            mkdir -p bin
-            cp "$APK_FILE" bin/app-release.apk
-            echo "APK found and copied"
-          else
-            echo "No APK or AAB file found!"
-            # نمایش فایل‌های موجود برای دیباگ
-            find . -name "*.apk" -type f || true
-            find . -name "*.aab" -type f || true
-            exit 1
-          fi
+          echo "No APK found!"
+          # نمایش فایل‌های موجود برای دیباگ
+          find . -name "*.apk" -type f || true
+          find . -name "*.aab" -type f || true
+          exit 1
         fi
 
     - name: Upload APK
