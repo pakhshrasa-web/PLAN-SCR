@@ -62,16 +62,15 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,requests,jdatetime,persiantools,reportlab
+        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
         p4a.ndk_version = 25b
-        p4a.branch = master
-        p4a.python_version = 3.11
+        p4a.branch = develop
         icon.filename = icon/kivy-icon-512.png
         presplash.filename = icon/kivy-icon-512.png
-    
+
         [buildozer]
         log_level = 2
         warn_on_root = 1
