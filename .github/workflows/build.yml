@@ -99,7 +99,7 @@ jobs:
         android.archs = armeabi-v7a, arm64-v8a
         
         # ⚠️ حذف RECORD_AUDIO (غیرضروری)
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, RECORD_AUDIO
         
         android.enable_androidx = True
         android.allow_backup = True
