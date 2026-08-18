@@ -39,8 +39,9 @@ jobs:
 
     - name: Install Python packages
       run: |
-        pip install --upgrade pip==23.3.2
-        pip install buildozer==1.5.0
+        pip install --upgrade pip
+        # ✅ استفاده از نسخه جدیدتر buildozer
+        pip install buildozer>=1.5.1.dev0
         pip install cython==0.29.37
         pip install sh==1.14.3
 
@@ -49,16 +50,8 @@ jobs:
         rm -rf ~/.buildozer
         rm -rf .buildozer
 
-    - name: Create requirements.txt (بدون requests)
-      run: |
-        cat > requirements.txt << 'EOF'
-        kivy
-        openpyxl
-        arabic-reshaper
-        python-bidi
-        Pillow
-        jdatetime
-        EOF
+    # ❌ حذف: دیگر نیاز به requirements.txt نداریم
+    # - name: Create requirements.txt (بدون requests)
 
     - name: Create buildozer.spec (درون Workflow)
       run: |
@@ -71,8 +64,8 @@ jobs:
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 1.0.${env:GITHUB_RUN_NUMBER}
         
-        # ⚠️ استفاده از requirements.txt
-        requirements = python3,requirements.txt
+        # ✅ اصلاح: لیست مستقیم کتابخانه‌ها، بدون requirements.txt
+        requirements = python3==3.10.16,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime,pyjnius==1.6.1
         
         orientation = portrait
         fullscreen = 1
@@ -179,9 +172,12 @@ jobs:
 
     - name: Build with Buildozer
       run: |
+        # ✅ جلوگیری از نصب خودکار requests
         echo "y" | buildozer -v android release
       env:
         ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
+        # ✅ متغیر محیطی برای جلوگیری از نصب requests
+        P4A_NO_DEPS: 1
 
     - name: Convert AAB to APK
       run: |
