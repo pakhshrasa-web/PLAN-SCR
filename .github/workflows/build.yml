@@ -31,8 +31,7 @@ jobs:
           build-essential git zip unzip autoconf libtool pkg-config \
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev wget ccache \
-          libfreetype6-dev libjpeg-dev gcc g++ \
-          libfreetype6
+          libfreetype6-dev libjpeg-dev gcc g++
     
     - name: Install buildozer
       run: |
@@ -46,38 +45,6 @@ jobs:
         rm -rf bin
         rm -rf ~/.cache/pip
         mkdir -p data fonts
-    
-    - name: Pre-download freetype
-      run: |
-        echo "=== Downloading freetype ==="
-        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-        
-        # دانلود از GitHub
-        wget --tries=5 --timeout=120 \
-          "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
-          -O ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/freetype-2.14.1.tar.gz
-        
-        # ایجاد فایل mark
-        touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
-        
-        echo "=== Freetype ready ==="
-        ls -la ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
-    
-    - name: Pre-download NDK r25b
-      run: |
-        echo "=== Downloading NDK r25b ==="
-        mkdir -p ~/.buildozer/android/platform
-        
-        wget --tries=5 --timeout=120 \
-          "https://dl.google.com/android/repository/android-ndk-r25b-linux.zip" \
-          -O /tmp/ndk.zip
-        
-        cd ~/.buildozer/android/platform
-        unzip -q /tmp/ndk.zip
-        rm /tmp/ndk.zip
-        
-        echo "=== NDK ready ==="
-        ls -la ~/.buildozer/android/platform/ | grep ndk
     
     - name: Create buildozer.spec
       run: |
@@ -115,19 +82,84 @@ jobs:
         p4a.ndk_version = 25b
         EOF
         
-        echo "=== Spec file ==="
-        cat buildozer.spec
+        echo "=== Spec created ==="
     
-    - name: Build with Buildozer
+    - name: Run buildozer init to create directories
       run: |
-        echo "=== Starting buildozer ==="
-        export ANDROIDAPI=33
-        export ANDROIDMINAPI=21
-        export P4A_NDK_VERSION="25b"
+        echo "=== Initializing buildozer ==="
+        yes | buildozer android debug 2>&1 | head -50 || true
+        echo "=== Directories created ==="
+        find ~/.buildozer -type d 2>/dev/null | head -20
+        find .buildozer -type d 2>/dev/null | head -20
+    
+    - name: Download freetype to ALL possible locations
+      run: |
+        echo "=== Downloading freetype ==="
         
+        # مسیرهای ممکن
+        PATHS=(
+          "$HOME/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype"
+          "$HOME/.buildozer/android/platform/build-arm64-v8a/packages/freetype"
+          "$GITHUB_WORKSPACE/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype"
+          "$GITHUB_WORKSPACE/.buildozer/android/platform/build-arm64-v8a/packages/freetype"
+        )
+        
+        # دانلود یکبار
+        TMP_FILE="/tmp/freetype-2.14.1.tar.gz"
+        wget --tries=5 --timeout=120 \
+          "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
+          -O "$TMP_FILE" \
+        || wget --tries=5 --timeout=120 \
+          "https://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
+          -O "$TMP_FILE" \
+        || wget --tries=5 --timeout=120 \
+          "https://ftp.osuosl.org/pub/blfs/conglomeration/freetype/freetype-2.14.1.tar.gz" \
+          -O "$TMP_FILE"
+        
+        echo "=== Downloaded file size: $(du -h "$TMP_FILE" | cut -f1) ==="
+        
+        # کپی به همه مسیرها
+        for path in "${PATHS[@]}"; do
+          mkdir -p "$path"
+          cp "$TMP_FILE" "$path/freetype-2.14.1.tar.gz"
+          touch "$path/.mark-freetype-2.14.1.tar.gz"
+          echo "Copied to: $path"
+        done
+        
+        # نمایش فایل‌ها
+        for path in "${PATHS[@]}"; do
+          echo "=== $path ==="
+          ls -la "$path/" 2>/dev/null || echo "Not found"
+        done
+    
+    - name: Download NDK r25b to buildozer location
+      run: |
+        echo "=== Downloading NDK r25b ==="
+        mkdir -p ~/.buildozer/android/platform
+        
+        wget --tries=5 --timeout=120 \
+          "https://dl.google.com/android/repository/android-ndk-r25b-linux.zip" \
+          -O /tmp/ndk.zip
+        
+        cd ~/.buildozer/android/platform
+        unzip -q /tmp/ndk.zip
+        rm /tmp/ndk.zip
+        
+        echo "=== NDK ready ==="
+        ls -la ~/.buildozer/android/platform/ | grep ndk
+    
+    - name: Build APK
+      run: |
+        echo "=== Starting build ==="
+        
+        # حذف فایل mark اشتباه
+        find ~/.buildozer -name ".mark-freetype*" -delete 2>/dev/null || true
+        find .buildozer -name ".mark-freetype*" -delete 2>/dev/null || true
+        
+        # اجرای buildozer
         yes | buildozer -v android release 2>&1 | tee build.log
         
-        echo "=== Build completed ==="
+        echo "=== Build finished ==="
       env:
         CC: gcc
         CXX: g++
@@ -138,15 +170,16 @@ jobs:
     - name: Check APK
       run: |
         echo "=== Checking APK ==="
-        find . -name "*.apk" -type f -exec ls -la {} \;
-        find ~/.buildozer -name "*.apk" -type f -exec ls -la {} \;
+        find . -name "*.apk" -type f -exec ls -la {} \; 2>/dev/null
+        find ~/.buildozer -name "*.apk" -type f -exec ls -la {} \; 2>/dev/null
         
-        echo "=== APK content ==="
-        APK=$(find . -name "*.apk" -type f | head -1)
+        APK=$(find . -name "*.apk" -type f 2>/dev/null | head -1)
         if [ -n "$APK" ]; then
-          echo "APK: $APK"
+          echo "=== APK: $APK ==="
           echo "Size: $(du -h "$APK" | cut -f1)"
-          unzip -l "$APK" | head -50
+          unzip -l "$APK" | head -30
+        else
+          echo "No APK found!"
         fi
     
     - name: Upload APK
