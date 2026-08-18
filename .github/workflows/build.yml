@@ -53,17 +53,6 @@ jobs:
         mv android-ndk-r25b /home/runner/.buildozer/android/platform/
         echo "ANDROID_NDK_HOME=/home/runner/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
 
-    - name: Create requirements.txt
-      run: |
-        cat > requirements.txt << 'EOF'
-        kivy
-        openpyxl
-        arabic-reshaper
-        python-bidi
-        Pillow
-        jdatetime
-        EOF
-
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -75,8 +64,8 @@ jobs:
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 1.0.${env:GITHUB_RUN_NUMBER}
         
-        # ⚠️ استفاده از requirements.txt
-        requirements = python3,requirements.txt
+        # ⚠️ مستقیماً کتابخانه‌ها - بدون requests
+        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime
         
         orientation = portrait
         fullscreen = 1
