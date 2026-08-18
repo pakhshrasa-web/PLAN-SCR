@@ -32,144 +32,130 @@ jobs:
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev wget ccache \
           libfreetype6-dev libjpeg-dev gcc g++ \
-          libfreetype6 tree
+          libfreetype6
     
-    - name: Install p4a and cython
+    - name: Install buildozer
       run: |
         pip install --upgrade pip setuptools wheel
-        pip install python-for-android cython==0.29.37
+        pip install buildozer==1.5.0 cython==0.29.37
     
-    - name: Clean ALL previous builds
+    - name: Clean ALL
       run: |
         rm -rf ~/.buildozer
-        rm -rf ~/.local/share/python-for-android
         rm -rf .buildozer
         rm -rf bin
-        rm -rf __pycache__
+        rm -rf ~/.cache/pip
         mkdir -p data fonts
-        echo "CC=gcc" >> $GITHUB_ENV
-        echo "CXX=g++" >> $GITHUB_ENV
     
-    - name: Download NDK r25b and SDK
-      run: |
-        echo "=== Downloading NDK r25b ==="
-        mkdir -p ~/.android
-        cd ~/.android
-        
-        wget -q --tries=5 --timeout=60 \
-          "https://dl.google.com/android/repository/android-ndk-r25b-linux.zip" \
-          -O ndk.zip
-        
-        unzip -q ndk.zip
-        rm ndk.zip
-        
-        echo "=== Downloading Android SDK ==="
-        mkdir -p ~/.android/sdk
-        cd ~/.android/sdk
-        
-        wget -q --tries=5 --timeout=60 \
-          "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" \
-          -O cmdtools.zip
-        
-        unzip -q cmdtools.zip
-        rm cmdtools.zip
-        
-        yes | ~/.android/sdk/cmdline-tools/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-        
-        ~/.android/sdk/cmdline-tools/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" > /dev/null 2>&1 || true
-        
-        echo "=== NDK and SDK ready ==="
-        ls -la ~/.android/
-        echo "NDK version:"
-        cat ~/.android/android-ndk-r25b/source.properties | grep "Pkg.Revision"
-    
-    - name: Download freetype from multiple sources
+    - name: Pre-download freetype
       run: |
         echo "=== Downloading freetype ==="
-        mkdir -p ~/.cache/p4a/freetype
+        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
         
-        wget --tries=5 --timeout=60 \
+        # دانلود از GitHub
+        wget --tries=5 --timeout=120 \
           "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
-          -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz \
-        || wget --tries=5 --timeout=60 \
-          "https://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
-          -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz \
-        || wget --tries=5 --timeout=60 \
-          "https://ftp.osuosl.org/pub/blfs/conglomeration/freetype/freetype-2.14.1.tar.gz" \
-          -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz
+          -O ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/freetype-2.14.1.tar.gz
         
-        echo "=== Freetype downloaded ==="
-        ls -la ~/.cache/p4a/freetype/
-        file ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz
+        # ایجاد فایل mark
+        touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        
+        echo "=== Freetype ready ==="
+        ls -la ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
     
-    - name: Build APK with p4a directly
+    - name: Pre-download NDK r25b
       run: |
-        echo "=== Starting p4a build ==="
+        echo "=== Downloading NDK r25b ==="
+        mkdir -p ~/.buildozer/android/platform
         
-        # ساخت APK
-        p4a apk \
-          --private "$GITHUB_WORKSPACE" \
-          --package org.pakhshrasa.planandroid \
-          --name "Plan Android" \
-          --version 0.1.1 \
-          --bootstrap sdl2 \
-          --requirements "python3,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime" \
-          --arch arm64-v8a \
-          --sdk-dir "$HOME/.android/sdk" \
-          --ndk-dir "$HOME/.android/android-ndk-r25b" \
-          --android-api 33 \
-          --ndk-api 21 \
-          --release \
-          --copy-libs \
-          2>&1 | tee build.log
+        wget --tries=5 --timeout=120 \
+          "https://dl.google.com/android/repository/android-ndk-r25b-linux.zip" \
+          -O /tmp/ndk.zip
+        
+        cd ~/.buildozer/android/platform
+        unzip -q /tmp/ndk.zip
+        rm /tmp/ndk.zip
+        
+        echo "=== NDK ready ==="
+        ls -la ~/.buildozer/android/platform/ | grep ndk
+    
+    - name: Create buildozer.spec
+      run: |
+        cat > buildozer.spec << 'EOF'
+        [app]
+        title = Plan Android
+        package.name = planandroid
+        package.domain = org.pakhshrasa
+        source.dir = .
+        source.include_exts = py,png,jpg,kv,atlas,ttf,json
+        version = 0.1.1
+        
+        requirements = python3,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime
+        
+        orientation = portrait
+        fullscreen = 1
+        
+        [buildozer]
+        log_level = 2
+        warn_on_root = 1
+        
+        [buildozer:android]
+        android.api = 33
+        android.minapi = 21
+        android.ndk = 25b
+        android.accept_sdk_license = True
+        android.archs = arm64-v8a
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+        android.enable_androidx = True
+        android.allow_backup = True
+        android.debug = 0
+        android.release = 1
+        
+        p4a.branch = develop
+        p4a.ndk_version = 25b
+        EOF
+        
+        echo "=== Spec file ==="
+        cat buildozer.spec
+    
+    - name: Build with Buildozer
+      run: |
+        echo "=== Starting buildozer ==="
+        export ANDROIDAPI=33
+        export ANDROIDMINAPI=21
+        export P4A_NDK_VERSION="25b"
+        
+        yes | buildozer -v android release 2>&1 | tee build.log
         
         echo "=== Build completed ==="
-        
-        # جستجوی APK
-        echo "=== Searching for APK files ==="
-        find "$GITHUB_WORKSPACE" -name "*.apk" -type f 2>/dev/null || true
-        find "$HOME" -maxdepth 4 -name "*.apk" -type f 2>/dev/null || true
-        find "/tmp" -name "*.apk" -type f 2>/dev/null || true
-        
-        # نمایش ساختار دایرکتوری
-        echo "=== Directory structure ==="
-        ls -la "$GITHUB_WORKSPACE"
-        find "$GITHUB_WORKSPACE" -maxdepth 3 -type d | head -20
       env:
         CC: gcc
         CXX: g++
-        ANDROIDSDK: "$HOME/.android/sdk"
-        ANDROIDNDK: "$HOME/.android/android-ndk-r25b"
         ANDROIDAPI: "33"
         ANDROIDMINAPI: "21"
+        P4A_NDK_VERSION: "25b"
     
-    - name: Prepare APK for upload
+    - name: Check APK
       run: |
-        echo "=== Finding and copying APK ==="
-        mkdir -p apk_output
+        echo "=== Checking APK ==="
+        find . -name "*.apk" -type f -exec ls -la {} \;
+        find ~/.buildozer -name "*.apk" -type f -exec ls -la {} \;
         
-        # جستجوی APK در کل سیستم
-        APK_FILES=$(find / -name "*.apk" -type f 2>/dev/null | head -10)
-        
-        if [ -n "$APK_FILES" ]; then
-          echo "Found APK files:"
-          echo "$APK_FILES"
-          
-          # کپی اولین APK
-          FIRST_APK=$(echo "$APK_FILES" | head -1)
-          cp "$FIRST_APK" apk_output/
-          echo "APK copied to apk_output/"
-          ls -la apk_output/
-        else
-          echo "No APK found! Creating dummy file..."
-          echo "Build failed - check build.log" > apk_output/README.txt
+        echo "=== APK content ==="
+        APK=$(find . -name "*.apk" -type f | head -1)
+        if [ -n "$APK" ]; then
+          echo "APK: $APK"
+          echo "Size: $(du -h "$APK" | cut -f1)"
+          unzip -l "$APK" | head -50
         fi
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: apk_output/*
+        path: |
+          **/*.apk
+          *.apk
         if-no-files-found: warn
     
     - name: Upload build log
