@@ -32,7 +32,7 @@ jobs:
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev wget ccache \
           libfreetype6-dev libjpeg-dev gcc g++ \
-          libfreetype6
+          libfreetype6 tree
     
     - name: Install p4a and cython
       run: |
@@ -45,6 +45,7 @@ jobs:
         rm -rf ~/.local/share/python-for-android
         rm -rf .buildozer
         rm -rf bin
+        rm -rf __pycache__
         mkdir -p data fonts
         echo "CC=gcc" >> $GITHUB_ENV
         echo "CXX=g++" >> $GITHUB_ENV
@@ -55,8 +56,7 @@ jobs:
         mkdir -p ~/.android
         cd ~/.android
         
-        # دانلود NDK r25b
-        wget -q --tries=3 --timeout=60 \
+        wget -q --tries=5 --timeout=60 \
           "https://dl.google.com/android/repository/android-ndk-r25b-linux.zip" \
           -O ndk.zip
         
@@ -67,63 +67,74 @@ jobs:
         mkdir -p ~/.android/sdk
         cd ~/.android/sdk
         
-        # دانلود command line tools
-        wget -q --tries=3 --timeout=60 \
+        wget -q --tries=5 --timeout=60 \
           "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" \
           -O cmdtools.zip
         
         unzip -q cmdtools.zip
         rm cmdtools.zip
         
-        # Accept licenses
         yes | ~/.android/sdk/cmdline-tools/bin/sdkmanager --licenses > /dev/null 2>&1 || true
         
-        # Install platform 33
         ~/.android/sdk/cmdline-tools/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" > /dev/null 2>&1 || true
         
         echo "=== NDK and SDK ready ==="
         ls -la ~/.android/
+        echo "NDK version:"
+        cat ~/.android/android-ndk-r25b/source.properties | grep "Pkg.Revision"
     
     - name: Download freetype from multiple sources
       run: |
         echo "=== Downloading freetype ==="
         mkdir -p ~/.cache/p4a/freetype
         
-        # تلاش از GitHub
-        wget --tries=3 --timeout=60 \
+        wget --tries=5 --timeout=60 \
           "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
           -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz \
-        || wget --tries=3 --timeout=60 \
+        || wget --tries=5 --timeout=60 \
           "https://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
           -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz \
-        || wget --tries=3 --timeout=60 \
+        || wget --tries=5 --timeout=60 \
           "https://ftp.osuosl.org/pub/blfs/conglomeration/freetype/freetype-2.14.1.tar.gz" \
           -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz
         
         echo "=== Freetype downloaded ==="
         ls -la ~/.cache/p4a/freetype/
+        file ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz
     
     - name: Build APK with p4a directly
       run: |
         echo "=== Starting p4a build ==="
         
-        # ساخت APK با p4a
+        # ساخت APK
         p4a apk \
-          --private . \
+          --private "$GITHUB_WORKSPACE" \
           --package org.pakhshrasa.planandroid \
           --name "Plan Android" \
           --version 0.1.1 \
           --bootstrap sdl2 \
           --requirements "python3,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime" \
           --arch arm64-v8a \
-          --sdk-dir $HOME/.android/sdk \
-          --ndk-dir $HOME/.android/android-ndk-r25b \
+          --sdk-dir "$HOME/.android/sdk" \
+          --ndk-dir "$HOME/.android/android-ndk-r25b" \
           --android-api 33 \
           --ndk-api 21 \
           --release \
-          --sign \
           --copy-libs \
           2>&1 | tee build.log
+        
+        echo "=== Build completed ==="
+        
+        # جستجوی APK
+        echo "=== Searching for APK files ==="
+        find "$GITHUB_WORKSPACE" -name "*.apk" -type f 2>/dev/null || true
+        find "$HOME" -maxdepth 4 -name "*.apk" -type f 2>/dev/null || true
+        find "/tmp" -name "*.apk" -type f 2>/dev/null || true
+        
+        # نمایش ساختار دایرکتوری
+        echo "=== Directory structure ==="
+        ls -la "$GITHUB_WORKSPACE"
+        find "$GITHUB_WORKSPACE" -maxdepth 3 -type d | head -20
       env:
         CC: gcc
         CXX: g++
@@ -132,24 +143,37 @@ jobs:
         ANDROIDAPI: "33"
         ANDROIDMINAPI: "21"
     
-    - name: Check APK
+    - name: Prepare APK for upload
       run: |
-        echo "=== Checking APK ==="
-        find . -name "*.apk" -type f 2>/dev/null
-        ls -la *.apk 2>/dev/null || echo "No APK in current directory"
-        ls -la bin/ 2>/dev/null || echo "No bin directory"
+        echo "=== Finding and copying APK ==="
+        mkdir -p apk_output
+        
+        # جستجوی APK در کل سیستم
+        APK_FILES=$(find / -name "*.apk" -type f 2>/dev/null | head -10)
+        
+        if [ -n "$APK_FILES" ]; then
+          echo "Found APK files:"
+          echo "$APK_FILES"
+          
+          # کپی اولین APK
+          FIRST_APK=$(echo "$APK_FILES" | head -1)
+          cp "$FIRST_APK" apk_output/
+          echo "APK copied to apk_output/"
+          ls -la apk_output/
+        else
+          echo "No APK found! Creating dummy file..."
+          echo "Build failed - check build.log" > apk_output/README.txt
+        fi
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: |
-          *.apk
-          bin/*.apk
+        path: apk_output/*
         if-no-files-found: warn
     
-    - name: Upload build log on failure
-      if: failure()
+    - name: Upload build log
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: build-log
