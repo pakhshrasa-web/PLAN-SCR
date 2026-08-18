@@ -4,11 +4,9 @@ package.name = planandroid
 package.domain = org.pakhshrasa
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,ttf,json
-
-# ⚠️ نسخه با GitHub Run Number به‌روز می‌شود
 version = 1.0.${env:GITHUB_RUN_NUMBER}
 
-# ⚠️ بدون requests - فقط کتابخانه‌های ضروری
+# ⚠️ مهم: حذف requests از اینجا
 requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime
 
 orientation = portrait
