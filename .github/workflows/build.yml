@@ -31,8 +31,7 @@ jobs:
           build-essential git zip unzip autoconf libtool pkg-config \
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev wget ccache \
-          libfreetype6-dev libjpeg-dev gcc g++ \
-          libfreetype6 freetype2-demos
+          gcc g++
     
     - name: Install buildozer
       run: |
@@ -47,7 +46,7 @@ jobs:
         rm -rf ~/.cache/pip
         mkdir -p data fonts
     
-    - name: Create buildozer.spec with NO freetype
+    - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
         [app]
@@ -58,7 +57,7 @@ jobs:
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
         
-        # حذف Pillow که نیاز به freetype دارد
+        # بدون Pillow و freetype
         requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,jdatetime
         
         orientation = portrait
@@ -71,7 +70,6 @@ jobs:
         [buildozer:android]
         android.api = 33
         android.minapi = 21
-        android.ndk = 25b
         android.accept_sdk_license = True
         android.archs = arm64-v8a
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
@@ -81,10 +79,6 @@ jobs:
         android.release = 1
         
         p4a.branch = develop
-        p4a.ndk_version = 25b
-        
-        # غیرفعال کردن recipe های مشکل‌دار
-        p4a.recipe_blacklist = freetype,jpeg,png,sdl2_image,sdl2_mixer,sdl2_ttf
         EOF
         
         echo "=== Spec created ==="
@@ -119,6 +113,7 @@ jobs:
         else
           echo "No APK found!"
           tail -100 build.log > apk_output/diagnostic.txt
+          echo "Last 100 lines of log saved"
         fi
     
     - name: Upload APK
