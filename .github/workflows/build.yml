@@ -31,104 +31,121 @@ jobs:
           build-essential git zip unzip autoconf libtool pkg-config \
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev wget ccache \
-          libfreetype6-dev libjpeg-dev gcc g++
+          libfreetype6-dev libjpeg-dev gcc g++ \
+          libfreetype6
     
-    - name: Install buildozer and cython
+    - name: Install p4a and cython
       run: |
         pip install --upgrade pip setuptools wheel
-        pip install buildozer==1.5.0 cython==0.29.37
+        pip install python-for-android cython==0.29.37
     
     - name: Clean ALL previous builds
       run: |
         rm -rf ~/.buildozer
+        rm -rf ~/.local/share/python-for-android
         rm -rf .buildozer
-        rm -rf ~/.cache/pip
         rm -rf bin
         mkdir -p data fonts
         echo "CC=gcc" >> $GITHUB_ENV
         echo "CXX=g++" >> $GITHUB_ENV
     
-    - name: Pre-download freetype from GitHub
+    - name: Download NDK r25b and SDK
       run: |
-        echo "=== Downloading freetype from GitHub mirror ==="
-        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype
+        echo "=== Downloading NDK r25b ==="
+        mkdir -p ~/.android
+        cd ~/.android
         
-        # دانلود از GitHub (مطمئن‌تر)
+        # دانلود NDK r25b
+        wget -q --tries=3 --timeout=60 \
+          "https://dl.google.com/android/repository/android-ndk-r25b-linux.zip" \
+          -O ndk.zip
+        
+        unzip -q ndk.zip
+        rm ndk.zip
+        
+        echo "=== Downloading Android SDK ==="
+        mkdir -p ~/.android/sdk
+        cd ~/.android/sdk
+        
+        # دانلود command line tools
+        wget -q --tries=3 --timeout=60 \
+          "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" \
+          -O cmdtools.zip
+        
+        unzip -q cmdtools.zip
+        rm cmdtools.zip
+        
+        # Accept licenses
+        yes | ~/.android/sdk/cmdline-tools/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+        
+        # Install platform 33
+        ~/.android/sdk/cmdline-tools/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" > /dev/null 2>&1 || true
+        
+        echo "=== NDK and SDK ready ==="
+        ls -la ~/.android/
+    
+    - name: Download freetype from multiple sources
+      run: |
+        echo "=== Downloading freetype ==="
+        mkdir -p ~/.cache/p4a/freetype
+        
+        # تلاش از GitHub
         wget --tries=3 --timeout=60 \
           "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
-          -O ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/freetype-2.14.1.tar.gz \
+          -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz \
         || wget --tries=3 --timeout=60 \
-          "https://gitlab.freedesktop.org/freetype/freetype/-/archive/VER-2-14-1/freetype-VER-2-14-1.tar.gz" \
-          -O ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/freetype-2.14.1.tar.gz \
+          "https://download-mirror.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
+          -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz \
         || wget --tries=3 --timeout=60 \
-          "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
-          -O ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/freetype-2.14.1.tar.gz
+          "https://ftp.osuosl.org/pub/blfs/conglomeration/freetype/freetype-2.14.1.tar.gz" \
+          -O ~/.cache/p4a/freetype/freetype-2.14.1.tar.gz
         
-        # علامت‌گذاری به عنوان دانلود شده
-        touch ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/.mark-freetype-2.14.1.tar.gz
-        ls -la ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/
+        echo "=== Freetype downloaded ==="
+        ls -la ~/.cache/p4a/freetype/
     
-    - name: Create buildozer.spec
+    - name: Build APK with p4a directly
       run: |
-        cat > buildozer.spec << 'SPECEOF'
-        [app]
-        title = Plan Android
-        package.name = planandroid
-        package.domain = org.pakhshrasa
-        source.dir = .
-        source.include_exts = py,png,jpg,kv,atlas,ttf,json
-        version = 0.1.1
+        echo "=== Starting p4a build ==="
         
-        requirements = python3,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime
-        
-        orientation = portrait
-        fullscreen = 1
-        
-        [buildozer]
-        log_level = 2
-        warn_on_root = 1
-        
-        [buildozer:android]
-        android.api = 33
-        android.minapi = 21
-        android.ndk = 25b
-        android.accept_sdk_license = True
-        android.archs = arm64-v8a
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
-        android.enable_androidx = True
-        android.allow_backup = True
-        android.debug = 0
-        android.release = 1
-        
-        p4a.branch = develop
-        p4a.ndk_version = 25b
-        SPECEOF
-        
-        echo "=== Spec file created ==="
-        cat buildozer.spec
-    
-    - name: Build APK
-      run: |
-        echo "=== Starting build ==="
-        export ANDROIDAPI=33
-        export ANDROIDMINAPI=21
-        export P4A_NDK_VERSION="25b"
-        
-        yes | buildozer -v android release 2>&1 | tee build.log
+        # ساخت APK با p4a
+        p4a apk \
+          --private . \
+          --package org.pakhshrasa.planandroid \
+          --name "Plan Android" \
+          --version 0.1.1 \
+          --bootstrap sdl2 \
+          --requirements "python3,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime" \
+          --arch arm64-v8a \
+          --sdk-dir $HOME/.android/sdk \
+          --ndk-dir $HOME/.android/android-ndk-r25b \
+          --android-api 33 \
+          --ndk-api 21 \
+          --release \
+          --sign \
+          --copy-libs \
+          2>&1 | tee build.log
       env:
         CC: gcc
         CXX: g++
+        ANDROIDSDK: "$HOME/.android/sdk"
+        ANDROIDNDK: "$HOME/.android/android-ndk-r25b"
         ANDROIDAPI: "33"
         ANDROIDMINAPI: "21"
-        P4A_NDK_VERSION: "25b"
+    
+    - name: Check APK
+      run: |
+        echo "=== Checking APK ==="
+        find . -name "*.apk" -type f 2>/dev/null
+        ls -la *.apk 2>/dev/null || echo "No APK in current directory"
+        ls -la bin/ 2>/dev/null || echo "No bin directory"
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
         path: |
+          *.apk
           bin/*.apk
-          bin/*.aab
         if-no-files-found: warn
     
     - name: Upload build log on failure
