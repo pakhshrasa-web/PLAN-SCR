@@ -42,7 +42,6 @@ jobs:
         pip install --upgrade pip==23.3.2
         pip install buildozer==1.5.0
         pip install cython==0.29.37
-        # نصب sh نسخه سازگار برای p4a
         pip install sh==1.14.3
 
     - name: Download and setup NDK 25b
@@ -53,6 +52,17 @@ jobs:
         rm -rf /home/runner/.buildozer/android/platform/android-ndk-*
         mv android-ndk-r25b /home/runner/.buildozer/android/platform/
         echo "ANDROID_NDK_HOME=/home/runner/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
+
+    - name: Create requirements.txt
+      run: |
+        cat > requirements.txt << 'EOF'
+        kivy
+        openpyxl
+        arabic-reshaper
+        python-bidi
+        Pillow
+        jdatetime
+        EOF
 
     - name: Create buildozer.spec
       run: |
@@ -65,8 +75,8 @@ jobs:
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 1.0.${env:GITHUB_RUN_NUMBER}
         
-        # ⚠️ فقط کتابخانه‌های ضروری - بدون requests
-        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime
+        # ⚠️ استفاده از requirements.txt
+        requirements = python3,requirements.txt
         
         orientation = portrait
         fullscreen = 1
