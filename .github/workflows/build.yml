@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
@@ -11,41 +11,54 @@ jobs:
     timeout-minutes: 120
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python 3.10
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10.12'
-    
-    - name: Set up Java 17
+        python-version: '3.10'
+
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-    
+
     - name: Install system dependencies
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y -qq \
-          build-essential git zip unzip autoconf libtool pkg-config \
-          zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
-          cmake libffi-dev libssl-dev wget ccache \
-          gcc g++
-    
-    - name: Install buildozer
+          build-essential git zip unzip \
+          autoconf libtool \
+          pkg-config zlib1g-dev libncurses5-dev \
+          libncursesw5-dev libtinfo5 cmake \
+          libffi-dev libssl-dev wget \
+          ccache \
+          libfreetype6-dev libjpeg-dev zlib1g-dev
+
+    - name: Install Python packages
       run: |
-        pip install --upgrade pip setuptools wheel
-        pip install buildozer==1.5.0 cython==0.29.37
-    
-    - name: Clean ALL
+        pip install -q buildozer cython==0.29.37
+
+    - name: Set GCC as default compiler
       run: |
+        sudo apt-get install -y gcc g++
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        echo "LD=g++" >> $GITHUB_ENV
+        sudo ln -sf /usr/bin/gcc /usr/local/bin/cc
+        sudo ln -sf /usr/bin/g++ /usr/local/bin/c++
+        gcc --version
+
+    - name: Clean ALL NDK versions
+      run: |
+        rm -rf ~/.buildozer/android/platform/android-ndk-*
+        rm -rf .buildozer/android/platform/android-ndk-*
         rm -rf ~/.buildozer
         rm -rf .buildozer
         rm -rf bin
-        rm -rf ~/.cache/pip
-        mkdir -p data fonts
-    
+
     - name: Create buildozer.spec
       run: |
         cat > buildozer.spec << 'EOF'
@@ -56,77 +69,212 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        
-        # بدون Pillow و freetype
-        requirements = python3,kivy==2.3.0,openpyxl,arabic-reshaper,python-bidi,jdatetime
-        
+        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
         orientation = portrait
         fullscreen = 1
-        
+        android.add_src = fonts/
+        p4a.ndk_version = 25b
+        p4a.branch = develop
+        icon.filename = icon/kivy-icon-512.png
+        presplash.filename = icon/kivy-icon-512.png
+
         [buildozer]
         log_level = 2
         warn_on_root = 1
-        
+
         [buildozer:android]
+        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
         android.api = 33
         android.minapi = 21
+        android.ndk = 25b
         android.accept_sdk_license = True
-        android.archs = arm64-v8a
-        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+        android.archs = armeabi-v7a, arm64-v8a
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE, RECORD_AUDIO
         android.enable_androidx = True
         android.allow_backup = True
+        android.unsafe_ssl = False
+        android.presplash_color = #FFFFFF
+        android.ignore_manifest = False
+        android.enable_on_back_invoked_callback = True
+        android.version_code = 2
         android.debug = 0
         android.release = 1
+        EOF
+
+    - name: Create initial json files
+      run: |
+        mkdir -p data
         
-        p4a.branch = develop
+        cat > data/definitions.json << 'EOF'
+        {
+          "agents": [],
+          "routes": [],
+          "customers": []
+        }
         EOF
         
-        echo "=== Spec created ==="
-        cat buildozer.spec
-    
-    - name: Build APK
+        cat > data/settings.json << 'EOF'
+        {
+          "supervision_rate": 0.3,
+          "conversion_rate": 0.25,
+          "avg_invoice_amount": 1000000,
+          "target_amount": 50000000,
+          "target_count": 100,
+          "target_invoice_count": 20,
+          "target_customer_count": 50,
+          "target_new_customer_count": 10,
+          "target_cash_sales": 30000000,
+          "target_credit_sales": 20000000,
+          "work_start_time": "08:00",
+          "first_visit_time": "09:00",
+          "min_daily_hours": 6,
+          "first_customer_of_route": ""
+        }
+        EOF
+        
+        cat > data/users.json << 'EOF'
+        {
+          "users": []
+        }
+        EOF
+        
+        cat > data/codes.json << 'EOF'
+        {
+          "codes": []
+        }
+        EOF
+        
+        cat > data/admin_password.json << 'EOF'
+        {
+          "hashed_password": ""
+        }
+        EOF
+        
+        cat > data/daily_log.json << 'EOF'
+        {}
+        EOF
+
+    - name: Copy fonts and data to build directory
       run: |
-        echo "=== Starting build ==="
-        yes | buildozer -v android release 2>&1 | tee build.log
-        echo "Build exit code: $?"
+        mkdir -p .buildozer/android/app/fonts
+        mkdir -p .buildozer/android/app/data
+        mkdir -p .buildozer/android/app/icon  
+
+        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || echo "No fonts"
+        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || echo "No data"
+        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || echo "No icon"
+
+    - name: Update version and version_code
+      run: |
+        sed -i "s/android.version_code = [0-9]*/android.version_code = ${{ github.run_number }}/" buildozer.spec
+        sed -i "s/version = .*/version = ${{ github.run_number }}/" buildozer.spec
+        echo "Version set to: ${{ github.run_number }}"
+
+    - name: Restore Keystore from Secrets
+      run: |
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+        mkdir -p .buildozer/android/platform/
+        cp keystore.jks .buildozer/android/platform/planandroid.keystore
+        echo "Keystore restored successfully"
+
+    - name: Update buildozer.spec with keystore paths
+      run: |
+        echo "" >> buildozer.spec
+        echo "# Keystore configuration" >> buildozer.spec
+        echo "android.keystore = planandroid.keystore" >> buildozer.spec
+        echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
+        echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
+        echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+        echo "buildozer.spec updated with keystore info"
+
+    - name: Pre-copy freetype to buildozer cache
+      run: |
+        echo "Checking if freetype file exists:"
+        ls -la packages/freetype-2.14.1.tar.gz 2>/dev/null || echo "File not found in packages/"
+        
+        # اگر فایل freetype در packages وجود دارد
+        if [ -f "packages/freetype-2.14.1.tar.gz" ]; then
+          echo "Freetype found in packages/"
+          
+          mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          cp packages/freetype-2.14.1.tar.gz .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+          touch .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+          
+          mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          cp packages/freetype-2.14.1.tar.gz ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+          touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+          
+          echo "Freetype copied successfully"
+        else
+          echo "Freetype NOT found in packages/. Downloading from GitHub..."
+          
+          mkdir -p packages
+          wget --tries=5 --timeout=120 \
+            "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
+            -O packages/freetype-2.14.1.tar.gz
+          
+          mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          cp packages/freetype-2.14.1.tar.gz .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+          touch .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+          
+          mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          cp packages/freetype-2.14.1.tar.gz ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/
+          touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        fi
+        
+        echo "Verifying copied files:"
+        ls -la .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/ 2>/dev/null
+        ls -la ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/ 2>/dev/null
+
+    - name: Build with Buildozer
+      run: |
+        echo "y" | buildozer -v android release
       env:
         CC: gcc
         CXX: g++
-    
-    - name: Find APK
+        LD: g++
+
+    - name: Convert AAB to Signed APK
       run: |
-        echo "=== Searching for APK ==="
-        find "$GITHUB_WORKSPACE" -name "*.apk" -type f -exec ls -la {} \; 2>/dev/null
-        find "$HOME/.buildozer" -name "*.apk" -type f -exec ls -la {} \; 2>/dev/null
-        find / -name "*.apk" -type f 2>/dev/null | head -10
-    
-    - name: Copy APK
-      run: |
-        mkdir -p apk_output
-        APK=$(find "$GITHUB_WORKSPACE" "$HOME/.buildozer" -name "*.apk" -type f 2>/dev/null | head -1)
-        
-        if [ -n "$APK" ]; then
-          cp "$APK" apk_output/
-          echo "APK copied: $APK"
-          echo "Size: $(du -h "$APK" | cut -f1)"
-          ls -la apk_output/
+        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
+        if [ -f "$AAB_FILE" ]; then
+          echo "Found AAB: $AAB_FILE"
+          
+          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+          
+          java -jar bundletool.jar build-apks \
+            --bundle="$AAB_FILE" \
+            --output=app.apks \
+            --mode=universal \
+            --ks=keystore.jks \
+            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
+            --overwrite
+          
+          unzip -o app.apks -d apk_output
+          mkdir -p bin
+          cp apk_output/universal.apk bin/app-release.apk
+          echo "APK created successfully"
         else
-          echo "No APK found!"
-          tail -100 build.log > apk_output/diagnostic.txt
-          echo "Last 100 lines of log saved"
+          echo "No AAB file found, checking for APK..."
+          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -f "$APK_FILE" ]; then
+            mkdir -p bin
+            cp "$APK_FILE" bin/app-release.apk
+            echo "APK found and copied"
+          else
+            echo "No APK or AAB file found!"
+            echo "Searching entire filesystem..."
+            find / -name "*.apk" -o -name "*.aab" 2>/dev/null | head -10
+            exit 1
+          fi
         fi
-    
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: apk_output/*
-        if-no-files-found: warn
-    
-    - name: Upload build log
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log
-        path: build.log
-        if-no-files-found: warn
+        path: bin/*.apk
+        retention-days: 30
+        if-no-files-found: error
