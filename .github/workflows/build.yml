@@ -67,14 +67,13 @@ jobs:
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
         
-        # ✅ Python 3.10 و کتابخانه‌های سازگار
-        requirements = python3==3.10.16,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime
+        # ✅ حذف pyjnius و requests - فقط کتابخانه‌های ضروری
+        requirements = python3,kivy,Pillow,openpyxl,arabic-reshaper,python-bidi,jdatetime
         
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
         
-        # ✅ تنظیمات مهم p4a
         p4a.ndk_version = 25b
         p4a.branch = develop
         
