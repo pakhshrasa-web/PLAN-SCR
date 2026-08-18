@@ -72,7 +72,7 @@ jobs:
           -e KEY_ALIAS="${{ secrets.KEY_ALIAS }}" \
           -e KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}" \
           kivy/buildozer \
-          buildozer android debug deploy run
+          sh -c "echo 'y' | buildozer android debug deploy run"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
