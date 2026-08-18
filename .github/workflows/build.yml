@@ -40,47 +40,57 @@ jobs:
     - name: Install Python packages
       run: |
         pip install --upgrade pip==23.3.2
-        # ⚠️ نصب نسخه‌های سازگار
-        pip install python-for-android==2023.9.16
+        pip install buildozer==1.5.0
         pip install cython==0.29.37
+        # نصب sh نسخه سازگار برای p4a
         pip install sh==1.14.3
 
     - name: Download and setup NDK 25b
       run: |
-        # دانلود مستقیم NDK 25b
         wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
         unzip -q android-ndk-r25b-linux.zip
         mkdir -p /home/runner/.buildozer/android/platform/
         rm -rf /home/runner/.buildozer/android/platform/android-ndk-*
         mv android-ndk-r25b /home/runner/.buildozer/android/platform/
-        
-        # تنظیم متغیرهای محیطی
         echo "ANDROID_NDK_HOME=/home/runner/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=/home/runner/.buildozer/android/platform/android-sdk" >> $GITHUB_ENV
 
-    - name: Setup Android SDK with API 34
+    - name: Create buildozer.spec
       run: |
-        mkdir -p /home/runner/.buildozer/android/platform/
-        cd /home/runner/.buildozer/android/platform/
+        cat > buildozer.spec << 'EOF'
+        [app]
+        title = Plan Android
+        package.name = planandroid
+        package.domain = org.pakhshrasa
+        source.dir = .
+        source.include_exts = py,png,jpg,kv,atlas,ttf,json
+        version = 1.0.${env:GITHUB_RUN_NUMBER}
         
-        # دانلود command line tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -q commandlinetools-linux-9477386_latest.zip
+        # ⚠️ فقط کتابخانه‌های ضروری - بدون requests
+        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime
         
-        # نصب SDK
-        mkdir -p android-sdk/cmdline-tools
-        mv cmdline-tools android-sdk/cmdline-tools/latest
+        orientation = portrait
+        fullscreen = 1
+        icon.filename = icon/kivy-icon-512.png
+        presplash.filename = icon/kivy-icon-512.png
         
-        cd android-sdk/cmdline-tools/latest
+        [buildozer]
+        log_level = 2
+        warn_on_root = 1
         
-        # پذیرش لایسنس‌ها
-        yes | ./bin/sdkmanager --licenses > /dev/null 2>&1 || true
-        
-        # نصب API 34 و build-tools
-        ./bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1
-        
-        echo "SDK installed successfully"
-        ls -la /home/runner/.buildozer/android/platform/android-sdk/platforms/
+        [buildozer:android]
+        android.api = 34
+        android.minapi = 21
+        android.ndk = 25b
+        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
+        android.accept_sdk_license = True
+        android.archs = armeabi-v7a, arm64-v8a
+        android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
+        android.enable_androidx = True
+        android.allow_backup = True
+        android.debug = 0
+        android.release = 1
+        android.version_code = ${env:GITHUB_RUN_NUMBER}
+        EOF
 
     - name: Create data files
       run: |
@@ -92,7 +102,7 @@ jobs:
         echo '{"hashed_password": ""}' > data/admin_password.json
         echo '{}' > data/daily_log.json
 
-    - name: Copy fonts and data to build directory
+    - name: Copy fonts and data
       run: |
         mkdir -p .buildozer/android/app/fonts
         mkdir -p .buildozer/android/app/data
@@ -107,44 +117,46 @@ jobs:
         mkdir -p .buildozer/android/platform/
         cp keystore.jks .buildozer/android/platform/planandroid.keystore
 
-    - name: Build APK with p4a directly
+    - name: Update keystore in spec
       run: |
-        # استفاده مستقیم از p4a با NDK 25b
-        p4a apk \
-          --private . \
-          --package=org.pakhshrasa.planandroid \
-          --name="Plan Android" \
-          --version=1.0.${{ github.run_number }} \
-          --bootstrap=sdl2 \
-          --requirements=python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime \
-          --android-api=34 \
-          --ndk-api=21 \
-          --arch=arm64-v8a \
-          --arch=armeabi-v7a \
-          --permission=INTERNET \
-          --permission=WRITE_EXTERNAL_STORAGE \
-          --permission=READ_EXTERNAL_STORAGE \
-          --permission=MANAGE_EXTERNAL_STORAGE \
-          --enable-androidx \
-          --allow-backup \
-          --debug
+        echo "" >> buildozer.spec
+        echo "android.keystore = planandroid.keystore" >> buildozer.spec
+        echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
+        echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
+        echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
+
+    - name: Build with buildozer
+      run: |
+        echo "y" | buildozer -v android release
       env:
         ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
-        ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
 
-    - name: Find and rename APK
+    - name: Convert AAB to APK
       run: |
-        APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
-        if [ -f "$APK_FILE" ]; then
+        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
+        if [ -f "$AAB_FILE" ]; then
+          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
+          java -jar bundletool.jar build-apks \
+            --bundle="$AAB_FILE" \
+            --output=app.apks \
+            --mode=universal \
+            --ks=keystore.jks \
+            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
+            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
+            --overwrite
+          unzip -o app.apks -d apk_output
           mkdir -p bin
-          cp "$APK_FILE" bin/app-release.apk
-          echo "APK found at: $APK_FILE"
+          cp apk_output/universal.apk bin/app-release.apk
         else
-          echo "No APK found!"
-          # نمایش فایل‌های موجود برای دیباگ
-          find . -name "*.apk" -type f || true
-          find . -name "*.aab" -type f || true
-          exit 1
+          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
+          if [ -f "$APK_FILE" ]; then
+            mkdir -p bin
+            cp "$APK_FILE" bin/app-release.apk
+          else
+            echo "No APK or AAB found!"
+            exit 1
+          fi
         fi
 
     - name: Upload APK
