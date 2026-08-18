@@ -68,7 +68,7 @@ jobs:
         version = 0.1.1
         
         # ✅ Python 3.10 و کتابخانه‌های سازگار
-        requirements = python3==3.10.16,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime,pyjnius==1.6.1,requests,charset-normalizer==3.4.0
+        requirements = python3==3.10.16,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime
         
         orientation = portrait
         fullscreen = 1
