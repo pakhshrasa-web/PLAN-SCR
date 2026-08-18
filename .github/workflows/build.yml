@@ -31,8 +31,7 @@ jobs:
           build-essential git zip unzip autoconf libtool pkg-config \
           zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
           cmake libffi-dev libssl-dev wget ccache \
-          libfreetype6-dev libjpeg-dev gcc g++ \
-          libfreetype6 libfreetype6-dev
+          libfreetype6-dev libjpeg-dev gcc g++
     
     - name: Install buildozer and cython
       run: |
@@ -46,26 +45,28 @@ jobs:
         rm -rf ~/.cache/pip
         rm -rf bin
         mkdir -p data fonts
-        
-        # دانلود دستی freetype با retry
-        echo "=== Pre-downloading freetype ==="
-        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype
-        cd ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype
-        
-        # تلاش از چند منبع
-        wget --tries=5 --timeout=30 --retry-connrefused \
-          "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
-          -O freetype-2.14.1.tar.gz || \
-        wget --tries=5 --timeout=30 \
-          "https://mirror.ossplanet.net/nongnu/freetype/freetype-2.14.1.tar.gz" \
-          -O freetype-2.14.1.tar.gz || \
-        wget --tries=5 --timeout=30 \
-          "https://ftp.acc.umu.se/mirror/gnu.org/savannah/freetype/freetype-2.14.1.tar.gz" \
-          -O freetype-2.14.1.tar.gz
-        
-        ls -la freetype-2.14.1.tar.gz
         echo "CC=gcc" >> $GITHUB_ENV
         echo "CXX=g++" >> $GITHUB_ENV
+    
+    - name: Pre-download freetype from GitHub
+      run: |
+        echo "=== Downloading freetype from GitHub mirror ==="
+        mkdir -p ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype
+        
+        # دانلود از GitHub (مطمئن‌تر)
+        wget --tries=3 --timeout=60 \
+          "https://github.com/freetype/freetype/archive/refs/tags/VER-2-14-1.tar.gz" \
+          -O ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/freetype-2.14.1.tar.gz \
+        || wget --tries=3 --timeout=60 \
+          "https://gitlab.freedesktop.org/freetype/freetype/-/archive/VER-2-14-1/freetype-VER-2-14-1.tar.gz" \
+          -O ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/freetype-2.14.1.tar.gz \
+        || wget --tries=3 --timeout=60 \
+          "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz" \
+          -O ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/freetype-2.14.1.tar.gz
+        
+        # علامت‌گذاری به عنوان دانلود شده
+        touch ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+        ls -la ~/.buildozer/android/platform/build-arm64-v8a/packages/freetype/
     
     - name: Create buildozer.spec
       run: |
@@ -103,25 +104,21 @@ jobs:
         p4a.ndk_version = 25b
         SPECEOF
         
-        echo "=== Verifying spec ==="
+        echo "=== Spec file created ==="
         cat buildozer.spec
     
-    - name: Build APK with explicit settings
+    - name: Build APK
       run: |
         echo "=== Starting build ==="
-        # تنظیم متغیرهای محیطی مستقیم
         export ANDROIDAPI=33
-        export ANDROIDNDK="$HOME/.buildozer/android/platform/android-ndk-r25b"
         export ANDROIDMINAPI=21
         export P4A_NDK_VERSION="25b"
         
-        # اجرای buildozer
         yes | buildozer -v android release 2>&1 | tee build.log
       env:
         CC: gcc
         CXX: g++
         ANDROIDAPI: "33"
-        ANDROIDNDK: "/home/runner/.buildozer/android/platform/android-ndk-r25b"
         ANDROIDMINAPI: "21"
         P4A_NDK_VERSION: "25b"
     
