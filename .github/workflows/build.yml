@@ -8,13 +8,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120  # ✅ بازگشت به 120 دقیقه
+    timeout-minutes: 120
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Python
+    - name: Setup Python 3.10
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
@@ -66,12 +66,15 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 0.1.1
-        requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,requests,Pillow,jdatetime
+        
+        # ✅ Python 3.10 و کتابخانه‌های سازگار
+        requirements = python3==3.10.16,kivy==2.3.0,Pillow==10.4.0,openpyxl,arabic-reshaper,python-bidi,jdatetime,pyjnius==1.6.1,requests,charset-normalizer==3.4.0
+        
         orientation = portrait
         fullscreen = 1
         android.add_src = fonts/
         
-        # ✅ بازگشت تنظیمات مهم p4a
+        # ✅ تنظیمات مهم p4a
         p4a.ndk_version = 25b
         p4a.branch = develop
         
@@ -182,7 +185,6 @@ jobs:
         echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
         echo "buildozer.spec updated with keystore info"
 
-    # ✅ بازگشت مرحله pre-copy freetype
     - name: Pre-copy freetype to buildozer cache
       run: |
         echo "Checking if freetype file exists:"
