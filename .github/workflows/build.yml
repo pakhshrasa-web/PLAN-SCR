@@ -28,48 +28,30 @@ jobs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y -qq \
-          build-essential \
-          git \
-          zip \
-          unzip \
-          autoconf \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libtinfo5 \
-          cmake \
-          libffi-dev \
-          libssl-dev \
-          wget \
-          ccache \
-          libfreetype6-dev \
-          libjpeg-dev \
-          gcc \
-          g++
+          build-essential git zip unzip autoconf libtool pkg-config \
+          zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+          cmake libffi-dev libssl-dev wget ccache \
+          libfreetype6-dev libjpeg-dev gcc g++
     
     - name: Install buildozer and cython
       run: |
         pip install --upgrade pip setuptools wheel
         pip install buildozer==1.5.0 cython==0.29.37
     
-    - name: Clean old NDK and build files
+    - name: Clean ALL previous builds
       run: |
-        rm -rf ~/.buildozer/android/platform/android-ndk-*
-        rm -rf .buildozer/android/platform/android-ndk-*
-        rm -rf ~/.buildozer/android/platform/build-*
-        rm -rf .buildozer/android/platform/build-*
+        echo "=== Cleaning all caches ==="
+        rm -rf ~/.buildozer
+        rm -rf .buildozer
         rm -rf ~/.cache/pip
-        echo "CC=gcc" >> $GITHUB_ENV
-        echo "CXX=g++" >> $GITHUB_ENV
-    
-    - name: Create data directory
-      run: |
+        rm -rf bin
         mkdir -p data
         mkdir -p fonts
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+        echo "Cleaned successfully"
     
-    - name: Create buildozer.spec
+    - name: Create buildozer.spec with CORRECT settings
       run: |
         cat > buildozer.spec << 'SPECEOF'
         [app]
@@ -90,8 +72,6 @@ jobs:
         warn_on_root = 1
         
         [buildozer:android]
-        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
-        android.ndk_path = /home/runner/.buildozer/android/platform/android-ndk-r25b
         android.api = 33
         android.minapi = 21
         android.ndk = 25b
@@ -106,23 +86,41 @@ jobs:
         p4a.branch = develop
         p4a.ndk_version = 25b
         SPECEOF
-    
-    - name: Verify spec file
-      run: |
-        echo "=== buildozer.spec ==="
+        
+        echo "=== Verifying spec file ==="
         cat buildozer.spec
-        echo "=== Python version ==="
-        python --version
-        echo "=== Checking NDK path ==="
-        ls -la ~/.buildozer/android/platform/ 2>/dev/null || echo "Directory not created yet"
+        echo "=== Checking for old config ==="
+        ls -la ~/.buildozer/ 2>/dev/null || echo "No old config"
+    
+    - name: Verify environment
+      run: |
+        echo "Python: $(python --version)"
+        echo "Java: $(java -version 2>&1 | head -1)"
+        echo "GCC: $(gcc --version | head -1)"
+        echo "Buildozer: $(buildozer --version 2>&1)"
+        echo "Checking spec:"
+        grep -E "android.ndk|android.api|p4a.ndk" buildozer.spec
     
     - name: Build APK
       run: |
+        echo "=== Starting build ==="
+        # Force remove any cached NDK
+        rm -rf ~/.buildozer/android/platform/android-ndk-*
+        
+        # Run buildozer with explicit settings
         yes | buildozer -v android release 2>&1 | tee build.log
       env:
         CC: gcc
         CXX: g++
         P4A_NDK_VERSION: "25b"
+        ANDROIDAPI: "33"
+        ANDROIDNDK: "android-ndk-r25b"
+    
+    - name: Check build result
+      run: |
+        echo "=== Checking APK ==="
+        ls -la bin/ 2>/dev/null || echo "No bin directory"
+        find . -name "*.apk" -type f 2>/dev/null | head -5
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
