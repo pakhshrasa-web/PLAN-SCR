@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK with Docker
 
 on:
   push:
@@ -14,44 +14,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Install system dependencies
+    - name: Create data files
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq \
-          build-essential git zip unzip \
-          autoconf libtool \
-          pkg-config zlib1g-dev libncurses5-dev \
-          libncursesw5-dev libtinfo5 cmake \
-          libffi-dev libssl-dev wget \
-          ccache \
-          libfreetype6-dev libjpeg-dev zlib1g-dev
-
-    - name: Install Python packages
-      run: |
-        pip install --upgrade pip==23.3.2
-        pip install buildozer==1.5.0
-        pip install cython==0.29.37
-        pip install sh==1.14.3
-
-    - name: Download and setup NDK 25b
-      run: |
-        wget -q https://dl.google.com/android/repository/android-ndk-r25b-linux.zip
-        unzip -q android-ndk-r25b-linux.zip
-        mkdir -p /home/runner/.buildozer/android/platform/
-        rm -rf /home/runner/.buildozer/android/platform/android-ndk-*
-        mv android-ndk-r25b /home/runner/.buildozer/android/platform/
-        echo "ANDROID_NDK_HOME=/home/runner/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
+        mkdir -p data
+        echo '{"agents": [], "routes": [], "customers": []}' > data/definitions.json
+        echo '{"supervision_rate": 0.3, "conversion_rate": 0.25, "avg_invoice_amount": 1000000, "target_amount": 50000000, "target_count": 100, "target_invoice_count": 20, "target_customer_count": 50, "target_new_customer_count": 10, "target_cash_sales": 30000000, "target_credit_sales": 20000000, "work_start_time": "08:00", "first_visit_time": "09:00", "min_daily_hours": 6, "first_customer_of_route": ""}' > data/settings.json
+        echo '{"users": []}' > data/users.json
+        echo '{"codes": []}' > data/codes.json
+        echo '{"hashed_password": ""}' > data/admin_password.json
+        echo '{}' > data/daily_log.json
 
     - name: Create buildozer.spec
       run: |
@@ -63,10 +34,7 @@ jobs:
         source.dir = .
         source.include_exts = py,png,jpg,kv,atlas,ttf,json
         version = 1.0.${env:GITHUB_RUN_NUMBER}
-        
-        # ⚠️ مستقیماً کتابخانه‌ها - بدون requests
         requirements = python3,kivy,openpyxl,arabic-reshaper,python-bidi,Pillow,jdatetime
-        
         orientation = portrait
         fullscreen = 1
         icon.filename = icon/kivy-icon-512.png
@@ -80,7 +48,7 @@ jobs:
         android.api = 34
         android.minapi = 21
         android.ndk = 25b
-        android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
+        android.sdk_path = /home/user/.buildozer/android/platform/android-sdk
         android.accept_sdk_license = True
         android.archs = armeabi-v7a, arm64-v8a
         android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
@@ -91,72 +59,20 @@ jobs:
         android.version_code = ${env:GITHUB_RUN_NUMBER}
         EOF
 
-    - name: Create data files
-      run: |
-        mkdir -p data
-        echo '{"agents": [], "routes": [], "customers": []}' > data/definitions.json
-        echo '{"supervision_rate": 0.3, "conversion_rate": 0.25, "avg_invoice_amount": 1000000, "target_amount": 50000000, "target_count": 100, "target_invoice_count": 20, "target_customer_count": 50, "target_new_customer_count": 10, "target_cash_sales": 30000000, "target_credit_sales": 20000000, "work_start_time": "08:00", "first_visit_time": "09:00", "min_daily_hours": 6, "first_customer_of_route": ""}' > data/settings.json
-        echo '{"users": []}' > data/users.json
-        echo '{"codes": []}' > data/codes.json
-        echo '{"hashed_password": ""}' > data/admin_password.json
-        echo '{}' > data/daily_log.json
-
-    - name: Copy fonts and data
-      run: |
-        mkdir -p .buildozer/android/app/fonts
-        mkdir -p .buildozer/android/app/data
-        mkdir -p .buildozer/android/app/icon  
-        cp -v fonts/*.ttf .buildozer/android/app/fonts/ 2>/dev/null || true
-        cp -v data/*.json .buildozer/android/app/data/ 2>/dev/null || true
-        cp -v icon/*.png .buildozer/android/app/icon/ 2>/dev/null || true
-
     - name: Restore Keystore
       run: |
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
-        mkdir -p .buildozer/android/platform/
-        cp keystore.jks .buildozer/android/platform/planandroid.keystore
 
-    - name: Update keystore in spec
+    - name: Build with Docker
       run: |
-        echo "" >> buildozer.spec
-        echo "android.keystore = planandroid.keystore" >> buildozer.spec
-        echo "android.keystore_password = ${{ secrets.KEYSTORE_PASSWORD }}" >> buildozer.spec
-        echo "android.keystore_alias = ${{ secrets.KEY_ALIAS }}" >> buildozer.spec
-        echo "android.keystore_alias_password = ${{ secrets.KEY_PASSWORD }}" >> buildozer.spec
-
-    - name: Build with buildozer
-      run: |
-        echo "y" | buildozer -v android release
-      env:
-        ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b
-
-    - name: Convert AAB to APK
-      run: |
-        AAB_FILE=$(find . -name "*.aab" -type f | head -n 1)
-        if [ -f "$AAB_FILE" ]; then
-          wget -q https://github.com/google/bundletool/releases/download/1.17.0/bundletool-all-1.17.0.jar -O bundletool.jar
-          java -jar bundletool.jar build-apks \
-            --bundle="$AAB_FILE" \
-            --output=app.apks \
-            --mode=universal \
-            --ks=keystore.jks \
-            --ks-pass=pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --ks-key-alias=${{ secrets.KEY_ALIAS }} \
-            --key-pass=pass:${{ secrets.KEY_PASSWORD }} \
-            --overwrite
-          unzip -o app.apks -d apk_output
-          mkdir -p bin
-          cp apk_output/universal.apk bin/app-release.apk
-        else
-          APK_FILE=$(find . -name "*.apk" -type f | head -n 1)
-          if [ -f "$APK_FILE" ]; then
-            mkdir -p bin
-            cp "$APK_FILE" bin/app-release.apk
-          else
-            echo "No APK or AAB found!"
-            exit 1
-          fi
-        fi
+        docker run --rm \
+          -v $(pwd):/app \
+          -v ~/.buildozer:/home/user/.buildozer \
+          -e KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}" \
+          -e KEY_ALIAS="${{ secrets.KEY_ALIAS }}" \
+          -e KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}" \
+          kivy/buildozer \
+          buildozer android debug deploy run
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
